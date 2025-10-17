@@ -1,9 +1,11 @@
 import { mockStudents } from '@/data/mockData';
-import { StudentCard } from '@/components/StudentCard';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Calendar, TrendingUp } from 'lucide-react';
+import { getPaymentStatus } from '@/types/student';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -47,14 +49,52 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Students Grid */}
+      {/* Students List */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-4">All Students</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activeStudents.map((student) => (
-            <StudentCard key={student.id} student={student} />
-          ))}
-        </div>
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student Name</TableHead>
+                <TableHead>Parent Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Classes Attended</TableHead>
+                <TableHead>Classes Remaining</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeStudents.map((student) => {
+                const status = getPaymentStatus(student.classesRemaining);
+                const statusConfig = {
+                  good: { variant: 'success' as const, label: 'Active' },
+                  low: { variant: 'warning' as const, label: 'Low Credits' },
+                  due: { variant: 'destructive' as const, label: 'Payment Due' },
+                };
+                
+                return (
+                  <TableRow 
+                    key={student.id} 
+                    className="cursor-pointer hover:bg-accent/50"
+                    onClick={() => navigate(`/student/${student.id}`)}
+                  >
+                    <TableCell className="font-medium text-primary">{student.name}</TableCell>
+                    <TableCell>{student.parentName}</TableCell>
+                    <TableCell>{student.email}</TableCell>
+                    <TableCell>{student.classesAttended}</TableCell>
+                    <TableCell>{student.classesRemaining}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusConfig[status].variant}>
+                        {statusConfig[status].label}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
       </div>
 
       {activeStudents.length === 0 && (
