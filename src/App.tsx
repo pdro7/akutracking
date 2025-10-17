@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import Dashboard from "./pages/Dashboard";
 import StudentDetail from "./pages/StudentDetail";
 import Attendance from "./pages/Attendance";
+import AttendanceHistory from "./pages/AttendanceHistory";
 import Students from "./pages/Students";
 import NewStudent from "./pages/NewStudent";
 import Settings from "./pages/Settings";
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/student/:id" element={<StudentDetail />} />
             <Route path="/attendance" element={<Attendance />} />
+            <Route path="/attendance/history" element={<AttendanceHistory />} />
             <Route path="/students" element={<Students />} />
             <Route path="/students/new" element={<NewStudent />} />
             <Route path="/settings" element={<Settings />} />

@@ -3,10 +3,12 @@ import { mockStudents } from '@/data/mockData';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, CheckCircle, XCircle, User } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, User, History } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function Attendance() {
+  const navigate = useNavigate();
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
   const activeStudents = mockStudents.filter(s => s.isActive);
   const today = new Date();
@@ -20,9 +22,15 @@ export default function Attendance() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Mark Attendance</h1>
-        <p className="text-muted-foreground">Track student attendance for each class session</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Mark Attendance</h1>
+          <p className="text-muted-foreground">Track student attendance for each class session</p>
+        </div>
+        <Button onClick={() => navigate('/attendance/history')} variant="outline" className="gap-2">
+          <History size={20} />
+          View History
+        </Button>
       </div>
 
       <Card className="p-6 mb-6">
