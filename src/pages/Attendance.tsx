@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 export default function Attendance() {
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
   const activeStudents = mockStudents.filter(s => s.isActive);
+  const today = new Date();
+  const isSaturday = today.getDay() === 6;
 
   const handleMarkAttendance = (studentId: string, attended: boolean) => {
     toast.success(
@@ -40,51 +42,61 @@ export default function Attendance() {
         </div>
       </Card>
 
-      <div className="space-y-4">
-        {activeStudents.map((student) => (
-          <Card key={student.id} className="p-6 hover:shadow-hover transition-shadow">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4 flex-1">
-                <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-                  <User className="text-primary-foreground" size={24} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">{student.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {student.classesRemaining} {student.classesRemaining === 1 ? 'class' : 'classes'} remaining
-                  </p>
-                </div>
-                {student.classesRemaining === 0 && (
-                  <Badge variant="destructive">Payment Due</Badge>
-                )}
-                {student.classesRemaining <= 2 && student.classesRemaining > 0 && (
-                  <Badge variant="warning">Low Credits</Badge>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => handleMarkAttendance(student.id, true)}
-                  className="gap-2"
-                  disabled={student.classesRemaining === 0}
-                >
-                  <CheckCircle size={20} />
-                  Present
-                </Button>
-                <Button
-                  onClick={() => handleMarkAttendance(student.id, false)}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <XCircle size={20} />
-                  Absent
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+      {!isSaturday && (
+        <Card className="p-12 text-center">
+          <Calendar className="mx-auto mb-4 text-muted-foreground" size={48} />
+          <h3 className="text-xl font-semibold mb-2">Classes are only on Saturdays</h3>
+          <p className="text-muted-foreground">Please come back on Saturday to mark attendance</p>
+        </Card>
+      )}
 
-      {activeStudents.length === 0 && (
+      {isSaturday && (
+        <div className="space-y-4">
+          {activeStudents.map((student) => (
+            <Card key={student.id} className="p-6 hover:shadow-hover transition-shadow">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
+                    <User className="text-primary-foreground" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">{student.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {student.classesRemaining} {student.classesRemaining === 1 ? 'class' : 'classes'} remaining
+                    </p>
+                  </div>
+                  {student.classesRemaining === 0 && (
+                    <Badge variant="destructive">Payment Due</Badge>
+                  )}
+                  {student.classesRemaining <= 2 && student.classesRemaining > 0 && (
+                    <Badge variant="warning">Low Credits</Badge>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => handleMarkAttendance(student.id, true)}
+                    className="gap-2"
+                    disabled={student.classesRemaining === 0}
+                  >
+                    <CheckCircle size={20} />
+                    Present
+                  </Button>
+                  <Button
+                    onClick={() => handleMarkAttendance(student.id, false)}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <XCircle size={20} />
+                    Absent
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {isSaturday && activeStudents.length === 0 && (
         <Card className="p-12 text-center">
           <Calendar className="mx-auto mb-4 text-muted-foreground" size={48} />
           <h3 className="text-xl font-semibold mb-2">No students to mark</h3>
