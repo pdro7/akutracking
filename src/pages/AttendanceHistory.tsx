@@ -1,14 +1,40 @@
-import { mockStudents } from '@/data/mockData';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Calendar, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format, subWeeks, startOfWeek } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AttendanceHistory() {
   const navigate = useNavigate();
-  const activeStudents = mockStudents.filter(s => s.isActive);
+  
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ['students'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: allAttendance = [] } = useQuery({
+    queryKey: ['allAttendance'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('*');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
   
   // Generate last 8 Saturdays
   const getSaturdays = () => {
@@ -27,17 +53,18 @@ export default function AttendanceHistory() {
 
   const saturdays = getSaturdays();
 
-  // Mock function to get attendance status for a student on a specific date
   const getAttendanceStatus = (studentId: string, date: Date) => {
-    // Using attendance history from mock data
-    const student = mockStudents.find(s => s.id === studentId);
-    if (!student) return null;
-    
     const dateStr = format(date, 'yyyy-MM-dd');
-    const attendance = student.attendanceHistory.find(a => a.date === dateStr);
+    const attendance = allAttendance.find(
+      (a: any) => a.student_id === studentId && a.date === dateStr
+    );
     
     return attendance?.attended;
   };
+
+  if (isLoading) {
+    return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -74,7 +101,7 @@ export default function AttendanceHistory() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {activeStudents.map((student) => (
+            {students.map((student: any) => (
               <TableRow key={student.id}>
                 <TableCell className="sticky left-0 bg-background z-10 font-medium">
                   {student.name}
@@ -94,7 +121,7 @@ export default function AttendanceHistory() {
                           <XCircle className="text-red-600" size={24} />
                         </div>
                       )}
-                      {attended === null && (
+                      {attended === undefined && (
                         <div className="flex justify-center">
                           <span className="text-muted-foreground text-sm">-</span>
                         </div>
@@ -108,7 +135,7 @@ export default function AttendanceHistory() {
         </Table>
       </Card>
 
-      {activeStudents.length === 0 && (
+      {students.length === 0 && (
         <Card className="p-12 text-center mt-6">
           <Calendar className="mx-auto mb-4 text-muted-foreground" size={48} />
           <h3 className="text-xl font-semibold mb-2">No students found</h3>

@@ -1,12 +1,60 @@
-import { mockUser } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bot, Home, Users, Settings, Calendar } from 'lucide-react';
+import { Bot, Home, Users, Settings, Calendar, LogOut } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      return data;
+    }
+  });
+
+  const { data: userRole } = useQuery({
+    queryKey: ['userRole'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      return data?.role || 'user';
+    }
+  });
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Logout failed",
+        description: error.message,
+      });
+    } else {
+      navigate("/auth");
+    }
+  };
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Home },
@@ -47,11 +95,14 @@ export function Header() {
 
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{mockUser.name}</p>
-              <Badge variant="secondary" className="text-xs">
-                {mockUser.role.charAt(0).toUpperCase() + mockUser.role.slice(1)}
+              <p className="text-sm font-medium">{profile?.name || 'User'}</p>
+              <Badge variant="secondary" className="text-xs capitalize">
+                {userRole}
               </Badge>
             </div>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 

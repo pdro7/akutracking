@@ -1,4 +1,3 @@
-import { mockStudents } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -6,10 +5,31 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Students() {
   const navigate = useNavigate();
-  const activeStudents = mockStudents.filter(s => s.isActive);
+  
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ['students'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const activeStudents = students;
+
+  if (isLoading) {
+    return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -38,7 +58,7 @@ export default function Students() {
           </TableHeader>
           <TableBody>
             {activeStudents.map((student) => {
-              const status = getPaymentStatus(student.classesRemaining);
+              const status = getPaymentStatus(student.classes_remaining);
               const statusConfig = {
                 good: { variant: 'success' as const, label: 'Active' },
                 low: { variant: 'warning' as const, label: 'Low Credits' },
@@ -52,10 +72,10 @@ export default function Students() {
                   onClick={() => navigate(`/student/${student.id}`)}
                 >
                   <TableCell className="font-medium text-primary">{student.name}</TableCell>
-                  <TableCell>{student.parentName}</TableCell>
+                  <TableCell>{student.parent_name}</TableCell>
                   <TableCell>{student.email}</TableCell>
-                  <TableCell>{student.classesAttended}</TableCell>
-                  <TableCell>{student.classesRemaining}</TableCell>
+                  <TableCell>{student.classes_attended}</TableCell>
+                  <TableCell>{student.classes_remaining}</TableCell>
                   <TableCell>
                     <Badge variant={statusConfig[status].variant}>
                       {statusConfig[status].label}

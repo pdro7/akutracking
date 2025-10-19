@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const studentFormSchema = z.object({
   // Student Information
@@ -41,6 +43,7 @@ type StudentFormValues = z.infer<typeof studentFormSchema>;
 
 export default function NewStudent() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema),
@@ -63,10 +66,35 @@ export default function NewStudent() {
     },
   });
 
+  const addStudentMutation = useMutation({
+    mutationFn: async (data: StudentFormValues) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from('students').insert({
+        name: `${data.studentFirstName} ${data.studentLastName}`,
+        email: data.primaryContactEmail,
+        phone: data.primaryContactPhone,
+        parent_name: data.fatherName || data.motherName || 'Parent',
+        enrollment_date: new Date().toISOString().split('T')[0],
+        pack_size: parseInt(data.packSize),
+        classes_remaining: parseInt(data.packSize),
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Student added successfully!');
+      navigate('/students');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
+
   const onSubmit = (data: StudentFormValues) => {
-    console.log('New student data:', data);
-    toast.success('Student added successfully!');
-    navigate('/students');
+    addStudentMutation.mutate(data);
   };
 
   return (

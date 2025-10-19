@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Header } from "@/components/Header";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import StudentDetail from "./pages/StudentDetail";
 import Attendance from "./pages/Attendance";
@@ -11,6 +12,7 @@ import AttendanceHistory from "./pages/AttendanceHistory";
 import Students from "./pages/Students";
 import NewStudent from "./pages/NewStudent";
 import Settings from "./pages/Settings";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,16 +24,15 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <div className="min-h-screen bg-background">
-          <Header />
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/student/:id" element={<StudentDetail />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/attendance/history" element={<AttendanceHistory />} />
-            <Route path="/students" element={<Students />} />
-            <Route path="/students/new" element={<NewStudent />} />
-            <Route path="/settings" element={<Settings />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<ProtectedRoute><Header /><Dashboard /></ProtectedRoute>} />
+            <Route path="/student/:id" element={<ProtectedRoute><Header /><StudentDetail /></ProtectedRoute>} />
+            <Route path="/attendance" element={<ProtectedRoute><Header /><Attendance /></ProtectedRoute>} />
+            <Route path="/attendance/history" element={<ProtectedRoute><Header /><AttendanceHistory /></ProtectedRoute>} />
+            <Route path="/students" element={<ProtectedRoute><Header /><Students /></ProtectedRoute>} />
+            <Route path="/students/new" element={<ProtectedRoute><Header /><NewStudent /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Header /><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

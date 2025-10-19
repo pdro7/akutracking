@@ -1,19 +1,76 @@
 import { useState } from 'react';
-import { mockSettings } from '@/data/mockData';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings as SettingsIcon, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Settings() {
-  const [packSize, setPackSize] = useState(mockSettings.defaultPackSize);
-  const [classDay, setClassDay] = useState(mockSettings.classDay);
+  const queryClient = useQueryClient();
+  
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data || { default_pack_size: 8, class_day: 'Saturday' };
+    }
+  });
+
+  const [packSize, setPackSize] = useState(settings?.default_pack_size || 8);
+  const [classDay, setClassDay] = useState(settings?.class_day || 'Saturday');
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async () => {
+      const { data: existing } = await supabase
+        .from('settings')
+        .select('id')
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('settings')
+          .update({
+            default_pack_size: packSize,
+            class_day: classDay,
+          })
+          .eq('id', existing.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('settings')
+          .insert({
+            default_pack_size: packSize,
+            class_day: classDay,
+          });
+        
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      toast.success('Settings saved successfully!');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
 
   const handleSave = () => {
-    toast.success('Settings saved successfully!');
+    updateSettingsMutation.mutate();
   };
+
+  if (isLoading) {
+    return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

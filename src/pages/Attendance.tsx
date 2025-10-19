@@ -1,24 +1,81 @@
 import { useState } from 'react';
-import { mockStudents } from '@/data/mockData';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, CheckCircle, XCircle, User, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { getPaymentStatus } from '@/types/student';
 
 export default function Attendance() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const activeStudents = mockStudents.filter(s => s.isActive);
   const today = new Date();
   const isSaturday = today.getDay() === 6;
 
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ['students'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const markAttendanceMutation = useMutation({
+    mutationFn: async ({ studentId, attended }: { studentId: string; attended: boolean }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const student = students.find(s => s.id === studentId)!;
+
+      const { error } = await supabase.from('attendance_records').insert({
+        student_id: studentId,
+        date: selectedDate,
+        attended,
+        marked_by: user.id,
+      });
+
+      if (error) throw error;
+
+      if (attended) {
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({
+            classes_attended: student.classes_attended + 1,
+            classes_remaining: student.classes_remaining - 1,
+          })
+          .eq('id', studentId);
+
+        if (updateError) throw updateError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Attendance recorded successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
+
   const handleMarkAttendance = (studentId: string, attended: boolean) => {
-    toast.success(
-      `Marked ${mockStudents.find(s => s.id === studentId)?.name} as ${attended ? 'present' : 'absent'}`
-    );
+    markAttendanceMutation.mutate({ studentId, attended });
   };
+
+  const activeStudents = students;
+
+  if (isLoading) {
+    return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -60,47 +117,50 @@ export default function Attendance() {
 
       {isSaturday && (
         <div className="space-y-4">
-          {activeStudents.map((student) => (
-            <Card key={student.id} className="p-6 hover:shadow-hover transition-shadow">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-                    <User className="text-primary-foreground" size={24} />
+          {activeStudents.map((student) => {
+            const status = getPaymentStatus(student.classes_remaining);
+            return (
+              <Card key={student.id} className="p-6 hover:shadow-hover transition-shadow">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
+                      <User className="text-primary-foreground" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">{student.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {student.classes_remaining} {student.classes_remaining === 1 ? 'class' : 'classes'} remaining
+                      </p>
+                    </div>
+                    {student.classes_remaining === 0 && (
+                      <Badge variant="destructive">Payment Due</Badge>
+                    )}
+                    {student.classes_remaining <= 2 && student.classes_remaining > 0 && (
+                      <Badge variant="warning">Low Credits</Badge>
+                    )}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">{student.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {student.classesRemaining} {student.classesRemaining === 1 ? 'class' : 'classes'} remaining
-                    </p>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => handleMarkAttendance(student.id, true)}
+                      className="gap-2"
+                      disabled={student.classes_remaining === 0}
+                    >
+                      <CheckCircle size={20} />
+                      Present
+                    </Button>
+                    <Button
+                      onClick={() => handleMarkAttendance(student.id, false)}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <XCircle size={20} />
+                      Absent
+                    </Button>
                   </div>
-                  {student.classesRemaining === 0 && (
-                    <Badge variant="destructive">Payment Due</Badge>
-                  )}
-                  {student.classesRemaining <= 2 && student.classesRemaining > 0 && (
-                    <Badge variant="warning">Low Credits</Badge>
-                  )}
                 </div>
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => handleMarkAttendance(student.id, true)}
-                    className="gap-2"
-                    disabled={student.classesRemaining === 0}
-                  >
-                    <CheckCircle size={20} />
-                    Present
-                  </Button>
-                  <Button
-                    onClick={() => handleMarkAttendance(student.id, false)}
-                    variant="outline"
-                    className="gap-2"
-                  >
-                    <XCircle size={20} />
-                    Absent
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
 

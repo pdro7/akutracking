@@ -1,15 +1,48 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockStudents } from '@/data/mockData';
 import { getPaymentStatus } from '@/types/student';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function StudentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const student = mockStudents.find(s => s.id === id);
+  
+  const { data: student, isLoading } = useQuery({
+    queryKey: ['student', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: attendanceHistory = [] } = useQuery({
+    queryKey: ['attendance', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('*, profiles:marked_by(name)')
+        .eq('student_id', id)
+        .order('date', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id
+  });
+
+  if (isLoading) {
+    return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  }
 
   if (!student) {
     return (
@@ -22,7 +55,7 @@ export default function StudentDetail() {
     );
   }
 
-  const status = getPaymentStatus(student.classesRemaining);
+  const status = getPaymentStatus(student.classes_remaining);
   const statusConfig = {
     good: { variant: 'success' as const, label: 'Good Standing' },
     low: { variant: 'warning' as const, label: 'Low Credits' },
@@ -52,7 +85,7 @@ export default function StudentDetail() {
           <div className="space-y-3 text-sm">
             <div>
               <p className="text-muted-foreground mb-1">Parent/Guardian</p>
-              <p className="font-medium">{student.parentName}</p>
+              <p className="font-medium">{student.parent_name}</p>
             </div>
             <div className="flex items-center gap-2">
               <Mail size={16} className="text-muted-foreground" />
@@ -64,28 +97,30 @@ export default function StudentDetail() {
             </div>
             <div>
               <p className="text-muted-foreground mb-1">Enrollment Date</p>
-              <p className="font-medium">{new Date(student.enrollmentDate).toLocaleDateString()}</p>
+              <p className="font-medium">{new Date(student.enrollment_date).toLocaleDateString()}</p>
             </div>
-            <div>
-              <p className="text-muted-foreground mb-1">Last Payment</p>
-              <p className="font-medium">{new Date(student.lastPaymentDate).toLocaleDateString()}</p>
-            </div>
+            {student.last_payment_date && (
+              <div>
+                <p className="text-muted-foreground mb-1">Last Payment</p>
+                <p className="font-medium">{new Date(student.last_payment_date).toLocaleDateString()}</p>
+              </div>
+            )}
           </div>
 
           <div className="border-t mt-6 pt-6">
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Pack Size</p>
-                <p className="text-xl font-bold">{student.packSize}</p>
+                <p className="text-xl font-bold">{student.pack_size}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Attended</p>
-                <p className="text-xl font-bold text-primary">{student.classesAttended}</p>
+                <p className="text-xl font-bold text-primary">{student.classes_attended}</p>
               </div>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Remaining Classes</p>
-              <p className="text-3xl font-bold">{student.classesRemaining}</p>
+              <p className="text-3xl font-bold">{student.classes_remaining}</p>
             </div>
           </div>
         </Card>
@@ -98,39 +133,39 @@ export default function StudentDetail() {
           </div>
 
           <div className="space-y-3">
-            {student.attendanceHistory.length === 0 ? (
+            {attendanceHistory.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No attendance records yet</p>
             ) : (
-              student.attendanceHistory
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((record) => (
-                  <div
-                    key={record.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      {record.attended ? (
-                        <CheckCircle className="text-success" size={24} />
-                      ) : (
-                        <XCircle className="text-muted-foreground" size={24} />
-                      )}
-                      <div>
-                        <p className="font-medium">
-                          {new Date(record.date).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </p>
-                        <p className="text-sm text-muted-foreground">Marked by {record.markedBy}</p>
-                      </div>
+              attendanceHistory.map((record: any) => (
+                <div
+                  key={record.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {record.attended ? (
+                      <CheckCircle className="text-green-600" size={24} />
+                    ) : (
+                      <XCircle className="text-muted-foreground" size={24} />
+                    )}
+                    <div>
+                      <p className="font-medium">
+                        {new Date(record.date).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Marked by {record.profiles?.name || 'Unknown'}
+                      </p>
                     </div>
-                    <Badge variant={record.attended ? 'success' : 'secondary'}>
-                      {record.attended ? 'Present' : 'Absent'}
-                    </Badge>
                   </div>
-                ))
+                  <Badge variant={record.attended ? 'success' : 'secondary'}>
+                    {record.attended ? 'Present' : 'Absent'}
+                  </Badge>
+                </div>
+              ))
             )}
           </div>
         </Card>
