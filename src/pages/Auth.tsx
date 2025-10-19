@@ -12,20 +12,25 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  
+  // Separate state for each form
+  const [signInEmail, setSignInEmail] = useState("");
+  const [signInPassword, setSignInPassword] = useState("");
+  
+  const [signUpName, setSignUpName] = useState("");
+  const [signUpEmail, setSignUpEmail] = useState("");
+  const [signUpPassword, setSignUpPassword] = useState("");
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: signUpEmail,
+      password: signUpPassword,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
-        data: { name }
+        data: { name: signUpName }
       }
     });
 
@@ -50,8 +55,8 @@ const Auth = () => {
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: signInEmail,
+      password: signInPassword,
     });
 
     setLoading(false);
@@ -87,9 +92,10 @@ const Auth = () => {
                   <Input
                     id="signin-email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={signInEmail}
+                    onChange={(e) => setSignInEmail(e.target.value)}
                     required
+                    maxLength={255}
                   />
                 </div>
                 <div className="space-y-2">
@@ -97,9 +103,10 @@ const Auth = () => {
                   <Input
                     id="signin-password"
                     type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={signInPassword}
+                    onChange={(e) => setSignInPassword(e.target.value)}
                     required
+                    maxLength={72}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
@@ -114,9 +121,10 @@ const Auth = () => {
                   <Input
                     id="signup-name"
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={signUpName}
+                    onChange={(e) => setSignUpName(e.target.value)}
                     required
+                    maxLength={100}
                   />
                 </div>
                 <div className="space-y-2">
@@ -124,9 +132,10 @@ const Auth = () => {
                   <Input
                     id="signup-email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={signUpEmail}
+                    onChange={(e) => setSignUpEmail(e.target.value)}
                     required
+                    maxLength={255}
                   />
                 </div>
                 <div className="space-y-2">
@@ -134,10 +143,11 @@ const Auth = () => {
                   <Input
                     id="signup-password"
                     type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={signUpPassword}
+                    onChange={(e) => setSignUpPassword(e.target.value)}
                     required
                     minLength={6}
+                    maxLength={72}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
