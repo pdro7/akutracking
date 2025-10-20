@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Settings as SettingsIcon, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -116,13 +117,20 @@ export default function Settings() {
               <p className="text-sm text-muted-foreground mb-3">
                 Day of the week when classes typically occur
               </p>
-              <Input
-                id="classDay"
-                type="text"
-                value={classDay}
-                onChange={(e) => setClassDay(e.target.value)}
-                className="max-w-xs"
-              />
+              <Select value={classDay} onValueChange={setClassDay}>
+                <SelectTrigger className="max-w-xs">
+                  <SelectValue placeholder="Select a day" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Monday">Monday</SelectItem>
+                  <SelectItem value="Tuesday">Tuesday</SelectItem>
+                  <SelectItem value="Wednesday">Wednesday</SelectItem>
+                  <SelectItem value="Thursday">Thursday</SelectItem>
+                  <SelectItem value="Friday">Friday</SelectItem>
+                  <SelectItem value="Saturday">Saturday</SelectItem>
+                  <SelectItem value="Sunday">Sunday</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="pt-4 border-t">
