@@ -34,9 +34,9 @@ export default function Dashboard() {
   }
 
   const stats = [
-    { label: 'Active Students', value: activeStudents.length, icon: Users, color: 'text-primary' },
-    { label: 'Payment Due', value: needsPayment.length, icon: TrendingUp, color: 'text-destructive' },
-    { label: 'Low Credits', value: lowCredits.length, icon: Calendar, color: 'text-warning' },
+    { label: 'Active Students', value: activeStudents.length, icon: Users },
+    { label: 'Payment Due', value: needsPayment.length, icon: TrendingUp },
+    { label: 'Low Credits', value: lowCredits.length, icon: Calendar },
   ];
 
   return (
@@ -61,7 +61,7 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
                 <p className="text-3xl font-bold">{stat.value}</p>
               </div>
-              <div className={`w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center ${stat.color}`}>
+              <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center text-white">
                 <stat.icon size={24} />
               </div>
             </div>
