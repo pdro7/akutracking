@@ -3,9 +3,10 @@ import { getPaymentStatus } from '@/types/student';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail, Edit } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail, Edit, Cake } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { differenceInYears } from 'date-fns';
 
 export default function StudentDetail() {
   const { id } = useParams();
@@ -62,6 +63,13 @@ export default function StudentDetail() {
     due: { variant: 'destructive' as const, label: 'Payment Due' },
   };
 
+  const calculateAge = (dateOfBirth: string | null) => {
+    if (!dateOfBirth) return null;
+    return differenceInYears(new Date(), new Date(dateOfBirth));
+  };
+
+  const age = calculateAge(student.date_of_birth);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -89,6 +97,12 @@ export default function StudentDetail() {
           </div>
 
           <div className="space-y-3 text-sm">
+            {age !== null && (
+              <div className="flex items-center gap-2">
+                <Cake size={16} className="text-muted-foreground" />
+                <p><span className="font-medium">{age}</span> years old</p>
+              </div>
+            )}
             <div>
               <p className="text-muted-foreground mb-1">Parent/Guardian</p>
               <p className="font-medium">{student.parent_name}</p>
