@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import StudentDetail from "./pages/StudentDetail";
+import EditStudent from "./pages/EditStudent";
 import Attendance from "./pages/Attendance";
 import AttendanceHistory from "./pages/AttendanceHistory";
 import Students from "./pages/Students";
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Header /><Dashboard /></ProtectedRoute>} />
             <Route path="/student/:id" element={<ProtectedRoute><Header /><StudentDetail /></ProtectedRoute>} />
+            <Route path="/student/:id/edit" element={<ProtectedRoute><Header /><EditStudent /></ProtectedRoute>} />
             <Route path="/attendance" element={<ProtectedRoute><Header /><Attendance /></ProtectedRoute>} />
             <Route path="/attendance/history" element={<ProtectedRoute><Header /><AttendanceHistory /></ProtectedRoute>} />
             <Route path="/students" element={<ProtectedRoute><Header /><Students /></ProtectedRoute>} />

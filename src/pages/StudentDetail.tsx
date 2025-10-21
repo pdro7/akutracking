@@ -3,7 +3,7 @@ import { getPaymentStatus } from '@/types/student';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail, Edit } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -64,10 +64,16 @@ export default function StudentDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Button variant="ghost" onClick={() => navigate('/')} className="mb-6 gap-2">
-        <ArrowLeft size={20} />
-        Back to Dashboard
-      </Button>
+      <div className="flex items-center justify-between mb-6">
+        <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
+          <ArrowLeft size={20} />
+          Back to Dashboard
+        </Button>
+        <Button onClick={() => navigate(`/student/${id}/edit`)} className="gap-2">
+          <Edit size={20} />
+          Edit Student
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Student Info Card */}
