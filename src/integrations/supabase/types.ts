@@ -96,48 +96,78 @@ export type Database = {
       }
       students: {
         Row: {
+          address: string | null
           classes_attended: number
           classes_remaining: number
           created_at: string
+          date_of_birth: string | null
           email: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           enrollment_date: string
+          father_name: string | null
+          grade_level: string | null
           id: string
           is_active: boolean
           last_payment_date: string | null
+          medical_conditions: string | null
+          mother_name: string | null
           name: string
+          notes: string | null
           pack_size: number
           parent_name: string
           phone: string
+          school_name: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           classes_attended?: number
           classes_remaining?: number
           created_at?: string
+          date_of_birth?: string | null
           email: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           enrollment_date?: string
+          father_name?: string | null
+          grade_level?: string | null
           id?: string
           is_active?: boolean
           last_payment_date?: string | null
+          medical_conditions?: string | null
+          mother_name?: string | null
           name: string
+          notes?: string | null
           pack_size?: number
           parent_name: string
           phone: string
+          school_name?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           classes_attended?: number
           classes_remaining?: number
           created_at?: string
+          date_of_birth?: string | null
           email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           enrollment_date?: string
+          father_name?: string | null
+          grade_level?: string | null
           id?: string
           is_active?: boolean
           last_payment_date?: string | null
+          medical_conditions?: string | null
+          mother_name?: string | null
           name?: string
+          notes?: string | null
           pack_size?: number
           parent_name?: string
           phone?: string
+          school_name?: string | null
           updated_at?: string
         }
         Relationships: []
