@@ -29,14 +29,30 @@ export default function StudentDetail() {
   const { data: attendanceHistory = [] } = useQuery({
     queryKey: ['attendance', id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: records, error: recordsError } = await supabase
         .from('attendance_records')
-        .select('*, profiles:marked_by(name)')
+        .select('*')
         .eq('student_id', id)
         .order('date', { ascending: false });
       
-      if (error) throw error;
-      return data;
+      if (recordsError) throw recordsError;
+      if (!records || records.length === 0) return [];
+
+      // Fetch profile names for all unique marked_by ids
+      const markedByIds = [...new Set(records.map(r => r.marked_by))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', markedByIds);
+      
+      if (profilesError) throw profilesError;
+
+      // Map profile names to records
+      const profileMap = new Map(profiles?.map(p => [p.id, p.name]) || []);
+      return records.map(record => ({
+        ...record,
+        profiles: { name: profileMap.get(record.marked_by) || 'Unknown' }
+      }));
     },
     enabled: !!id
   });
