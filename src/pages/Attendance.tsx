@@ -2,19 +2,22 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, CheckCircle, XCircle, User, History } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, XCircle, User, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getPaymentStatus } from '@/types/student';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 export default function Attendance() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const today = new Date();
-  const isSaturday = today.getDay() === 6;
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const dateString = selectedDate.toISOString().split('T')[0];
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],
@@ -39,7 +42,7 @@ export default function Attendance() {
 
       const { error } = await supabase.from('attendance_records').insert({
         student_id: studentId,
-        date: selectedDate,
+        date: dateString,
         attended,
         marked_by: user.id,
       });
@@ -91,82 +94,86 @@ export default function Attendance() {
       </div>
 
       <Card className="p-6 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Calendar className="text-primary" size={24} />
-          <div>
-            <h3 className="font-semibold">Today's Date</h3>
-            <p className="text-sm text-muted-foreground">
-              {new Date(selectedDate).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </p>
+        <div className="flex items-center gap-3">
+          <CalendarIcon className="text-primary" size={24} />
+          <div className="flex-1">
+            <h3 className="font-semibold mb-2">Select Date</h3>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </Card>
 
-      {!isSaturday && (
-        <Card className="p-12 text-center">
-          <Calendar className="mx-auto mb-4 text-muted-foreground" size={48} />
-          <h3 className="text-xl font-semibold mb-2">Classes are only on Saturdays</h3>
-          <p className="text-muted-foreground">Please come back on Saturday to mark attendance</p>
-        </Card>
-      )}
-
-      {isSaturday && (
-        <div className="space-y-4">
-          {activeStudents.map((student) => {
-            const status = getPaymentStatus(student.classes_remaining);
-            return (
-              <Card key={student.id} className="p-6 hover:shadow-hover transition-shadow">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-                      <User className="text-primary-foreground" size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{student.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {student.classes_remaining} {student.classes_remaining === 1 ? 'class' : 'classes'} remaining
-                      </p>
-                    </div>
-                    {student.classes_remaining === 0 && (
-                      <Badge variant="destructive">Payment Due</Badge>
-                    )}
-                    {student.classes_remaining <= 2 && student.classes_remaining > 0 && (
-                      <Badge variant="warning">Low Credits</Badge>
-                    )}
+      <div className="space-y-4">
+        {activeStudents.map((student) => {
+          const status = getPaymentStatus(student.classes_remaining);
+          return (
+            <Card key={student.id} className="p-6 hover:shadow-hover transition-shadow">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
+                    <User className="text-primary-foreground" size={24} />
                   </div>
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={() => handleMarkAttendance(student.id, true)}
-                      className="gap-2"
-                      disabled={student.classes_remaining === 0}
-                    >
-                      <CheckCircle size={20} />
-                      Present
-                    </Button>
-                    <Button
-                      onClick={() => handleMarkAttendance(student.id, false)}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <XCircle size={20} />
-                      Absent
-                    </Button>
+                  <div>
+                    <h3 className="font-semibold text-lg">{student.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {student.classes_remaining} {student.classes_remaining === 1 ? 'class' : 'classes'} remaining
+                    </p>
                   </div>
+                  {student.classes_remaining === 0 && (
+                    <Badge variant="destructive">Payment Due</Badge>
+                  )}
+                  {student.classes_remaining <= 2 && student.classes_remaining > 0 && (
+                    <Badge variant="warning">Low Credits</Badge>
+                  )}
                 </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => handleMarkAttendance(student.id, true)}
+                    className="gap-2"
+                    disabled={student.classes_remaining === 0}
+                  >
+                    <CheckCircle size={20} />
+                    Present
+                  </Button>
+                  <Button
+                    onClick={() => handleMarkAttendance(student.id, false)}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <XCircle size={20} />
+                    Absent
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
 
-      {isSaturday && activeStudents.length === 0 && (
+      {activeStudents.length === 0 && (
         <Card className="p-12 text-center">
-          <Calendar className="mx-auto mb-4 text-muted-foreground" size={48} />
+          <CalendarIcon className="mx-auto mb-4 text-muted-foreground" size={48} />
           <h3 className="text-xl font-semibold mb-2">No students to mark</h3>
           <p className="text-muted-foreground">Add students to start tracking attendance</p>
         </Card>
