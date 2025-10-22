@@ -17,7 +17,7 @@ export default function Attendance() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const dateString = selectedDate.toISOString().split('T')[0];
+  const dateString = format(selectedDate, 'yyyy-MM-dd');
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],

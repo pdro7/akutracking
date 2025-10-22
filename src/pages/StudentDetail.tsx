@@ -1,16 +1,45 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPaymentStatus } from '@/types/student';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail, Edit, Cake } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail, Edit, Cake, Trash2, CalendarIcon } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { differenceInYears } from 'date-fns';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function StudentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [editDate, setEditDate] = useState<Date>(new Date());
+  const [editAttended, setEditAttended] = useState(true);
+  const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
   
   const { data: student, isLoading } = useQuery({
     queryKey: ['student', id],
@@ -85,6 +114,78 @@ export default function StudentDetail() {
   };
 
   const age = calculateAge(student.date_of_birth);
+
+  const updateAttendanceMutation = useMutation({
+    mutationFn: async ({ recordId, date, attended }: { recordId: string; date: string; attended: boolean }) => {
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({ date, attended })
+        .eq('id', recordId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance', id] });
+      queryClient.invalidateQueries({ queryKey: ['student', id] });
+      toast.success('Attendance record updated');
+      setEditingRecord(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
+
+  const deleteAttendanceMutation = useMutation({
+    mutationFn: async (recordId: string) => {
+      const record = attendanceHistory.find((r: any) => r.id === recordId);
+      if (!record) throw new Error('Record not found');
+
+      const { error } = await supabase
+        .from('attendance_records')
+        .delete()
+        .eq('id', recordId);
+      
+      if (error) throw error;
+
+      // If it was marked as attended, restore the class count
+      if (record.attended && student) {
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({
+            classes_attended: student.classes_attended - 1,
+            classes_remaining: student.classes_remaining + 1,
+          })
+          .eq('id', student.id);
+        
+        if (updateError) throw updateError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance', id] });
+      queryClient.invalidateQueries({ queryKey: ['student', id] });
+      toast.success('Attendance record deleted');
+      setDeleteRecordId(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
+
+  const handleEditClick = (record: any) => {
+    setEditingRecord(record);
+    setEditDate(new Date(record.date));
+    setEditAttended(record.attended);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingRecord) {
+      updateAttendanceMutation.mutate({
+        recordId: editingRecord.id,
+        date: format(editDate, 'yyyy-MM-dd'),
+        attended: editAttended,
+      });
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -197,15 +298,118 @@ export default function StudentDetail() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={record.attended ? 'success' : 'secondary'}>
-                    {record.attended ? 'Present' : 'Absent'}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={record.attended ? 'success' : 'secondary'}>
+                      {record.attended ? 'Present' : 'Absent'}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditClick(record)}
+                    >
+                      <Edit size={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDeleteRecordId(record.id)}
+                    >
+                      <Trash2 size={16} className="text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
           </div>
         </Card>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingRecord} onOpenChange={(open) => !open && setEditingRecord(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Attendance Record</DialogTitle>
+            <DialogDescription>
+              Update the date or attendance status for this record.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editDate ? format(editDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarPicker
+                    mode="single"
+                    selected={editDate}
+                    onSelect={(date) => date && setEditDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status</label>
+              <div className="flex gap-2">
+                <Button
+                  variant={editAttended ? "default" : "outline"}
+                  onClick={() => setEditAttended(true)}
+                  className="flex-1"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Present
+                </Button>
+                <Button
+                  variant={!editAttended ? "default" : "outline"}
+                  onClick={() => setEditAttended(false)}
+                  className="flex-1"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Absent
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingRecord(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteRecordId} onOpenChange={(open) => !open && setDeleteRecordId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Attendance Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this attendance record. If the student was marked as present, their class count will be restored.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteRecordId && deleteAttendanceMutation.mutate(deleteRecordId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
