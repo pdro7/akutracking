@@ -4,12 +4,15 @@ import { getPaymentStatus } from '@/types/student';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail, Edit, Cake, Trash2, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail, Edit, Cake, Trash2, CalendarIcon, DollarSign, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { differenceInYears } from 'date-fns';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +44,13 @@ export default function StudentDetail() {
   const [editDate, setEditDate] = useState<Date>(new Date());
   const [editAttended, setEditAttended] = useState(true);
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -106,6 +116,21 @@ export default function StudentDetail() {
     enabled: !!id
   });
 
+  const { data: paymentHistory = [] } = useQuery({
+    queryKey: ['payments', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('student_id', id)
+        .order('payment_date', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id
+  });
+
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ recordId, date, attended }: { recordId: string; date: string; attended: boolean }) => {
       const { error } = await supabase
@@ -166,6 +191,67 @@ export default function StudentDetail() {
     }
   });
 
+  const savePaymentMutation = useMutation({
+    mutationFn: async () => {
+      const paymentData = {
+        student_id: id,
+        payment_date: format(paymentDate, 'yyyy-MM-dd'),
+        amount: parseFloat(paymentAmount),
+        payment_method: paymentMethod,
+        notes: paymentNotes || null,
+      };
+
+      if (editingPayment) {
+        const { error } = await supabase
+          .from('payments')
+          .update(paymentData)
+          .eq('id', editingPayment.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('payments')
+          .insert(paymentData);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      toast.success(editingPayment ? 'Payment updated' : 'Payment added');
+      if (isMounted.current) {
+        setShowPaymentDialog(false);
+        setEditingPayment(null);
+        setPaymentAmount('');
+        setPaymentMethod('cash');
+        setPaymentNotes('');
+        setPaymentDate(new Date());
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      toast.success('Payment deleted');
+      if (isMounted.current) {
+        setDeletePaymentId(null);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
+
   const handleEditClick = (record: any) => {
     setEditingRecord(record);
     setEditDate(new Date(record.date));
@@ -180,6 +266,32 @@ export default function StudentDetail() {
         attended: editAttended,
       });
     }
+  };
+
+  const handleAddPayment = () => {
+    setEditingPayment(null);
+    setPaymentAmount('');
+    setPaymentMethod('cash');
+    setPaymentNotes('');
+    setPaymentDate(new Date());
+    setShowPaymentDialog(true);
+  };
+
+  const handleEditPayment = (payment: any) => {
+    setEditingPayment(payment);
+    setPaymentDate(new Date(payment.payment_date));
+    setPaymentAmount(payment.amount.toString());
+    setPaymentMethod(payment.payment_method);
+    setPaymentNotes(payment.notes || '');
+    setShowPaymentDialog(true);
+  };
+
+  const handleSavePayment = () => {
+    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    savePaymentMutation.mutate();
   };
 
   if (isLoading) {
@@ -241,9 +353,10 @@ export default function StudentDetail() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Student Info Card */}
-        <Card className="p-6 lg:col-span-1">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Student Info Card */}
+          <Card className="p-6 lg:col-span-1">
           <div className="text-center mb-6">
             <div className="w-24 h-24 rounded-full bg-gradient-primary flex items-center justify-center mx-auto mb-4">
               <User className="text-primary-foreground" size={48} />
@@ -371,6 +484,64 @@ export default function StudentDetail() {
         </Card>
       </div>
 
+      {/* Payment History */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold">Payment History</h3>
+          <Button onClick={handleAddPayment} size="sm" className="gap-2">
+            <Plus size={16} />
+            Add Payment
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {paymentHistory.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No payment records yet</p>
+          ) : (
+            paymentHistory.map((payment: any) => (
+              <div
+                key={payment.id}
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <DollarSign className="text-primary" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium">
+                      ${parseFloat(payment.amount).toFixed(2)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(payment.payment_date).toLocaleDateString()} • {payment.payment_method}
+                    </p>
+                    {payment.notes && (
+                      <p className="text-xs text-muted-foreground mt-1">{payment.notes}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditPayment(payment)}
+                  >
+                    <Edit size={16} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeletePaymentId(payment.id)}
+                  >
+                    <Trash2 size={16} className="text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+      </div>
+
       {/* Edit Dialog */}
       <Dialog open={!!editingRecord} onOpenChange={(open) => !open && setEditingRecord(null)}>
         <DialogContent>
@@ -450,6 +621,109 @@ export default function StudentDetail() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteRecordId && deleteAttendanceMutation.mutate(deleteRecordId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={(open) => !open && setShowPaymentDialog(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingPayment ? 'Edit Payment' : 'Add Payment'}</DialogTitle>
+            <DialogDescription>
+              {editingPayment ? 'Update payment details' : 'Record a new payment for this student'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !paymentDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {paymentDate ? format(paymentDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarPicker
+                    mode="single"
+                    selected={paymentDate}
+                    onSelect={(date) => date && setPaymentDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Amount</label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Payment Method</label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="check">Check</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Notes (Optional)</label>
+              <Textarea
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                rows={3}
+                placeholder="Add any additional notes..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSavePayment}>
+              {editingPayment ? 'Update' : 'Add'} Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Payment Confirmation */}
+      <AlertDialog open={!!deletePaymentId} onOpenChange={(open) => !open && setDeletePaymentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this payment record. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePaymentId && deletePaymentMutation.mutate(deletePaymentId)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
