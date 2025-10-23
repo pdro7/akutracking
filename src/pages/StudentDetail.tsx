@@ -93,35 +93,6 @@ export default function StudentDetail() {
     enabled: !!id
   });
 
-  if (isLoading) {
-    return <div className="container mx-auto px-4 py-8">Loading...</div>;
-  }
-
-  if (!student) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="p-12 text-center">
-          <h2 className="text-2xl font-bold mb-4">Student not found</h2>
-          <Button onClick={() => navigate('/')}>Back to Dashboard</Button>
-        </Card>
-      </div>
-    );
-  }
-
-  const status = getPaymentStatus(student.classes_remaining);
-  const statusConfig = {
-    good: { variant: 'success' as const, label: 'Good Standing' },
-    low: { variant: 'warning' as const, label: 'Low Credits' },
-    due: { variant: 'destructive' as const, label: 'Payment Due' },
-  };
-
-  const calculateAge = (dateOfBirth: string | null) => {
-    if (!dateOfBirth) return null;
-    return differenceInYears(new Date(), new Date(dateOfBirth));
-  };
-
-  const age = calculateAge(student.date_of_birth);
-
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ recordId, date, attended }: { recordId: string; date: string; attended: boolean }) => {
       const { error } = await supabase
@@ -197,6 +168,35 @@ export default function StudentDetail() {
       });
     }
   };
+
+  if (isLoading) {
+    return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  }
+
+  if (!student) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="p-12 text-center">
+          <h2 className="text-2xl font-bold mb-4">Student not found</h2>
+          <Button onClick={() => navigate('/')}>Back to Dashboard</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  const status = getPaymentStatus(student.classes_remaining);
+  const statusConfig = {
+    good: { variant: 'success' as const, label: 'Good Standing' },
+    low: { variant: 'warning' as const, label: 'Low Credits' },
+    due: { variant: 'destructive' as const, label: 'Payment Due' },
+  };
+
+  const calculateAge = (dateOfBirth: string | null) => {
+    if (!dateOfBirth) return null;
+    return differenceInYears(new Date(), new Date(dateOfBirth));
+  };
+
+  const age = calculateAge(student.date_of_birth);
 
   return (
     <div className="container mx-auto px-4 py-8">
