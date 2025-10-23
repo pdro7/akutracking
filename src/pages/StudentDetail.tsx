@@ -62,6 +62,19 @@ export default function StudentDetail() {
     }
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const { data: attendanceHistory = [] } = useQuery({
     queryKey: ['attendance', id],
     queryFn: async () => {
@@ -196,7 +209,24 @@ export default function StudentDetail() {
     return differenceInYears(new Date(), new Date(dateOfBirth));
   };
 
+  const calculateNextPaymentDate = () => {
+    if (!student || student.classes_remaining <= 0) return null;
+    
+    // Get the most recent attended class date
+    const attendedClasses = attendanceHistory.filter((r: any) => r.attended);
+    const lastAttendedDate = attendedClasses.length > 0 
+      ? new Date(attendedClasses[0].date)
+      : new Date(student.enrollment_date);
+    
+    // Project forward by the number of classes remaining (assuming one class per week)
+    const nextPaymentDate = new Date(lastAttendedDate);
+    nextPaymentDate.setDate(nextPaymentDate.getDate() + (student.classes_remaining * 7));
+    
+    return nextPaymentDate;
+  };
+
   const age = calculateAge(student.date_of_birth);
+  const nextPaymentDate = calculateNextPaymentDate();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -251,6 +281,12 @@ export default function StudentDetail() {
               <div>
                 <p className="text-muted-foreground mb-1">Last Payment</p>
                 <p className="font-medium">{new Date(student.last_payment_date).toLocaleDateString()}</p>
+              </div>
+            )}
+            {nextPaymentDate && (
+              <div>
+                <p className="text-muted-foreground mb-1">Next Payment Due</p>
+                <p className="font-medium">{nextPaymentDate.toLocaleDateString()}</p>
               </div>
             )}
           </div>
