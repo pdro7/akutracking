@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPaymentStatus } from '@/types/student';
 import { Card } from '@/components/ui/card';
@@ -36,10 +36,17 @@ export default function StudentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMounted = useRef(true);
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [editDate, setEditDate] = useState<Date>(new Date());
   const [editAttended, setEditAttended] = useState(true);
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
   const { data: student, isLoading } = useQuery({
     queryKey: ['student', id],
@@ -128,7 +135,9 @@ export default function StudentDetail() {
       queryClient.invalidateQueries({ queryKey: ['attendance', id] });
       queryClient.invalidateQueries({ queryKey: ['student', id] });
       toast.success('Attendance record updated');
-      setEditingRecord(null);
+      if (isMounted.current) {
+        setEditingRecord(null);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -164,7 +173,9 @@ export default function StudentDetail() {
       queryClient.invalidateQueries({ queryKey: ['attendance', id] });
       queryClient.invalidateQueries({ queryKey: ['student', id] });
       toast.success('Attendance record deleted');
-      setDeleteRecordId(null);
+      if (isMounted.current) {
+        setDeleteRecordId(null);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message);
