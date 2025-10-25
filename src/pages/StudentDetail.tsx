@@ -221,7 +221,7 @@ export default function StudentDetail() {
         setShowPaymentDialog(false);
         setEditingPayment(null);
         setPaymentAmount('');
-        setPaymentMethod('cash');
+        setPaymentMethod(settings?.payment_methods?.[0] || 'Cash');
         setPaymentNotes('');
         setPaymentDate(new Date());
       }
@@ -271,7 +271,7 @@ export default function StudentDetail() {
   const handleAddPayment = () => {
     setEditingPayment(null);
     setPaymentAmount('');
-    setPaymentMethod('cash');
+    setPaymentMethod(settings?.payment_methods?.[0] || 'Cash');
     setPaymentNotes('');
     setPaymentDate(new Date());
     setShowPaymentDialog(true);
@@ -682,11 +682,11 @@ export default function StudentDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="check">Check</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  {(settings?.payment_methods || ['Cash', 'Bancololombia', 'Davivienda', 'Wompi', 'Nequi']).map((method) => (
+                    <SelectItem key={method} value={method}>
+                      {method}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

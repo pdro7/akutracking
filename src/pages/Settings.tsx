@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,12 +21,14 @@ export default function Settings() {
         .maybeSingle();
       
       if (error) throw error;
-      return data || { default_pack_size: 8, class_day: 'Saturday' };
+      return data || { default_pack_size: 8, class_day: 'Saturday', payment_methods: ['Cash', 'Bancololombia', 'Davivienda', 'Wompi', 'Nequi'] };
     }
   });
 
   const [packSize, setPackSize] = useState(settings?.default_pack_size || 8);
   const [classDay, setClassDay] = useState(settings?.class_day || 'Saturday');
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(settings?.payment_methods || ['Cash', 'Bancololombia', 'Davivienda', 'Wompi', 'Nequi']);
+  const [newPaymentMethod, setNewPaymentMethod] = useState('');
 
   const updateSettingsMutation = useMutation({
     mutationFn: async () => {
@@ -41,6 +43,7 @@ export default function Settings() {
           .update({
             default_pack_size: packSize,
             class_day: classDay,
+            payment_methods: paymentMethods,
           })
           .eq('id', existing.id);
         
@@ -51,6 +54,7 @@ export default function Settings() {
           .insert({
             default_pack_size: packSize,
             class_day: classDay,
+            payment_methods: paymentMethods,
           });
         
         if (error) throw error;
@@ -131,6 +135,55 @@ export default function Settings() {
                   <SelectItem value="Sunday">Sunday</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label className="text-base mb-2 block">
+                Payment Methods
+              </Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Manage available payment methods for student payments
+              </p>
+              <div className="space-y-2">
+                {paymentMethods.map((method, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input value={method} readOnly className="max-w-xs" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setPaymentMethods(paymentMethods.filter((_, i) => i !== index))}
+                    >
+                      <X size={16} />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="New payment method"
+                    value={newPaymentMethod}
+                    onChange={(e) => setNewPaymentMethod(e.target.value)}
+                    className="max-w-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newPaymentMethod.trim()) {
+                        setPaymentMethods([...paymentMethods, newPaymentMethod.trim()]);
+                        setNewPaymentMethod('');
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      if (newPaymentMethod.trim()) {
+                        setPaymentMethods([...paymentMethods, newPaymentMethod.trim()]);
+                        setNewPaymentMethod('');
+                      }
+                    }}
+                  >
+                    <Plus size={16} />
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="pt-4 border-t">

@@ -117,6 +117,7 @@ export type Database = {
           created_at: string
           default_pack_size: number
           id: string
+          payment_methods: string[] | null
           updated_at: string
         }
         Insert: {
@@ -124,6 +125,7 @@ export type Database = {
           created_at?: string
           default_pack_size?: number
           id?: string
+          payment_methods?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -131,6 +133,7 @@ export type Database = {
           created_at?: string
           default_pack_size?: number
           id?: string
+          payment_methods?: string[] | null
           updated_at?: string
         }
         Relationships: []
