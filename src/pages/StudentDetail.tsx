@@ -51,6 +51,7 @@ export default function StudentDetail() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentPackSize, setPaymentPackSize] = useState(8);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -209,14 +210,27 @@ export default function StudentDetail() {
           .eq('id', editingPayment.id);
         if (error) throw error;
       } else {
+        // Insert payment
         const { error } = await supabase
           .from('payments')
           .insert(paymentData);
         if (error) throw error;
+
+        // Update student's pack size and add to classes_remaining
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({
+            pack_size: paymentPackSize,
+            classes_remaining: student!.classes_remaining + paymentPackSize,
+            last_payment_date: format(paymentDate, 'yyyy-MM-dd'),
+          })
+          .eq('id', id);
+        if (updateError) throw updateError;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      queryClient.invalidateQueries({ queryKey: ['student', id] });
       toast.success(editingPayment ? 'Payment updated' : 'Payment added');
       if (isMounted.current) {
         setShowPaymentDialog(false);
@@ -225,6 +239,7 @@ export default function StudentDetail() {
         setPaymentMethod(settings?.payment_methods?.[0] || 'Cash');
         setPaymentNotes('');
         setPaymentDate(new Date());
+        setPaymentPackSize(8);
       }
     },
     onError: (error: Error) => {
@@ -275,6 +290,7 @@ export default function StudentDetail() {
     setPaymentMethod(settings?.payment_methods?.[0] || 'Cash');
     setPaymentNotes('');
     setPaymentDate(new Date());
+    setPaymentPackSize(student?.pack_size || settings?.default_pack_size || 8);
     setShowPaymentDialog(true);
   };
 
@@ -643,7 +659,7 @@ export default function StudentDetail() {
           {/* Packet Size Information */}
           <div className="bg-muted/50 rounded-lg p-4 grid grid-cols-3 gap-4">
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Pack Size</p>
+              <p className="text-xs text-muted-foreground mb-1">Current Pack</p>
               <p className="text-lg font-bold">{student.pack_size}</p>
             </div>
             <div>
@@ -657,6 +673,20 @@ export default function StudentDetail() {
           </div>
 
           <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Pack Size</label>
+              <Select value={paymentPackSize.toString()} onValueChange={(value) => setPaymentPackSize(parseInt(value))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4">4 classes</SelectItem>
+                  <SelectItem value="8">8 classes</SelectItem>
+                  <SelectItem value="12">12 classes</SelectItem>
+                  <SelectItem value="16">16 classes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Date</label>
               <Popover>
