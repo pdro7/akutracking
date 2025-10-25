@@ -216,20 +216,20 @@ export default function StudentDetail() {
           .insert(paymentData);
         if (error) throw error;
 
-        // Fetch current student data to ensure we have the latest classes_remaining
+        // Fetch current student data to get classes_attended
         const { data: currentStudent, error: fetchError } = await supabase
           .from('students')
-          .select('classes_remaining')
+          .select('classes_attended')
           .eq('id', id)
           .single();
         if (fetchError) throw fetchError;
 
-        // Update student's pack size and add to classes_remaining
+        // Update student's pack size and recalculate remaining classes
         const { error: updateError } = await supabase
           .from('students')
           .update({
             pack_size: paymentPackSize,
-            classes_remaining: (currentStudent?.classes_remaining || 0) + paymentPackSize,
+            classes_remaining: paymentPackSize - (currentStudent?.classes_attended || 0),
             last_payment_date: format(paymentDate, 'yyyy-MM-dd'),
           })
           .eq('id', id);
