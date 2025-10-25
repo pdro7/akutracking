@@ -209,6 +209,23 @@ export default function StudentDetail() {
           .update(paymentData)
           .eq('id', editingPayment.id);
         if (error) throw error;
+
+        // Also update student's pack size and recalculate remaining classes
+        const { data: currentStudent, error: fetchError } = await supabase
+          .from('students')
+          .select('classes_attended')
+          .eq('id', id)
+          .single();
+        if (fetchError) throw fetchError;
+
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({
+            pack_size: paymentPackSize,
+            classes_remaining: paymentPackSize - (currentStudent?.classes_attended || 0),
+          })
+          .eq('id', id);
+        if (updateError) throw updateError;
       } else {
         // Insert payment
         const { error } = await supabase
