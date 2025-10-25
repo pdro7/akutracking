@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatCOP } from '@/lib/currency';
 import {
   Dialog,
   DialogContent,
@@ -509,10 +510,10 @@ export default function StudentDetail() {
                   </div>
                   <div>
                     <p className="font-medium">
-                      ${parseFloat(payment.amount).toFixed(2)}
+                      {formatCOP(parseFloat(payment.amount))}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(payment.payment_date).toLocaleDateString()} • {payment.payment_method}
+                      {new Date(payment.payment_date).toLocaleDateString('es-CO')} • {payment.payment_method}
                     </p>
                     {payment.notes && (
                       <p className="text-xs text-muted-foreground mt-1">{payment.notes}</p>
