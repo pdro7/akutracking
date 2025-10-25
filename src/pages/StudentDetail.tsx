@@ -655,22 +655,6 @@ export default function StudentDetail() {
               {editingPayment ? 'Update payment details' : 'Record a new payment for this student'}
             </DialogDescription>
           </DialogHeader>
-          
-          {/* Packet Size Information */}
-          <div className="bg-muted/50 rounded-lg p-4 grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Current Pack</p>
-              <p className="text-lg font-bold">{student.pack_size}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Attended</p>
-              <p className="text-lg font-bold text-primary">{student.classes_attended}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Remaining</p>
-              <p className="text-lg font-bold">{student.classes_remaining}</p>
-            </div>
-          </div>
 
           <div className="space-y-4 py-4">
             <div>
