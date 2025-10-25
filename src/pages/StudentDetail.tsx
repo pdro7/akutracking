@@ -216,21 +216,29 @@ export default function StudentDetail() {
           .insert(paymentData);
         if (error) throw error;
 
+        // Fetch current student data to ensure we have the latest classes_remaining
+        const { data: currentStudent, error: fetchError } = await supabase
+          .from('students')
+          .select('classes_remaining')
+          .eq('id', id)
+          .single();
+        if (fetchError) throw fetchError;
+
         // Update student's pack size and add to classes_remaining
         const { error: updateError } = await supabase
           .from('students')
           .update({
             pack_size: paymentPackSize,
-            classes_remaining: student!.classes_remaining + paymentPackSize,
+            classes_remaining: (currentStudent?.classes_remaining || 0) + paymentPackSize,
             last_payment_date: format(paymentDate, 'yyyy-MM-dd'),
           })
           .eq('id', id);
         if (updateError) throw updateError;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments', id] });
-      queryClient.invalidateQueries({ queryKey: ['student', id] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      await queryClient.refetchQueries({ queryKey: ['student', id] });
       toast.success(editingPayment ? 'Payment updated' : 'Payment added');
       if (isMounted.current) {
         setShowPaymentDialog(false);
