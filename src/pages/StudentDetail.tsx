@@ -153,6 +153,19 @@ export default function StudentDetail() {
           .update({ date: attendanceData.date, attended: attendanceData.attended })
           .eq('id', editingRecord.id);
         if (error) throw error;
+
+        // Update student's class counts if attendance status changed
+        if (student && editingRecord.attended !== editAttended) {
+          const classChange = editAttended ? 1 : -1;
+          const { error: updateError } = await supabase
+            .from('students')
+            .update({
+              classes_attended: student.classes_attended + classChange,
+              classes_remaining: student.classes_remaining - classChange,
+            })
+            .eq('id', student.id);
+          if (updateError) throw updateError;
+        }
       } else {
         // Insert new record
         const { error } = await supabase
