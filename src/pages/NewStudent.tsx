@@ -34,9 +34,6 @@ const studentFormSchema = z.object({
   address: z.string().optional(),
   medicalConditions: z.string().optional(),
   notes: z.string().optional(),
-  
-  // Enrollment Details
-  packSize: z.string().min(1, 'Pack size is required'),
 });
 
 type StudentFormValues = z.infer<typeof studentFormSchema>;
@@ -62,7 +59,6 @@ export default function NewStudent() {
       address: '',
       medicalConditions: '',
       notes: '',
-      packSize: '10',
     },
   });
 
@@ -70,6 +66,14 @@ export default function NewStudent() {
     mutationFn: async (data: StudentFormValues) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      // Get default pack size from settings
+      const { data: settings } = await supabase
+        .from('settings')
+        .select('default_pack_size')
+        .maybeSingle();
+      
+      const defaultPackSize = settings?.default_pack_size || 8;
 
       const { error } = await supabase.from('students').insert({
         name: `${data.studentFirstName} ${data.studentLastName}`,
@@ -87,8 +91,8 @@ export default function NewStudent() {
         medical_conditions: data.medicalConditions,
         notes: data.notes,
         enrollment_date: new Date().toISOString().split('T')[0],
-        pack_size: parseInt(data.packSize),
-        classes_remaining: parseInt(data.packSize),
+        pack_size: defaultPackSize,
+        classes_remaining: defaultPackSize,
       });
 
       if (error) throw error;
@@ -343,26 +347,6 @@ export default function NewStudent() {
                         placeholder="Enter any additional notes"
                         {...field}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </Card>
-
-          {/* Enrollment Details */}
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Enrollment Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="packSize"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Initial Class Pack Size *</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="1" placeholder="10" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
