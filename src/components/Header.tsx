@@ -56,11 +56,12 @@ export function Header() {
     }
   };
 
+  // Filter nav items based on user role
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Home },
     { path: '/attendance', label: 'Attendance', icon: Calendar },
     { path: '/students', label: 'Students', icon: Users },
-    { path: '/payments', label: 'Payments', icon: DollarSign },
+    ...(userRole === 'admin' ? [{ path: '/payments', label: 'Payments', icon: DollarSign }] : []),
     { path: '/settings', label: 'Settings', icon: Settings },
   ];
 

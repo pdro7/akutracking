@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, DollarSign } from 'lucide-react';
 import { formatCOP } from '@/lib/currency';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Navigate } from 'react-router-dom';
 
 export default function Payments() {
   const currentYear = new Date().getFullYear();
@@ -13,6 +14,23 @@ export default function Payments() {
   
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+
+  // Check user role
+  const { data: userRole, isLoading: roleLoading } = useQuery({
+    queryKey: ['user-role'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      
+      return data?.role;
+    }
+  });
 
   const { data: paymentsData, isLoading } = useQuery({
     queryKey: ['payments-summary', selectedYear, selectedMonth],
@@ -75,7 +93,8 @@ export default function Payments() {
 
   const colors = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', 'hsl(var(--destructive))'];
 
-  if (isLoading) {
+  // Show loading while checking role
+  if (roleLoading || isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
@@ -83,6 +102,11 @@ export default function Payments() {
         </div>
       </div>
     );
+  }
+
+  // Redirect non-admin users
+  if (userRole !== 'admin') {
+    return <Navigate to="/" replace />;
   }
 
   return (
