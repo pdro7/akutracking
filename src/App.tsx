@@ -13,6 +13,7 @@ import AttendanceHistory from "./pages/AttendanceHistory";
 import Students from "./pages/Students";
 import NewStudent from "./pages/NewStudent";
 import Settings from "./pages/Settings";
+import Payments from "./pages/Payments";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/attendance/history" element={<ProtectedRoute><Header /><AttendanceHistory /></ProtectedRoute>} />
             <Route path="/students" element={<ProtectedRoute><Header /><Students /></ProtectedRoute>} />
             <Route path="/students/new" element={<ProtectedRoute><Header /><NewStudent /></ProtectedRoute>} />
+            <Route path="/payments" element={<ProtectedRoute><Header /><Payments /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Header /><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
