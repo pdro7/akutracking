@@ -163,8 +163,13 @@ export default function Settings() {
                     value={newPaymentMethod}
                     onChange={(e) => setNewPaymentMethod(e.target.value)}
                     className="max-w-xs"
+                    maxLength={100}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && newPaymentMethod.trim()) {
+                        if (newPaymentMethod.trim().length > 100) {
+                          toast.error('Payment method name must be less than 100 characters');
+                          return;
+                        }
                         setPaymentMethods([...paymentMethods, newPaymentMethod.trim()]);
                         setNewPaymentMethod('');
                       }
@@ -175,6 +180,10 @@ export default function Settings() {
                     size="icon"
                     onClick={() => {
                       if (newPaymentMethod.trim()) {
+                        if (newPaymentMethod.trim().length > 100) {
+                          toast.error('Payment method name must be less than 100 characters');
+                          return;
+                        }
                         setPaymentMethods([...paymentMethods, newPaymentMethod.trim()]);
                         setNewPaymentMethod('');
                       }

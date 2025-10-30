@@ -14,26 +14,26 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const studentFormSchema = z.object({
   // Student Information
-  studentFirstName: z.string().min(2, 'First name must be at least 2 characters'),
-  studentLastName: z.string().min(2, 'Last name must be at least 2 characters'),
+  studentFirstName: z.string().min(2, 'First name must be at least 2 characters').max(100, 'First name must be less than 100 characters'),
+  studentLastName: z.string().min(2, 'Last name must be at least 2 characters').max(100, 'Last name must be less than 100 characters'),
   dateOfBirth: z.string().min(1, 'Date of birth is required'),
-  schoolName: z.string().min(2, 'School name is required'),
-  gradeLevel: z.string().optional(),
+  schoolName: z.string().min(2, 'School name is required').max(200, 'School name must be less than 200 characters'),
+  gradeLevel: z.string().optional().refine(val => !val || val.length <= 50, 'Grade level must be less than 50 characters'),
   
   // Parent Information
-  fatherName: z.string().optional(),
-  motherName: z.string().optional(),
-  primaryContactPhone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  primaryContactEmail: z.string().email('Invalid email address'),
+  fatherName: z.string().optional().refine(val => !val || val.length <= 100, 'Name must be less than 100 characters'),
+  motherName: z.string().optional().refine(val => !val || val.length <= 100, 'Name must be less than 100 characters'),
+  primaryContactPhone: z.string().min(10, 'Phone number must be at least 10 digits').max(20, 'Phone number must be less than 20 digits'),
+  primaryContactEmail: z.string().email('Invalid email address').max(255, 'Email must be less than 255 characters'),
   
   // Emergency Contact
-  emergencyContactName: z.string().optional(),
-  emergencyContactPhone: z.string().optional(),
+  emergencyContactName: z.string().optional().refine(val => !val || val.length <= 100, 'Name must be less than 100 characters'),
+  emergencyContactPhone: z.string().optional().refine(val => !val || val.length <= 20, 'Phone number must be less than 20 digits'),
   
   // Additional Information
-  address: z.string().optional(),
-  medicalConditions: z.string().optional(),
-  notes: z.string().optional(),
+  address: z.string().optional().refine(val => !val || val.length <= 500, 'Address must be less than 500 characters'),
+  medicalConditions: z.string().optional().refine(val => !val || val.length <= 1000, 'Medical conditions must be less than 1000 characters'),
+  notes: z.string().optional().refine(val => !val || val.length <= 1000, 'Notes must be less than 1000 characters'),
 });
 
 type StudentFormValues = z.infer<typeof studentFormSchema>;

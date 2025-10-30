@@ -26,7 +26,7 @@ export interface Settings {
   classDay: string;
 }
 
-export type UserRole = 'admin' | 'instructor';
+export type UserRole = 'admin' | 'staff';
 
 export interface User {
   id: string;
