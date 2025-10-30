@@ -42,6 +42,7 @@ export default function StudentDetail() {
   const queryClient = useQueryClient();
   const isMounted = useRef(true);
   const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
   const [editDate, setEditDate] = useState<Date>(new Date());
   const [editAttended, setEditAttended] = useState(true);
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
@@ -133,20 +134,51 @@ export default function StudentDetail() {
     enabled: !!id
   });
 
-  const updateAttendanceMutation = useMutation({
-    mutationFn: async ({ recordId, date, attended }: { recordId: string; date: string; attended: boolean }) => {
-      const { error } = await supabase
-        .from('attendance_records')
-        .update({ date, attended })
-        .eq('id', recordId);
-      
-      if (error) throw error;
+  const saveAttendanceMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const attendanceData = {
+        student_id: id,
+        date: format(editDate, 'yyyy-MM-dd'),
+        attended: editAttended,
+        marked_by: user.id,
+      };
+
+      if (editingRecord) {
+        // Update existing record
+        const { error } = await supabase
+          .from('attendance_records')
+          .update({ date: attendanceData.date, attended: attendanceData.attended })
+          .eq('id', editingRecord.id);
+        if (error) throw error;
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from('attendance_records')
+          .insert(attendanceData);
+        if (error) throw error;
+
+        // Update student's class counts only for new records
+        if (editAttended && student) {
+          const { error: updateError } = await supabase
+            .from('students')
+            .update({
+              classes_attended: student.classes_attended + 1,
+              classes_remaining: student.classes_remaining - 1,
+            })
+            .eq('id', student.id);
+          if (updateError) throw updateError;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance', id] });
       queryClient.invalidateQueries({ queryKey: ['student', id] });
-      toast.success('Attendance record updated');
+      toast.success(editingRecord ? 'Attendance record updated' : 'Attendance record added');
       if (isMounted.current) {
+        setShowAttendanceDialog(false);
         setEditingRecord(null);
       }
     },
@@ -293,20 +325,22 @@ export default function StudentDetail() {
     }
   });
 
+  const handleAddAttendance = () => {
+    setEditingRecord(null);
+    setEditDate(new Date());
+    setEditAttended(true);
+    setShowAttendanceDialog(true);
+  };
+
   const handleEditClick = (record: any) => {
     setEditingRecord(record);
     setEditDate(new Date(record.date));
     setEditAttended(record.attended);
+    setShowAttendanceDialog(true);
   };
 
-  const handleSaveEdit = () => {
-    if (editingRecord) {
-      updateAttendanceMutation.mutate({
-        recordId: editingRecord.id,
-        date: format(editDate, 'yyyy-MM-dd'),
-        attended: editAttended,
-      });
-    }
+  const handleSaveAttendance = () => {
+    saveAttendanceMutation.mutate();
   };
 
   const handleAddPayment = () => {
@@ -468,7 +502,10 @@ export default function StudentDetail() {
         <Card className="p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold">Attendance History</h3>
-            <Calendar size={24} className="text-muted-foreground" />
+            <Button onClick={handleAddAttendance} size="sm" className="gap-2">
+              <Plus size={16} />
+              Add Attendance
+            </Button>
           </div>
 
           <div className="space-y-3">
@@ -584,13 +621,18 @@ export default function StudentDetail() {
       </Card>
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editingRecord} onOpenChange={(open) => !open && setEditingRecord(null)}>
+      {/* Attendance Dialog */}
+      <Dialog open={showAttendanceDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowAttendanceDialog(false);
+          setEditingRecord(null);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Attendance Record</DialogTitle>
+            <DialogTitle>{editingRecord ? 'Edit Attendance Record' : 'Add Attendance Record'}</DialogTitle>
             <DialogDescription>
-              Update the date or attendance status for this record.
+              {editingRecord ? 'Update the date or attendance status for this record.' : 'Record a new attendance for this student.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -642,10 +684,15 @@ export default function StudentDetail() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingRecord(null)}>
+            <Button variant="outline" onClick={() => {
+              setShowAttendanceDialog(false);
+              setEditingRecord(null);
+            }}>
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
+            <Button onClick={handleSaveAttendance}>
+              {editingRecord ? 'Save Changes' : 'Add Attendance'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
