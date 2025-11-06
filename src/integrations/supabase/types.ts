@@ -218,10 +218,10 @@ export type Database = {
       }
       trial_leads: {
         Row: {
-          child_age: number | null
           child_name: string
           created_at: string
           created_by: string | null
+          date_of_birth: string | null
           id: string
           notes: string | null
           parent_email: string | null
@@ -232,10 +232,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          child_age?: number | null
           child_name: string
           created_at?: string
           created_by?: string | null
+          date_of_birth?: string | null
           id?: string
           notes?: string | null
           parent_email?: string | null
@@ -246,10 +246,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          child_age?: number | null
           child_name?: string
           created_at?: string
           created_by?: string | null
+          date_of_birth?: string | null
           id?: string
           notes?: string | null
           parent_email?: string | null

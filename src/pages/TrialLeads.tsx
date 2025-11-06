@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, Phone, Mail, User } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInYears } from 'date-fns';
 
 type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled';
 
 interface TrialLead {
   id: string;
   child_name: string;
-  child_age: number | null;
+  date_of_birth: string | null;
   parent_name: string;
   parent_phone: string;
   parent_email: string | null;
@@ -48,7 +48,7 @@ export default function TrialLeads() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as TrialLead[];
+      return data;
     },
   });
 
@@ -99,7 +99,7 @@ export default function TrialLeads() {
                   <div>
                     <CardTitle className="text-lg">{lead.child_name}</CardTitle>
                     <CardDescription>
-                      {lead.child_age && `${lead.child_age} years old`}
+                      {lead.date_of_birth && `${differenceInYears(new Date(), new Date(lead.date_of_birth))} years old`}
                     </CardDescription>
                   </div>
                   <Badge className={statusColors[lead.status]} variant="secondary">

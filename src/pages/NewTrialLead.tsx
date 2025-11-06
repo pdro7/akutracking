@@ -10,12 +10,16 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const trialLeadSchema = z.object({
   childName: z.string().min(1, 'Child name is required').max(100, 'Child name must be less than 100 characters'),
-  childAge: z.coerce.number().min(1, 'Age must be at least 1').max(18, 'Age must be less than 18').optional().nullable(),
+  dateOfBirth: z.date().optional(),
   parentName: z.string().min(1, 'Parent name is required').max(100, 'Parent name must be less than 100 characters'),
   parentPhone: z.string().min(1, 'Phone is required').max(20, 'Phone must be less than 20 characters'),
   parentEmail: z.string().email('Invalid email').max(255, 'Email must be less than 255 characters').optional().or(z.literal('')),
@@ -35,7 +39,7 @@ export default function NewTrialLead() {
     resolver: zodResolver(trialLeadSchema),
     defaultValues: {
       childName: '',
-      childAge: null,
+      dateOfBirth: undefined,
       parentName: '',
       parentPhone: '',
       parentEmail: '',
@@ -52,7 +56,7 @@ export default function NewTrialLead() {
 
       const { data, error } = await supabase.from('trial_leads').insert({
         child_name: values.childName,
-        child_age: values.childAge,
+        date_of_birth: values.dateOfBirth ? format(values.dateOfBirth, 'yyyy-MM-dd') : null,
         parent_name: values.parentName,
         parent_phone: values.parentPhone,
         parent_email: values.parentEmail || null,
@@ -120,13 +124,42 @@ export default function NewTrialLead() {
               />
               <FormField
                 control={form.control}
-                name="childAge"
+                name="dateOfBirth"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Child Age</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="Enter age" {...field} value={field.value || ''} />
-                    </FormControl>
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Date of Birth</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
