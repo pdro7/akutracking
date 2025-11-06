@@ -216,6 +216,51 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_leads: {
+        Row: {
+          child_age: number | null
+          child_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          parent_email: string | null
+          parent_name: string
+          parent_phone: string
+          status: Database["public"]["Enums"]["trial_lead_status"]
+          trial_class_date: string
+          updated_at: string
+        }
+        Insert: {
+          child_age?: number | null
+          child_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          parent_email?: string | null
+          parent_name: string
+          parent_phone: string
+          status?: Database["public"]["Enums"]["trial_lead_status"]
+          trial_class_date: string
+          updated_at?: string
+        }
+        Update: {
+          child_age?: number | null
+          child_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          parent_email?: string | null
+          parent_name?: string
+          parent_phone?: string
+          status?: Database["public"]["Enums"]["trial_lead_status"]
+          trial_class_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -249,6 +294,7 @@ export type Database = {
     }
     Enums: {
       app_role: "staff" | "admin"
+      trial_lead_status: "scheduled" | "attended" | "converted" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -377,6 +423,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["staff", "admin"],
+      trial_lead_status: ["scheduled", "attended", "converted", "cancelled"],
     },
   },
 } as const
