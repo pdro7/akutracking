@@ -20,7 +20,7 @@ const trialLeadSchema = z.object({
   parentPhone: z.string().min(1, 'Phone is required').max(20, 'Phone must be less than 20 characters'),
   parentEmail: z.string().email('Invalid email').max(255, 'Email must be less than 255 characters').optional().or(z.literal('')),
   trialClassDate: z.string().min(1, 'Trial class date is required'),
-  status: z.enum(['scheduled', 'attended', 'converted', 'cancelled']),
+  status: z.enum(['scheduled', 'attended', 'converted', 'cancelled', 'no_show']),
   notes: z.string().max(500, 'Notes must be less than 500 characters').optional(),
 });
 
@@ -218,6 +218,7 @@ export default function NewTrialLead() {
                         <SelectItem value="attended">Attended</SelectItem>
                         <SelectItem value="converted">Converted</SelectItem>
                         <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="no_show">No Show</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

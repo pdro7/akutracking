@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, Phone, Mail, User } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 
-type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled';
+type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show';
 
 interface TrialLead {
   id: string;
@@ -28,6 +28,7 @@ const statusColors: Record<TrialLeadStatus, string> = {
   attended: 'bg-green-500/10 text-green-500',
   converted: 'bg-purple-500/10 text-purple-500',
   cancelled: 'bg-gray-500/10 text-gray-500',
+  no_show: 'bg-orange-500/10 text-orange-500',
 };
 
 export default function TrialLeads() {
@@ -73,7 +74,7 @@ export default function TrialLeads() {
         >
           All
         </Button>
-        {(['scheduled', 'attended', 'converted', 'cancelled'] as TrialLeadStatus[]).map((status) => (
+        {(['scheduled', 'attended', 'converted', 'cancelled', 'no_show'] as TrialLeadStatus[]).map((status) => (
           <Button
             key={status}
             variant={statusFilter === status ? 'default' : 'outline'}
@@ -81,7 +82,7 @@ export default function TrialLeads() {
             size="sm"
             className="capitalize"
           >
-            {status}
+            {status === 'no_show' ? 'No Show' : status}
           </Button>
         ))}
       </div>
@@ -103,7 +104,7 @@ export default function TrialLeads() {
                     </CardDescription>
                   </div>
                   <Badge className={statusColors[lead.status]} variant="secondary">
-                    {lead.status}
+                    {lead.status === 'no_show' ? 'No Show' : lead.status}
                   </Badge>
                 </div>
               </CardHeader>
