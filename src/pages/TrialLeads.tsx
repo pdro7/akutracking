@@ -94,7 +94,11 @@ export default function TrialLeads() {
       ) : leads && leads.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {leads.map((lead) => (
-            <Card key={lead.id} className="hover:shadow-lg transition-shadow">
+            <Card 
+              key={lead.id} 
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => navigate(`/trial-leads/${lead.id}`)}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>

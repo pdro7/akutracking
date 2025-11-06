@@ -14,6 +14,7 @@ import Students from "./pages/Students";
 import NewStudent from "./pages/NewStudent";
 import TrialLeads from "./pages/TrialLeads";
 import NewTrialLead from "./pages/NewTrialLead";
+import TrialLeadDetail from "./pages/TrialLeadDetail";
 import Settings from "./pages/Settings";
 import Payments from "./pages/Payments";
 import Auth from "./pages/Auth";
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/students/new" element={<ProtectedRoute><Header /><NewStudent /></ProtectedRoute>} />
             <Route path="/trial-leads" element={<ProtectedRoute><Header /><TrialLeads /></ProtectedRoute>} />
             <Route path="/trial-leads/new" element={<ProtectedRoute><Header /><NewTrialLead /></ProtectedRoute>} />
+            <Route path="/trial-leads/:id" element={<ProtectedRoute><Header /><TrialLeadDetail /></ProtectedRoute>} />
             <Route path="/payments" element={<ProtectedRoute><Header /><Payments /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Header /><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
