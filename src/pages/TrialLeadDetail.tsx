@@ -7,10 +7,20 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Calendar, Phone, Mail, User, Save } from 'lucide-react';
+import { ArrowLeft, Calendar, Phone, Mail, User, Save, UserPlus } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show';
 
@@ -48,6 +58,7 @@ export default function TrialLeadDetail() {
   const [trialClassDate, setTrialClassDate] = useState('');
   const [status, setStatus] = useState<TrialLeadStatus>('scheduled');
   const [notes, setNotes] = useState('');
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ['trial-lead', id],
@@ -104,12 +115,74 @@ export default function TrialLeadDetail() {
     },
   });
 
+  const convertToStudentMutation = useMutation({
+    mutationFn: async () => {
+      // Get default pack size from settings
+      const { data: settings } = await supabase
+        .from('settings')
+        .select('default_pack_size')
+        .maybeSingle();
+      
+      const defaultPackSize = settings?.default_pack_size || 8;
+
+      // Check if email exists, if not use a placeholder
+      const studentEmail = parentEmail || `${parentPhone}@trial-converted.local`;
+
+      // Create the student
+      const { data: newStudent, error: studentError } = await supabase
+        .from('students')
+        .insert({
+          name: childName,
+          email: studentEmail,
+          phone: parentPhone,
+          parent_name: parentName,
+          date_of_birth: dateOfBirth || null,
+          notes: notes || null,
+          enrollment_date: new Date().toISOString().split('T')[0],
+          pack_size: defaultPackSize,
+          classes_remaining: defaultPackSize,
+        })
+        .select()
+        .single();
+
+      if (studentError) throw studentError;
+
+      // Update trial lead status to converted
+      const { error: updateError } = await supabase
+        .from('trial_leads')
+        .update({ status: 'converted' })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      return newStudent;
+    },
+    onSuccess: (newStudent) => {
+      queryClient.invalidateQueries({ queryKey: ['trial-lead', id] });
+      queryClient.invalidateQueries({ queryKey: ['trial-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Trial lead converted to student successfully!');
+      navigate(`/student/${newStudent.id}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   const handleSave = () => {
     if (!childName || !parentName || !parentPhone || !trialClassDate) {
       toast.error('Please fill in all required fields');
       return;
     }
     updateLeadMutation.mutate();
+  };
+
+  const handleConvertToStudent = () => {
+    if (!childName || !parentName || !parentPhone) {
+      toast.error('Please fill in required fields before converting');
+      return;
+    }
+    convertToStudentMutation.mutate();
   };
 
   if (isLoading) {
@@ -140,10 +213,21 @@ export default function TrialLeadDetail() {
           <ArrowLeft size={20} />
           Back to Trial Leads
         </Button>
-        <Button onClick={handleSave} disabled={updateLeadMutation.isPending} className="gap-2">
-          <Save size={20} />
-          {updateLeadMutation.isPending ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowConvertDialog(true)}
+            disabled={status === 'converted' || convertToStudentMutation.isPending}
+            className="gap-2"
+          >
+            <UserPlus size={20} />
+            Convert to Student
+          </Button>
+          <Button onClick={handleSave} disabled={updateLeadMutation.isPending} className="gap-2">
+            <Save size={20} />
+            {updateLeadMutation.isPending ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -271,6 +355,24 @@ export default function TrialLeadDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Convert Confirmation Dialog */}
+      <AlertDialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Convert to Student?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create a new student record with the trial lead information and mark this lead as converted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConvertToStudent}>
+              {convertToStudentMutation.isPending ? 'Converting...' : 'Convert to Student'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
