@@ -105,7 +105,7 @@ export default function Dashboard() {
                     <TableCell>{student.classes_attended}</TableCell>
                     <TableCell>{student.classes_remaining}</TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig[status].variant}>
+                      <Badge variant={statusConfig[status].variant} className="whitespace-nowrap">
                         {statusConfig[status].label}
                       </Badge>
                     </TableCell>
