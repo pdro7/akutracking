@@ -2,14 +2,17 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Calendar, TrendingUp } from 'lucide-react';
+import { Plus, Users, Calendar, TrendingUp, Search } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
   
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],
@@ -25,7 +28,12 @@ export default function Dashboard() {
     }
   });
 
-  const activeStudents = students;
+  const filteredStudents = students.filter(student => 
+    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.parent_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const activeStudents = filteredStudents;
   const needsPayment = activeStudents.filter(s => s.classes_remaining === 0);
   const lowCredits = activeStudents.filter(s => s.classes_remaining > 0 && s.classes_remaining <= 2);
 
@@ -71,7 +79,19 @@ export default function Dashboard() {
 
       {/* Students List */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">All Students</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">All Students</h2>
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} />
+            <Input
+              type="text"
+              placeholder="Search by student or parent name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
         <Card>
           <Table>
             <TableHeader>
