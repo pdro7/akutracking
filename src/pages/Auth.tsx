@@ -67,7 +67,7 @@ const Auth = () => {
     if (error) {
       toast({
         variant: "destructive",
-        title: "Sign in failed",
+        title: "Log in failed",
         description: error.message,
       });
     } else {
@@ -80,12 +80,12 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Robotics Academy</CardTitle>
-          <CardDescription>Sign in to manage your students and classes</CardDescription>
+          <CardDescription>Log in to manage your students and classes</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signin">Log In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
             <TabsContent value="signin">
@@ -129,7 +129,7 @@ const Auth = () => {
                   </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign In"}
+                  {loading ? "Logging in..." : "Log In"}
                 </Button>
               </form>
             </TabsContent>
