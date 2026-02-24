@@ -19,6 +19,8 @@ import Settings from "./pages/Settings";
 import Payments from "./pages/Payments";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import VirtualGroups from "./pages/VirtualGroups";
+import VirtualGroupDetail from "./pages/VirtualGroupDetail";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +45,8 @@ const App = () => (
             <Route path="/trial-leads/:id" element={<ProtectedRoute><Header /><TrialLeadDetail /></ProtectedRoute>} />
             <Route path="/payments" element={<ProtectedRoute><Header /><Payments /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Header /><Settings /></ProtectedRoute>} />
+            <Route path="/virtual-groups" element={<ProtectedRoute><Header /><VirtualGroups /></ProtectedRoute>} />
+            <Route path="/virtual-groups/:id" element={<ProtectedRoute><Header /><VirtualGroupDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

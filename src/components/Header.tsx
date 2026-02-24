@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bot, Home, Users, Settings, Calendar, LogOut, DollarSign, UserPlus } from 'lucide-react';
+import { Bot, Home, Users, Settings, Calendar, LogOut, DollarSign, UserPlus, Monitor } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -62,6 +62,7 @@ export function Header() {
     { path: '/attendance', label: 'Attendance', icon: Calendar },
     { path: '/students', label: 'Students', icon: Users },
     { path: '/trial-leads', label: 'Trial Leads', icon: UserPlus },
+    { path: '/virtual-groups', label: 'Virtual', icon: Monitor },
     ...(userRole === 'admin' ? [{ path: '/payments', label: 'Payments', icon: DollarSign }] : []),
     { path: '/settings', label: 'Settings', icon: Settings },
   ];

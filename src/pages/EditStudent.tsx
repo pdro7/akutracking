@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +38,7 @@ const studentFormSchema = z.object({
   
   // Enrollment Details
   packSize: z.string().min(1, 'Pack size is required'),
+  modality: z.enum(['presencial', 'virtual', 'both']).default('presencial'),
 });
 
 type StudentFormValues = z.infer<typeof studentFormSchema>;
@@ -78,6 +80,7 @@ export default function EditStudent() {
       medicalConditions: student.medical_conditions || '',
       notes: student.notes || '',
       packSize: student.pack_size.toString(),
+      modality: (student.modality as 'presencial' | 'virtual' | 'both') || 'presencial',
     } : undefined,
   });
 
@@ -100,6 +103,7 @@ export default function EditStudent() {
           address: data.address,
           medical_conditions: data.medicalConditions,
           notes: data.notes,
+          modality: data.modality,
           pack_size: parseInt(data.packSize),
         })
         .eq('id', id);
@@ -223,6 +227,29 @@ export default function EditStudent() {
                     <FormControl>
                       <Input placeholder="Enter school name" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="modality"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modalidad</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona modalidad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="presencial">Presencial</SelectItem>
+                        <SelectItem value="virtual">Virtual</SelectItem>
+                        <SelectItem value="both">Ambos</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

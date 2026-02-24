@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Calendar, TrendingUp, Search } from 'lucide-react';
+import { Plus, Users, Calendar, TrendingUp, Search, Monitor } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,18 +21,50 @@ export default function Dashboard() {
         .from('students')
         .select('*')
         .eq('is_active', true)
+        .eq('archived', false)
         .order('name');
-      
+
       if (error) throw error;
       return data;
     }
   });
 
-  const filteredStudents = students.filter(student => 
+  const { data: activeGroups = [] } = useQuery({
+    queryKey: ['active_groups_count'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('course_groups')
+        .select('id')
+        .eq('status', 'active');
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  const { data: upcomingInstallments = [] } = useQuery({
+    queryKey: ['upcoming_installments'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const sevenDays = new Date();
+      sevenDays.setDate(sevenDays.getDate() + 7);
+      const sevenDaysStr = sevenDays.toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('course_enrollments')
+        .select('id, installment_2_due_date, students(name)')
+        .eq('payment_plan', 'installments')
+        .is('installment_2_paid_at', null)
+        .gte('installment_2_due_date', today)
+        .lte('installment_2_due_date', sevenDaysStr);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  const filteredStudents = students.filter(student =>
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.parent_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   const activeStudents = filteredStudents;
   const needsPayment = activeStudents.filter(s => s.classes_remaining === 0);
   const lowCredits = activeStudents.filter(s => s.classes_remaining > 0 && s.classes_remaining <= 2);
@@ -45,6 +77,7 @@ export default function Dashboard() {
     { label: 'Active Students', value: activeStudents.length, icon: Users },
     { label: 'Payment Due', value: needsPayment.length, icon: TrendingUp },
     { label: 'Low Credits', value: lowCredits.length, icon: Calendar },
+    { label: 'Grupos activos', value: activeGroups.length, icon: Monitor },
   ];
 
   return (
@@ -61,7 +94,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {stats.map((stat) => (
           <Card key={stat.label} className="p-6">
             <div className="flex items-center justify-between">
@@ -76,6 +109,20 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Upcoming installment alerts */}
+      {(upcomingInstallments as any[]).length > 0 && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm font-medium text-yellow-800 mb-2">
+            Cuotas virtuales próximas a vencer ({(upcomingInstallments as any[]).length}):
+          </p>
+          {(upcomingInstallments as any[]).map((e: any) => (
+            <p key={e.id} className="text-sm text-yellow-700">
+              • {(e.students as any)?.name} — vence {new Date(e.installment_2_due_date + 'T12:00:00').toLocaleDateString('es-CO')}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* Students List */}
       <div className="mb-6">

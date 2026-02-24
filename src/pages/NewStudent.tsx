@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +35,7 @@ const studentFormSchema = z.object({
   address: z.string().optional().refine(val => !val || val.length <= 500, 'Address must be less than 500 characters'),
   medicalConditions: z.string().optional().refine(val => !val || val.length <= 1000, 'Medical conditions must be less than 1000 characters'),
   notes: z.string().optional().refine(val => !val || val.length <= 1000, 'Notes must be less than 1000 characters'),
+  modality: z.enum(['presencial', 'virtual', 'both']).default('presencial'),
 });
 
 type StudentFormValues = z.infer<typeof studentFormSchema>;
@@ -59,6 +61,7 @@ export default function NewStudent() {
       address: '',
       medicalConditions: '',
       notes: '',
+      modality: 'presencial',
     },
   });
 
@@ -90,6 +93,7 @@ export default function NewStudent() {
         address: data.address,
         medical_conditions: data.medicalConditions,
         notes: data.notes,
+        modality: data.modality,
         enrollment_date: new Date().toISOString().split('T')[0],
         pack_size: defaultPackSize,
         classes_remaining: defaultPackSize,
@@ -198,6 +202,29 @@ export default function NewStudent() {
                     <FormControl>
                       <Input placeholder="Enter school name" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="modality"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modalidad</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona modalidad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="presencial">Presencial</SelectItem>
+                        <SelectItem value="virtual">Virtual</SelectItem>
+                        <SelectItem value="both">Ambos</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
