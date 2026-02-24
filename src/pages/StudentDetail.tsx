@@ -1029,12 +1029,12 @@ export default function StudentDetail() {
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Módulo (opcional)</label>
-              <Select value={classLogModuleId} onValueChange={setClassLogModuleId}>
+              <Select value={classLogModuleId || '__none__'} onValueChange={(v) => setClassLogModuleId(v === '__none__' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un módulo..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin módulo</SelectItem>
+                  <SelectItem value="__none__">Sin módulo</SelectItem>
                   {(modules as any[]).map((m) => (
                     <SelectItem key={m.id} value={m.id}>Niv. {m.level} · {m.name}</SelectItem>
                   ))}
@@ -1043,12 +1043,12 @@ export default function StudentDetail() {
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Actividad (opcional)</label>
-              <Select value={classLogActivityId} onValueChange={setClassLogActivityId}>
+              <Select value={classLogActivityId || '__none__'} onValueChange={(v) => setClassLogActivityId(v === '__none__' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una actividad..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin actividad</SelectItem>
+                  <SelectItem value="__none__">Sin actividad</SelectItem>
                   {(activities as any[]).map((a) => {
                     const areaConf = AREA_CONFIG[a.area] || AREA_CONFIG.other;
                     return (
