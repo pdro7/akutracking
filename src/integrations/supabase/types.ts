@@ -463,11 +463,15 @@ export type Database = {
       students: {
         Row: {
           address: string | null
+          age_at_enrollment: number | null
           archived: boolean
+          city: string | null
           classes_attended: number
           classes_remaining: number
+          course_interest: string | null
           created_at: string
           date_of_birth: string | null
+          department: string | null
           email: string
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -481,20 +485,27 @@ export type Database = {
           modality: string
           mother_name: string | null
           name: string
+          newsletter_opt_in: boolean
           notes: string | null
           pack_size: number
+          parent_cedula: string | null
           parent_name: string
           phone: string
+          referral_source: string | null
           school_name: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
+          age_at_enrollment?: number | null
           archived?: boolean
+          city?: string | null
           classes_attended?: number
           classes_remaining?: number
+          course_interest?: string | null
           created_at?: string
           date_of_birth?: string | null
+          department?: string | null
           email: string
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -508,20 +519,27 @@ export type Database = {
           modality?: string
           mother_name?: string | null
           name: string
+          newsletter_opt_in?: boolean
           notes?: string | null
           pack_size?: number
+          parent_cedula?: string | null
           parent_name: string
           phone: string
+          referral_source?: string | null
           school_name?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
+          age_at_enrollment?: number | null
           archived?: boolean
+          city?: string | null
           classes_attended?: number
           classes_remaining?: number
+          course_interest?: string | null
           created_at?: string
           date_of_birth?: string | null
+          department?: string | null
           email?: string
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -535,10 +553,13 @@ export type Database = {
           modality?: string
           mother_name?: string | null
           name?: string
+          newsletter_opt_in?: boolean
           notes?: string | null
           pack_size?: number
+          parent_cedula?: string | null
           parent_name?: string
           phone?: string
+          referral_source?: string | null
           school_name?: string | null
           updated_at?: string
         }
