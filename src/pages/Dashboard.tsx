@@ -38,16 +38,15 @@ export default function Dashboard() {
     }
   });
 
-  // Virtual enrollments with unpaid 2nd installment
+  // Virtual enrollments with any pending payment (1st or 2nd installment)
   const { data: pendingInstallments = [] } = useQuery({
     queryKey: ['pending_installments'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('course_enrollments')
-        .select('id, installment_2_due_date, installment_2_amount, students(id, name), course_groups(code, virtual_courses(name))')
-        .eq('payment_plan', 'installments')
-        .is('installment_2_paid_at', null)
-        .not('installment_2_due_date', 'is', null);
+        .select('id, payment_plan, installment_1_paid_at, installment_2_due_date, installment_2_amount, students(id, name), course_groups(code, virtual_courses(name))')
+        .eq('status', 'active')
+        .or('installment_1_paid_at.is.null,and(payment_plan.eq.installments,installment_2_paid_at.is.null,installment_2_due_date.not.is.null)');
       if (error) throw error;
       return data || [];
     }
@@ -151,25 +150,31 @@ export default function Dashboard() {
                     </TableRow>
                   ))}
                   {(pendingInstallments as any[]).map((e: any) => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const firstPending = !e.installment_1_paid_at;
+                    const secondPending = e.payment_plan === 'installments' && !e.installment_2_due_date?.includes('null') && e.installment_2_due_date;
+                    const isOverdue = secondPending && e.installment_2_due_date < today;
                     const dueDate = e.installment_2_due_date
                       ? new Date(e.installment_2_due_date + 'T12:00:00').toLocaleDateString('es-CO')
-                      : '—';
-                    const isOverdue = e.installment_2_due_date && e.installment_2_due_date < new Date().toISOString().split('T')[0];
+                      : null;
+                    const label = firstPending
+                      ? (e.payment_plan === 'full' ? 'Pago pendiente' : '1ª cuota pendiente')
+                      : (isOverdue ? '2ª cuota vencida' : '2ª cuota pendiente');
+                    const badgeVariant = (firstPending || isOverdue) ? 'destructive' : 'warning';
                     return (
                       <TableRow
-                        key={e.id}
+                        key={`${e.id}-${firstPending ? '1' : '2'}`}
                         className="cursor-pointer hover:bg-accent/50"
                         onClick={() => navigate(`/student/${(e.students as any)?.id}`)}
                       >
                         <TableCell className="font-medium text-primary">{(e.students as any)?.name}</TableCell>
                         <TableCell>
-                          <Badge variant={isOverdue ? 'destructive' : 'warning'}>
-                            {isOverdue ? '2ª cuota vencida' : '2ª cuota pendiente'}
-                          </Badge>
+                          <Badge variant={badgeVariant}>{label}</Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          Vence {dueDate}
-                          {e.installment_2_amount ? ` · $${e.installment_2_amount}` : ''}
+                          {firstPending
+                            ? (e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota')
+                            : `Vence ${dueDate}${e.installment_2_amount ? ` · $${e.installment_2_amount}` : ''}`}
                         </TableCell>
                       </TableRow>
                     );

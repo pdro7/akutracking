@@ -42,6 +42,8 @@ export default function VirtualGroupDetail() {
   const [enrollInst2Amount, setEnrollInst2Amount] = useState('');
   const [enrollInst2DueDate, setEnrollInst2DueDate] = useState('');
   const [enrollNotes, setEnrollNotes] = useState('');
+  const [enrollPaymentReceived, setEnrollPaymentReceived] = useState(false);
+  const [enrollFullAmount, setEnrollFullAmount] = useState('');
   const [removeEnrollmentId, setRemoveEnrollmentId] = useState<string | null>(null);
 
   // Session attendance dialog
@@ -160,15 +162,20 @@ export default function VirtualGroupDetail() {
   const enrollMutation = useMutation({
     mutationFn: async () => {
       if (!enrollStudentId) throw new Error('Selecciona un alumno');
+      const today = new Date().toISOString().split('T')[0];
       const payload: any = {
         student_id: enrollStudentId,
         group_id: id,
         payment_plan: enrollPaymentPlan,
         notes: enrollNotes.trim() || null,
+        installment_1_paid_at: enrollPaymentReceived ? today : null,
       };
+      if (enrollPaymentPlan === 'full') {
+        payload.installment_1_amount = enrollFullAmount ? parseFloat(enrollFullAmount) : null;
+      }
       if (enrollPaymentPlan === 'installments') {
         payload.installment_1_amount = enrollInst1Amount ? parseFloat(enrollInst1Amount) : null;
-        payload.installment_1_paid_at = enrollInst1Date || null;
+        if (!enrollPaymentReceived) payload.installment_1_paid_at = enrollInst1Date || null;
         payload.installment_2_amount = enrollInst2Amount ? parseFloat(enrollInst2Amount) : null;
         payload.installment_2_due_date = enrollInst2DueDate || null;
       }
@@ -282,7 +289,26 @@ export default function VirtualGroupDetail() {
     setEnrollInst2Amount('');
     setEnrollInst2DueDate('');
     setEnrollNotes('');
+    setEnrollPaymentReceived(false);
+    setEnrollFullAmount('');
   };
+
+  const markFirstPaymentMutation = useMutation({
+    mutationFn: async (enrollmentId: string) => {
+      const today = new Date().toISOString().split('T')[0];
+      const { error } = await supabase
+        .from('course_enrollments')
+        .update({ installment_1_paid_at: today })
+        .eq('id', enrollmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course_enrollments', id] });
+      queryClient.invalidateQueries({ queryKey: ['pending_installments'] });
+      toast.success('Pago registrado');
+    },
+    onError: (error: Error) => { toast.error(error.message); },
+  });
 
   const handleOpenAttendance = (session: any) => {
     setAttendanceSession(session);
@@ -444,9 +470,22 @@ export default function VirtualGroupDetail() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">
-                          {enrollment.installment_1_paid_at
-                            ? new Date(enrollment.installment_1_paid_at + 'T12:00:00').toLocaleDateString('es-CO')
-                            : '—'}
+                          {enrollment.installment_1_paid_at ? (
+                            new Date(enrollment.installment_1_paid_at + 'T12:00:00').toLocaleDateString('es-CO')
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="destructive">Pendiente</Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs px-2"
+                                onClick={() => markFirstPaymentMutation.mutate(enrollment.id)}
+                                disabled={markFirstPaymentMutation.isPending}
+                              >
+                                Cobrado
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm">
                           {inst2Due ? (
@@ -570,6 +609,35 @@ export default function VirtualGroupDetail() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Payment received toggle */}
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/40">
+              <input
+                type="checkbox"
+                id="paymentReceived"
+                checked={enrollPaymentReceived}
+                onChange={(e) => setEnrollPaymentReceived(e.target.checked)}
+                className="h-4 w-4 cursor-pointer"
+              />
+              <Label htmlFor="paymentReceived" className="cursor-pointer font-normal">
+                Pago ya recibido
+              </Label>
+            </div>
+
+            {/* Amount for full payment plan */}
+            {enrollPaymentPlan === 'full' && (
+              <div>
+                <Label className="mb-2 block">Monto (opcional)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={enrollFullAmount}
+                  onChange={(e) => setEnrollFullAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            )}
 
             {enrollPaymentPlan === 'installments' && (
               <>
