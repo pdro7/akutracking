@@ -98,6 +98,7 @@ export default function Students() {
             { value: 'presencial', label: 'Presencial' },
             { value: 'virtual', label: 'Virtual' },
             { value: 'both', label: 'Ambos' },
+            { value: 'individual', label: 'Individual' },
           ].map((opt) => (
             <button
               key={opt.value}

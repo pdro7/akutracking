@@ -35,7 +35,7 @@ const studentFormSchema = z.object({
   address: z.string().optional().refine(val => !val || val.length <= 500, 'Address must be less than 500 characters'),
   medicalConditions: z.string().optional().refine(val => !val || val.length <= 1000, 'Medical conditions must be less than 1000 characters'),
   notes: z.string().optional().refine(val => !val || val.length <= 1000, 'Notes must be less than 1000 characters'),
-  modality: z.enum(['presencial', 'virtual', 'both']).default('presencial'),
+  modality: z.enum(['presencial', 'virtual', 'both', 'individual']).default('presencial'),
 });
 
 type StudentFormValues = z.infer<typeof studentFormSchema>;
@@ -223,6 +223,7 @@ export default function NewStudent() {
                         <SelectItem value="presencial">Presencial</SelectItem>
                         <SelectItem value="virtual">Virtual</SelectItem>
                         <SelectItem value="both">Ambos</SelectItem>
+                        <SelectItem value="individual">Individual</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

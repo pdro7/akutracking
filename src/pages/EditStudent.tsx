@@ -38,7 +38,7 @@ const studentFormSchema = z.object({
   
   // Enrollment Details
   packSize: z.string().min(1, 'Pack size is required'),
-  modality: z.enum(['presencial', 'virtual', 'both']).default('presencial'),
+  modality: z.enum(['presencial', 'virtual', 'both', 'individual']).default('presencial'),
 });
 
 type StudentFormValues = z.infer<typeof studentFormSchema>;
@@ -80,7 +80,7 @@ export default function EditStudent() {
       medicalConditions: student.medical_conditions || '',
       notes: student.notes || '',
       packSize: student.pack_size.toString(),
-      modality: (student.modality as 'presencial' | 'virtual' | 'both') || 'presencial',
+      modality: (student.modality as 'presencial' | 'virtual' | 'both' | 'individual') || 'presencial',
     } : undefined,
   });
 
@@ -248,6 +248,7 @@ export default function EditStudent() {
                         <SelectItem value="presencial">Presencial</SelectItem>
                         <SelectItem value="virtual">Virtual</SelectItem>
                         <SelectItem value="both">Ambos</SelectItem>
+                        <SelectItem value="individual">Individual</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
