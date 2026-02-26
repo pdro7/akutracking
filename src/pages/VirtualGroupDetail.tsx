@@ -208,6 +208,15 @@ export default function VirtualGroupDetail() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Fetch previous records before deleting to compute the delta
+      const { data: prevRecords } = await supabase
+        .from('attendance_records')
+        .select('student_id, attended')
+        .eq('course_session_id', attendanceSession.id);
+
+      const prevMap: Record<string, boolean> = {};
+      (prevRecords ?? []).forEach((r: any) => { prevMap[r.student_id] = r.attended; });
+
       // Delete existing records for this session
       await supabase
         .from('attendance_records')
@@ -228,10 +237,37 @@ export default function VirtualGroupDetail() {
         const { error } = await supabase.from('attendance_records').insert(records);
         if (error) throw error;
       }
+
+      // Update classes_remaining / classes_attended for each student whose
+      // attendance status changed in this session
+      const allStudentIds = new Set([
+        ...Object.keys(prevMap),
+        ...Object.keys(attendanceMap),
+      ]);
+
+      for (const studentId of allStudentIds) {
+        const wasPresent = prevMap[studentId] ?? false;
+        const isPresent  = attendanceMap[studentId] ?? false;
+        if (wasPresent === isPresent) continue;
+
+        const { data: stu } = await supabase
+          .from('students')
+          .select('classes_attended, classes_remaining')
+          .eq('id', studentId)
+          .single();
+        if (!stu) continue;
+
+        const delta = isPresent ? 1 : -1;
+        await supabase.from('students').update({
+          classes_attended:  stu.classes_attended  + delta,
+          classes_remaining: stu.classes_remaining - delta,
+        }).eq('id', studentId);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['session_attendance_counts', id] });
       queryClient.invalidateQueries({ queryKey: ['session_attendance', attendanceSession?.id] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
       toast.success('Asistencia guardada');
       setAttendanceSession(null);
     },
