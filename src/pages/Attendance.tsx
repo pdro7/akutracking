@@ -26,8 +26,9 @@ export default function Attendance() {
         .from('students')
         .select('*')
         .eq('is_active', true)
+        .eq('archived', false)
         .order('name');
-      
+
       if (error) throw error;
       return data;
     }
