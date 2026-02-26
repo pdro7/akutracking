@@ -74,15 +74,26 @@ function onFormSubmit(e) {
     var newsletterStr = get('Quieres recibir noticias sobre nuestros cursos y actividades para niños por correo?');
 
     // ── Derivar valores ───────────────────────────────────────
-    // Google Forms entrega fechas como "DD/MM/YYYY" — convertir a "YYYY-MM-DD"
+    // Google Forms puede entregar fechas como DD/MM/YYYY o MM/DD/YYYY según
+    // la configuración regional del Sheet. Detectamos el formato automáticamente:
+    // si la segunda parte > 12, no puede ser un mes → formato MM/DD/YYYY.
     var dateOfBirth = null;
     if (dobRaw) {
       var parts = dobRaw.split('/');
       if (parts.length === 3) {
-        // Intentar DD/MM/YYYY primero (formato Colombia)
-        var day   = parts[0].padStart(2, '0');
-        var month = parts[1].padStart(2, '0');
-        var year  = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+        var p0   = parseInt(parts[0], 10);
+        var p1   = parseInt(parts[1], 10);
+        var year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+        var day, month;
+        if (p1 > 12) {
+          // Formato MM/DD/YYYY (americano)
+          month = String(p0).padStart(2, '0');
+          day   = String(p1).padStart(2, '0');
+        } else {
+          // Formato DD/MM/YYYY (Colombia) — asumido por defecto
+          day   = String(p0).padStart(2, '0');
+          month = String(p1).padStart(2, '0');
+        }
         dateOfBirth = year + '-' + month + '-' + day;
       }
     }
@@ -208,14 +219,22 @@ function importExistingStudents() {
     var courseChoice  = col('Cuál curso va tomar tu hijo(a)?');
     var newsletterStr = col('Quieres recibir noticias sobre nuestros cursos y actividades para niños por correo?');
 
-    // Convertir fecha DD/MM/YYYY → YYYY-MM-DD
+    // Convertir fecha — detecta DD/MM/YYYY o MM/DD/YYYY automáticamente
     var dateOfBirth = null;
     if (dobRaw) {
       var parts = dobRaw.split('/');
       if (parts.length === 3) {
-        var day   = parts[0].padStart(2, '0');
-        var month = parts[1].padStart(2, '0');
-        var year  = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+        var p0   = parseInt(parts[0], 10);
+        var p1   = parseInt(parts[1], 10);
+        var year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+        var day, month;
+        if (p1 > 12) {
+          month = String(p0).padStart(2, '0');
+          day   = String(p1).padStart(2, '0');
+        } else {
+          day   = String(p0).padStart(2, '0');
+          month = String(p1).padStart(2, '0');
+        }
         dateOfBirth = year + '-' + month + '-' + day;
       }
     }
