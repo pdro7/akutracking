@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Archive, ArchiveRestore } from 'lucide-react';
+import { Plus, Users, Archive, ArchiveRestore, Search } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +20,7 @@ export default function Students() {
   const queryClient = useQueryClient();
   const [showArchived, setShowArchived] = useState(false);
   const [modalityFilter, setModalityFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [archiveStudentId, setArchiveStudentId] = useState<string | null>(null);
   const [archiveStudentName, setArchiveStudentName] = useState('');
 
@@ -55,9 +57,14 @@ export default function Students() {
     }
   });
 
-  const filteredStudents = students.filter((s) =>
-    modalityFilter === 'all' ? true : s.modality === modalityFilter
-  );
+  const filteredStudents = students.filter((s) => {
+    const matchesModality = modalityFilter === 'all' || s.modality === modalityFilter;
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = !term ||
+      s.name.toLowerCase().includes(term) ||
+      s.parent_name.toLowerCase().includes(term);
+    return matchesModality && matchesSearch;
+  });
 
   if (isLoading) {
     return <div className="container mx-auto px-4 py-8">Loading...</div>;
@@ -88,6 +95,17 @@ export default function Students() {
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative w-full max-w-sm mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+        <Input
+          placeholder="Buscar por alumno o padre..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Modality filter */}
