@@ -179,8 +179,28 @@ export default function VirtualGroupDetail() {
         payload.installment_2_amount = enrollInst2Amount ? parseFloat(enrollInst2Amount) : null;
         payload.installment_2_due_date = enrollInst2DueDate || null;
       }
-      const { error } = await supabase.from('course_enrollments').insert(payload);
-      if (error) throw error;
+      // Check if a withdrawn enrollment already exists for this student+group
+      const { data: existing } = await supabase
+        .from('course_enrollments')
+        .select('id, status')
+        .eq('student_id', enrollStudentId)
+        .eq('group_id', id)
+        .maybeSingle();
+
+      if (existing) {
+        if (existing.status === 'active') {
+          throw new Error('Este alumno ya está inscrito en este grupo.');
+        }
+        // Reactivate withdrawn enrollment with new payment details
+        const { error } = await supabase
+          .from('course_enrollments')
+          .update({ ...payload, status: 'active' })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('course_enrollments').insert(payload);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['course_enrollments', id] });

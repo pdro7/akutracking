@@ -44,7 +44,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('course_enrollments')
-        .select('id, payment_plan, installment_1_paid_at, installment_2_due_date, installment_2_amount, students(id, name), course_groups(code, virtual_courses(name))')
+        .select('id, payment_plan, installment_1_paid_at, installment_1_amount, installment_2_due_date, installment_2_amount, students(id, name), course_groups(code, virtual_courses(name))')
         .eq('status', 'active')
         .or('installment_1_paid_at.is.null,and(payment_plan.eq.installments,installment_2_paid_at.is.null,installment_2_due_date.not.is.null)');
       if (error) throw error;
@@ -173,7 +173,7 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {firstPending
-                            ? (e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota')
+                            ? `${e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota'}${e.installment_1_amount ? ` · $${e.installment_1_amount}` : ''}`
                             : `Vence ${dueDate}${e.installment_2_amount ? ` · $${e.installment_2_amount}` : ''}`}
                         </TableCell>
                       </TableRow>
