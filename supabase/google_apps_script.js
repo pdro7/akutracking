@@ -278,3 +278,120 @@ function importExistingStudents() {
   Logger.log('──────────────────────────────');
   Logger.log('Importación terminada: ' + ok + ' insertados, ' + errors + ' errores');
 }
+
+/**
+ * Importación masiva de clases de prueba desde una exportación de Calendly.
+ * ============================================================================
+ * Instrucciones:
+ * 1. En Calendly: Reportes → Actividad → Exportar CSV
+ * 2. Abre el CSV exportado en Google Sheets (o cópialo a una pestaña nueva)
+ * 3. Asegúrate de que la hoja activa sea esa pestaña con los datos de Calendly
+ * 4. Ejecuta esta función una sola vez
+ *
+ * Columnas esperadas (las que exporta Calendly):
+ *   Invitee Name, Invitee Email, Text Reminder Number,
+ *   Start Date & Time, Canceled,
+ *   Question 1, Response 1 (Celular)
+ *   Question 2, Response 2 (Nombre del hijo)
+ *   Question 3, Response 3 (Edad)
+ *   Question 4, Response 4 (Ciudad)
+ *   Question 5, Response 5 (Experiencia previa)
+ *   Question 6, Response 6 (Cómo nos conociste)
+ */
+function importCalendlyLeads() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data  = sheet.getDataRange().getValues();
+  var headers = data[0].map(function(h) { return String(h).trim(); });
+  var rows    = data.slice(1);
+
+  function col(row, name) {
+    var i = headers.indexOf(name);
+    return (i !== -1 && row[i] !== '') ? String(row[i]).trim() : '';
+  }
+
+  // Parse "M/D/YYYY H:MM AM" or "M/D/YYYY HH:MM" → "YYYY-MM-DD"
+  function parseCalendlyDate(raw) {
+    if (!raw) return null;
+    // Remove time part — keep only the date portion before the first space
+    var datePart = raw.split(' ')[0];  // e.g. "2/15/2026"
+    var parts = datePart.split('/');
+    if (parts.length !== 3) return null;
+    var month = parts[0].padStart(2, '0');
+    var day   = parts[1].padStart(2, '0');
+    var year  = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+    return year + '-' + month + '-' + day;
+  }
+
+  var ok     = 0;
+  var errors = 0;
+  var skipped = 0;
+
+  rows.forEach(function(row, index) {
+    // Skip empty rows
+    if (row.every(function(c) { return c === ''; })) return;
+
+    var parentName  = col(row, 'Invitee Name');
+    var parentEmail = col(row, 'Invitee Email');
+    var phone       = col(row, 'Response 1') || col(row, 'Text Reminder Number');
+    var childName   = col(row, 'Response 2') || '(por confirmar)';
+    var age         = col(row, 'Response 3');
+    var city        = col(row, 'Response 4');
+    var experience  = col(row, 'Response 5');
+    var referral    = col(row, 'Response 6');
+    var startRaw    = col(row, 'Start Date & Time');
+    var canceled    = col(row, 'Canceled').toLowerCase();
+
+    var trialDate = parseCalendlyDate(startRaw);
+    if (!trialDate) {
+      Logger.log('⚠️  Fila ' + (index + 2) + ': fecha inválida "' + startRaw + '", omitida');
+      skipped++;
+      return;
+    }
+
+    var noteParts = [];
+    if (age)        noteParts.push('Edad: ' + age);
+    if (city)       noteParts.push('Ciudad: ' + city);
+    if (experience) noteParts.push('Exp. previa: ' + experience);
+    if (referral)   noteParts.push('Referido: ' + referral);
+
+    var status = (canceled === 'true' || canceled === 'yes' || canceled === 'sí')
+      ? 'cancelled'
+      : 'scheduled';
+
+    var lead = {
+      parent_name:      parentName || '(sin nombre)',
+      parent_email:     parentEmail || null,
+      parent_phone:     phone || null,
+      child_name:       childName,
+      trial_class_date: trialDate,
+      notes:            noteParts.length > 0 ? noteParts.join(' | ') : null,
+      status:           status,
+    };
+
+    var response = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/trial_leads', {
+      method:      'post',
+      contentType: 'application/json',
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Prefer':        'return=minimal',
+      },
+      payload:            JSON.stringify(lead),
+      muteHttpExceptions: true,
+    });
+
+    var status_code = response.getResponseCode();
+    if (status_code === 201) {
+      Logger.log('✅ Fila ' + (index + 2) + ': ' + parentName + ' insertado');
+      ok++;
+    } else {
+      Logger.log('❌ Fila ' + (index + 2) + ': ' + parentName + ' — ' + response.getContentText());
+      errors++;
+    }
+
+    Utilities.sleep(200);
+  });
+
+  Logger.log('──────────────────────────────────────────────────');
+  Logger.log('Clases de prueba: ' + ok + ' insertadas, ' + errors + ' errores, ' + skipped + ' omitidas');
+}

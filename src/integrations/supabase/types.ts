@@ -567,6 +567,7 @@ export type Database = {
       }
       trial_leads: {
         Row: {
+          calendly_uri: string | null
           child_name: string
           created_at: string
           created_by: string | null
@@ -581,6 +582,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          calendly_uri?: string | null
           child_name: string
           created_at?: string
           created_by?: string | null
@@ -595,6 +597,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          calendly_uri?: string | null
           child_name?: string
           created_at?: string
           created_by?: string | null
