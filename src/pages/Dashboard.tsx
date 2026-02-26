@@ -2,9 +2,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Calendar, TrendingUp, Search, Monitor } from 'lucide-react';
+import { Plus, Users, Calendar, TrendingUp, Monitor } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,8 +11,6 @@ import { useState } from 'react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],
     queryFn: async () => {
@@ -41,42 +38,52 @@ export default function Dashboard() {
     }
   });
 
-  const { data: upcomingInstallments = [] } = useQuery({
-    queryKey: ['upcoming_installments'],
+  // Virtual enrollments with unpaid 2nd installment
+  const { data: pendingInstallments = [] } = useQuery({
+    queryKey: ['pending_installments'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const sevenDays = new Date();
-      sevenDays.setDate(sevenDays.getDate() + 7);
-      const sevenDaysStr = sevenDays.toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('course_enrollments')
-        .select('id, installment_2_due_date, students(name)')
+        .select('id, installment_2_due_date, installment_2_amount, students(id, name), course_groups(code, virtual_courses(name))')
         .eq('payment_plan', 'installments')
         .is('installment_2_paid_at', null)
-        .gte('installment_2_due_date', today)
-        .lte('installment_2_due_date', sevenDaysStr);
+        .not('installment_2_due_date', 'is', null);
       if (error) throw error;
       return data || [];
     }
   });
 
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.parent_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Students with 0 classes remaining (pack exhausted)
+  const packDue = students.filter(s => s.classes_remaining === 0);
 
-  const activeStudents = filteredStudents;
-  const needsPayment = activeStudents.filter(s => s.classes_remaining === 0);
+  // Last 7 enrolled students
+  const { data: recentStudents = [] } = useQuery({
+    queryKey: ['recent_students'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('students')
+        .select('id, name, parent_name, enrollment_date, modality, classes_remaining')
+        .eq('is_active', true)
+        .eq('archived', false)
+        .order('created_at', { ascending: false })
+        .limit(7);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  const activeStudents = students;
   const lowCredits = activeStudents.filter(s => s.classes_remaining > 0 && s.classes_remaining <= 2);
+  const totalPaymentAlerts = packDue.length + (pendingInstallments as any[]).length;
 
   if (isLoading) {
     return <div className="container mx-auto px-4 py-8">Loading...</div>;
   }
 
   const stats = [
-    { label: 'Active Students', value: activeStudents.length, icon: Users },
-    { label: 'Payment Due', value: needsPayment.length, icon: TrendingUp },
-    { label: 'Low Credits', value: lowCredits.length, icon: Calendar },
+    { label: 'Alumnos activos', value: activeStudents.length, icon: Users },
+    { label: 'Alertas de pago', value: totalPaymentAlerts, icon: TrendingUp },
+    { label: 'Créditos bajos', value: lowCredits.length, icon: Calendar },
     { label: 'Grupos activos', value: activeGroups.length, icon: Monitor },
   ];
 
@@ -110,91 +117,112 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Upcoming installment alerts */}
-      {(upcomingInstallments as any[]).length > 0 && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm font-medium text-yellow-800 mb-2">
-            Cuotas virtuales próximas a vencer ({(upcomingInstallments as any[]).length}):
-          </p>
-          {(upcomingInstallments as any[]).map((e: any) => (
-            <p key={e.id} className="text-sm text-yellow-700">
-              • {(e.students as any)?.name} — vence {new Date(e.installment_2_due_date + 'T12:00:00').toLocaleDateString('es-CO')}
-            </p>
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      {/* Students List */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">All Students</h2>
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} />
-            <Input
-              type="text"
-              placeholder="Search by student or parent name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student Name</TableHead>
-                <TableHead>Parent Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Classes Attended</TableHead>
-                <TableHead>Classes Remaining</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {activeStudents.map((student) => {
-                const status = getPaymentStatus(student.classes_remaining);
-                const statusConfig = {
-                  good: { variant: 'success' as const, label: 'Active' },
-                  low: { variant: 'warning' as const, label: 'Low Credits' },
-                  due: { variant: 'destructive' as const, label: 'Payment Due' },
-                };
-                
-                return (
-                  <TableRow 
-                    key={student.id} 
-                    className="cursor-pointer hover:bg-accent/50"
-                    onClick={() => navigate(`/student/${student.id}`)}
-                  >
-                    <TableCell className="font-medium text-primary">{student.name}</TableCell>
-                    <TableCell>{student.parent_name}</TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.classes_attended}</TableCell>
-                    <TableCell>{student.classes_remaining}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusConfig[status].variant} className="whitespace-nowrap">
-                        {statusConfig[status].label}
-                      </Badge>
-                    </TableCell>
+        {/* ── Pendientes de pago ── */}
+        <div>
+          <h2 className="text-xl font-bold mb-3">Pendientes de pago</h2>
+          <Card>
+            {totalPaymentAlerts === 0 ? (
+              <div className="p-6 text-center text-muted-foreground text-sm">
+                Sin alertas de pago pendientes
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Alumno</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead>Detalle</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
-      </div>
+                </TableHeader>
+                <TableBody>
+                  {packDue.map((student) => (
+                    <TableRow
+                      key={student.id}
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => navigate(`/student/${student.id}`)}
+                    >
+                      <TableCell className="font-medium text-primary">{student.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="destructive">Pack agotado</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">0 clases restantes</TableCell>
+                    </TableRow>
+                  ))}
+                  {(pendingInstallments as any[]).map((e: any) => {
+                    const dueDate = e.installment_2_due_date
+                      ? new Date(e.installment_2_due_date + 'T12:00:00').toLocaleDateString('es-CO')
+                      : '—';
+                    const isOverdue = e.installment_2_due_date && e.installment_2_due_date < new Date().toISOString().split('T')[0];
+                    return (
+                      <TableRow
+                        key={e.id}
+                        className="cursor-pointer hover:bg-accent/50"
+                        onClick={() => navigate(`/student/${(e.students as any)?.id}`)}
+                      >
+                        <TableCell className="font-medium text-primary">{(e.students as any)?.name}</TableCell>
+                        <TableCell>
+                          <Badge variant={isOverdue ? 'destructive' : 'warning'}>
+                            {isOverdue ? '2ª cuota vencida' : '2ª cuota pendiente'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          Vence {dueDate}
+                          {e.installment_2_amount ? ` · $${e.installment_2_amount}` : ''}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </Card>
+        </div>
 
-      {activeStudents.length === 0 && (
-        <Card className="p-12 text-center">
-          <Users className="mx-auto mb-4 text-muted-foreground" size={48} />
-          <h3 className="text-xl font-semibold mb-2">No students yet</h3>
-          <p className="text-muted-foreground mb-4">Get started by adding your first student</p>
-          <Button onClick={() => navigate('/students/new')}>
-            <Plus size={20} className="mr-2" />
-            Add First Student
-          </Button>
-        </Card>
-      )}
+        {/* ── Últimas inscripciones ── */}
+        <div>
+          <h2 className="text-xl font-bold mb-3">Últimas inscripciones</h2>
+          <Card>
+            {(recentStudents as any[]).length === 0 ? (
+              <div className="p-6 text-center text-muted-foreground text-sm">
+                No hay alumnos registrados aún
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Alumno</TableHead>
+                    <TableHead>Modalidad</TableHead>
+                    <TableHead>Inscripción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(recentStudents as any[]).map((student: any) => (
+                    <TableRow
+                      key={student.id}
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => navigate(`/student/${student.id}`)}
+                    >
+                      <TableCell>
+                        <div className="font-medium text-primary">{student.name}</div>
+                        <div className="text-xs text-muted-foreground">{student.parent_name}</div>
+                      </TableCell>
+                      <TableCell className="capitalize text-sm">{student.modality ?? 'presencial'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {student.enrollment_date
+                          ? new Date(student.enrollment_date + 'T12:00:00').toLocaleDateString('es-CO')
+                          : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Card>
+        </div>
+
+      </div>
     </div>
   );
 }
