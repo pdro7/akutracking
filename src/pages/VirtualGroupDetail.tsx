@@ -16,7 +16,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, Users, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, Users, Calendar, Pencil } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -45,6 +45,15 @@ export default function VirtualGroupDetail() {
   const [enrollPaymentReceived, setEnrollPaymentReceived] = useState(false);
   const [enrollFullAmount, setEnrollFullAmount] = useState('');
   const [removeEnrollmentId, setRemoveEnrollmentId] = useState<string | null>(null);
+
+  // Edit enrollment dialog
+  const [editEnrollment, setEditEnrollment] = useState<any>(null);
+  const [editInst1Amount, setEditInst1Amount] = useState('');
+  const [editInst1PaidAt, setEditInst1PaidAt] = useState('');
+  const [editInst2Amount, setEditInst2Amount] = useState('');
+  const [editInst2DueDate, setEditInst2DueDate] = useState('');
+  const [editInst2PaidAt, setEditInst2PaidAt] = useState('');
+  const [editNotes, setEditNotes] = useState('');
 
   // Session attendance dialog
   const [attendanceSession, setAttendanceSession] = useState<any>(null);
@@ -330,6 +339,42 @@ export default function VirtualGroupDetail() {
     onError: (error: Error) => { toast.error(error.message); },
   });
 
+  const updateEnrollmentMutation = useMutation({
+    mutationFn: async () => {
+      if (!editEnrollment) return;
+      const payload: any = {
+        notes: editNotes.trim() || null,
+        installment_1_amount: editInst1Amount ? parseFloat(editInst1Amount) : null,
+        installment_1_paid_at: editInst1PaidAt || null,
+        installment_2_amount: editInst2Amount ? parseFloat(editInst2Amount) : null,
+        installment_2_due_date: editInst2DueDate || null,
+        installment_2_paid_at: editInst2PaidAt || null,
+      };
+      const { error } = await supabase
+        .from('course_enrollments')
+        .update(payload)
+        .eq('id', editEnrollment.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course_enrollments', id] });
+      queryClient.invalidateQueries({ queryKey: ['pending_installments'] });
+      toast.success('Inscripción actualizada');
+      setEditEnrollment(null);
+    },
+    onError: (error: Error) => { toast.error(error.message); },
+  });
+
+  const handleOpenEditEnrollment = (enrollment: any) => {
+    setEditEnrollment(enrollment);
+    setEditInst1Amount(enrollment.installment_1_amount?.toString() ?? '');
+    setEditInst1PaidAt(enrollment.installment_1_paid_at ?? '');
+    setEditInst2Amount(enrollment.installment_2_amount?.toString() ?? '');
+    setEditInst2DueDate(enrollment.installment_2_due_date ?? '');
+    setEditInst2PaidAt(enrollment.installment_2_paid_at ?? '');
+    setEditNotes(enrollment.notes ?? '');
+  };
+
   const handleOpenAttendance = (session: any) => {
     setAttendanceSession(session);
     // Pre-populate from existing records
@@ -521,13 +566,22 @@ export default function VirtualGroupDetail() {
                             : enrollment.payment_plan === 'installments' ? <span className="text-muted-foreground">Pendiente</span> : '—'}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setRemoveEnrollmentId(enrollment.id)}
-                          >
-                            <Trash2 size={14} className="text-destructive" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEditEnrollment(enrollment)}
+                            >
+                              <Pencil size={14} className="text-muted-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setRemoveEnrollmentId(enrollment.id)}
+                            >
+                              <Trash2 size={14} className="text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -725,6 +779,92 @@ export default function VirtualGroupDetail() {
               disabled={enrollMutation.isPending || !enrollStudentId}
             >
               {enrollMutation.isPending ? 'Inscribiendo...' : 'Inscribir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Enrollment Dialog ────────────────────────────── */}
+      <Dialog open={!!editEnrollment} onOpenChange={(open) => !open && setEditEnrollment(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar inscripción</DialogTitle>
+            <DialogDescription>
+              {editEnrollment?.students?.name} — {editEnrollment?.payment_plan === 'full' ? 'Pago completo' : 'En cuotas'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block">Monto 1ª cuota / pago</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editInst1Amount}
+                  onChange={(e) => setEditInst1Amount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Fecha pago recibido</Label>
+                <Input
+                  type="date"
+                  value={editInst1PaidAt}
+                  onChange={(e) => setEditInst1PaidAt(e.target.value)}
+                />
+              </div>
+            </div>
+            {editEnrollment?.payment_plan === 'installments' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-2 block">Monto 2ª cuota</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editInst2Amount}
+                    onChange={(e) => setEditInst2Amount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label className="mb-2 block">Vencimiento 2ª cuota</Label>
+                  <Input
+                    type="date"
+                    value={editInst2DueDate}
+                    onChange={(e) => setEditInst2DueDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-2 block">Fecha 2ª cuota pagada</Label>
+                  <Input
+                    type="date"
+                    value={editInst2PaidAt}
+                    onChange={(e) => setEditInst2PaidAt(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+            <div>
+              <Label className="mb-2 block">Notas</Label>
+              <Textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={2}
+                placeholder="Observaciones..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditEnrollment(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => updateEnrollmentMutation.mutate()}
+              disabled={updateEnrollmentMutation.isPending}
+            >
+              {updateEnrollmentMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
             </Button>
           </DialogFooter>
         </DialogContent>
