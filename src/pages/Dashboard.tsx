@@ -157,6 +157,7 @@ export default function Dashboard() {
                     const dueDate = e.installment_2_due_date
                       ? new Date(e.installment_2_due_date + 'T12:00:00').toLocaleDateString('es-CO')
                       : null;
+                    const fmt = (n: number) => n.toLocaleString('es-CO');
                     const label = firstPending
                       ? (e.payment_plan === 'full' ? 'Pago pendiente' : '1ª cuota pendiente')
                       : (isOverdue ? '2ª cuota vencida' : '2ª cuota pendiente');
@@ -173,8 +174,8 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {firstPending
-                            ? `${e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota'}${e.installment_1_amount ? ` · $${e.installment_1_amount}` : ''}`
-                            : `Vence ${dueDate}${e.installment_2_amount ? ` · $${e.installment_2_amount}` : ''}`}
+                            ? `${e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota'}${e.installment_1_amount ? ` · $${fmt(e.installment_1_amount)}` : ''}`
+                            : `Vence ${dueDate}${e.installment_2_amount ? ` · $${fmt(e.installment_2_amount)}` : ''}`}
                         </TableCell>
                       </TableRow>
                     );
