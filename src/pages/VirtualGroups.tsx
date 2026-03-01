@@ -121,7 +121,7 @@ export default function VirtualGroups() {
           start_date: startDate,
           end_date: endDate || null,
           status: groupStatus,
-          teacher_id: teacherId || null,
+          teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
           notes: notes.trim() || null,
         })
         .select()
@@ -160,7 +160,7 @@ export default function VirtualGroups() {
     setStartDate('');
     setEndDate('');
     setGroupStatus('forming');
-    setTeacherId('');
+    setTeacherId('none');
     setNotes('');
     setAutoSessions(true);
   };
@@ -279,7 +279,7 @@ export default function VirtualGroups() {
             <DialogTitle>Nuevo grupo virtual</DialogTitle>
             <DialogDescription>Crea una cohorte para un curso virtual</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[65vh] overflow-y-auto pr-1">
             <div>
               <Label className="mb-2 block">Curso *</Label>
               <Select value={courseId} onValueChange={setCourseId}>
@@ -318,7 +318,7 @@ export default function VirtualGroups() {
                   <SelectValue placeholder="Sin profesor asignado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin profesor asignado</SelectItem>
+                  <SelectItem value="none">Sin profesor asignado</SelectItem>
                   {(teachers as any[]).map((t: any) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                   ))}

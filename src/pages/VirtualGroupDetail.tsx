@@ -60,7 +60,7 @@ export default function VirtualGroupDetail() {
   const [editGroupStartDate, setEditGroupStartDate] = useState('');
   const [editGroupEndDate, setEditGroupEndDate] = useState('');
   const [editGroupNotes, setEditGroupNotes] = useState('');
-  const [editGroupTeacherId, setEditGroupTeacherId] = useState('');
+  const [editGroupTeacherId, setEditGroupTeacherId] = useState('none');
 
   // Session attendance dialog
   const [attendanceSession, setAttendanceSession] = useState<any>(null);
@@ -192,7 +192,7 @@ export default function VirtualGroupDetail() {
         .update({
           start_date: editGroupStartDate,
           end_date: editGroupEndDate || null,
-          teacher_id: editGroupTeacherId || null,
+          teacher_id: editGroupTeacherId && editGroupTeacherId !== 'none' ? editGroupTeacherId : null,
           notes: editGroupNotes.trim() || null,
         })
         .eq('id', id);
@@ -492,7 +492,7 @@ export default function VirtualGroupDetail() {
                 setEditGroupStartDate(group.start_date ?? '');
                 setEditGroupEndDate(group.end_date ?? '');
                 setEditGroupNotes(group.notes ?? '');
-                setEditGroupTeacherId((group as any).teacher_id ?? '');
+                setEditGroupTeacherId((group as any).teacher_id ?? 'none');
                 setShowEditGroup(true);
               }}
             >
@@ -735,7 +735,7 @@ export default function VirtualGroupDetail() {
                   <SelectValue placeholder="Sin profesor asignado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin profesor asignado</SelectItem>
+                  <SelectItem value="none">Sin profesor asignado</SelectItem>
                   {(teachers as any[]).map((t: any) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                   ))}
