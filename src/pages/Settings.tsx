@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Settings as SettingsIcon, Save, Plus, X, Pencil, Trash2, BookOpen, Layers, Monitor } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Plus, X, Pencil, Trash2, BookOpen, Layers, Monitor, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,6 +42,12 @@ export default function Settings() {
   const [activityArea, setActivityArea] = useState('programming');
   const [activityDescription, setActivityDescription] = useState('');
   const [deleteActivityId, setDeleteActivityId] = useState<string | null>(null);
+
+  // Teacher state
+  const [showTeacherDialog, setShowTeacherDialog] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<any>(null);
+  const [teacherName, setTeacherName] = useState('');
+  const [deleteTeacherId, setDeleteTeacherId] = useState<string | null>(null);
 
   // Virtual course edit state
   const [editingVirtualCourse, setEditingVirtualCourse] = useState<any>(null);
@@ -101,6 +107,15 @@ export default function Settings() {
     }
   });
 
+  const { data: teachers = [] } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('teachers').select('*').order('name');
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const { data: userRole } = useQuery({
     queryKey: ['userRole'],
     queryFn: async () => {
@@ -109,6 +124,40 @@ export default function Settings() {
       const { data } = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle();
       return data?.role || 'user';
     }
+  });
+
+  const saveTeacherMutation = useMutation({
+    mutationFn: async () => {
+      if (!teacherName.trim()) throw new Error('El nombre es obligatorio');
+      if (editingTeacher) {
+        const { error } = await supabase.from('teachers').update({ name: teacherName.trim() }).eq('id', editingTeacher.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('teachers').insert({ name: teacherName.trim() });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success(editingTeacher ? 'Profesor actualizado' : 'Profesor añadido');
+      setShowTeacherDialog(false);
+      setEditingTeacher(null);
+      setTeacherName('');
+    },
+    onError: (error: Error) => { toast.error(error.message); }
+  });
+
+  const deleteTeacherMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('teachers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success('Profesor eliminado');
+      setDeleteTeacherId(null);
+    },
+    onError: (error: Error) => { toast.error(error.message); }
   });
 
   const updateVirtualCourseMutation = useMutation({
@@ -469,6 +518,54 @@ export default function Settings() {
           )}
         </Card>
 
+        {/* Profesores */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center">
+                <GraduationCap className="text-primary-foreground" size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Profesores</h2>
+                <p className="text-sm text-muted-foreground">Lista de profesores activos de la academia</p>
+              </div>
+            </div>
+            <Button onClick={() => { setEditingTeacher(null); setTeacherName(''); setShowTeacherDialog(true); }} size="sm" className="gap-2">
+              <Plus size={16} />
+              Añadir profesor
+            </Button>
+          </div>
+          {(teachers as any[]).length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No hay profesores registrados.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(teachers as any[]).map((teacher: any) => (
+                  <TableRow key={teacher.id}>
+                    <TableCell className="font-medium">{teacher.name}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setShowTeacherDialog(true); }}>
+                          <Pencil size={14} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTeacherId(teacher.id)}>
+                          <Trash2 size={14} className="text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
+
         {/* Virtual Courses — admin only */}
         {userRole === 'admin' && (
           <Card className="p-6">
@@ -664,6 +761,45 @@ export default function Settings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Teacher Dialog */}
+      <Dialog open={showTeacherDialog} onOpenChange={(open) => !open && setShowTeacherDialog(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editingTeacher ? 'Editar profesor' : 'Nuevo profesor'}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label className="mb-2 block">Nombre *</Label>
+            <Input
+              value={teacherName}
+              onChange={(e) => setTeacherName(e.target.value)}
+              placeholder="Nombre del profesor"
+              onKeyDown={(e) => { if (e.key === 'Enter' && teacherName.trim()) saveTeacherMutation.mutate(); }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTeacherDialog(false)}>Cancelar</Button>
+            <Button onClick={() => saveTeacherMutation.mutate()} disabled={!teacherName.trim() || saveTeacherMutation.isPending}>
+              {editingTeacher ? 'Guardar cambios' : 'Añadir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTeacherId} onOpenChange={(open) => !open && setDeleteTeacherId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar profesor?</AlertDialogTitle>
+            <AlertDialogDescription>Los grupos asignados a este profesor quedarán sin profesor asignado.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTeacherId && deleteTeacherMutation.mutate(deleteTeacherId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteModuleId} onOpenChange={(open) => !open && setDeleteModuleId(null)}>
         <AlertDialogContent>

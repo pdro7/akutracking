@@ -10,199 +10,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      course_enrollments: {
-        Row: {
-          created_at: string
-          enrollment_date: string
-          group_id: string
-          id: string
-          installment_1_amount: number | null
-          installment_1_paid_at: string | null
-          installment_2_amount: number | null
-          installment_2_due_date: string | null
-          installment_2_paid_at: string | null
-          notes: string | null
-          payment_plan: string
-          status: string
-          student_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          enrollment_date?: string
-          group_id: string
-          id?: string
-          installment_1_amount?: number | null
-          installment_1_paid_at?: string | null
-          installment_2_amount?: number | null
-          installment_2_due_date?: string | null
-          installment_2_paid_at?: string | null
-          notes?: string | null
-          payment_plan?: string
-          status?: string
-          student_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          enrollment_date?: string
-          group_id?: string
-          id?: string
-          installment_1_amount?: number | null
-          installment_1_paid_at?: string | null
-          installment_2_amount?: number | null
-          installment_2_due_date?: string | null
-          installment_2_paid_at?: string | null
-          notes?: string | null
-          payment_plan?: string
-          status?: string
-          student_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "course_enrollments_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "course_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "course_enrollments_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      course_groups: {
-        Row: {
-          code: string
-          created_at: string
-          end_date: string | null
-          id: string
-          min_students: number
-          notes: string | null
-          start_date: string
-          status: string
-          updated_at: string
-          virtual_course_id: string
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          end_date?: string | null
-          id?: string
-          min_students?: number
-          notes?: string | null
-          start_date: string
-          status?: string
-          updated_at?: string
-          virtual_course_id: string
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          end_date?: string | null
-          id?: string
-          min_students?: number
-          notes?: string | null
-          start_date?: string
-          status?: string
-          updated_at?: string
-          virtual_course_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "course_groups_virtual_course_id_fkey"
-            columns: ["virtual_course_id"]
-            isOneToOne: false
-            referencedRelation: "virtual_courses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      course_sessions: {
-        Row: {
-          created_at: string
-          group_id: string
-          id: string
-          notes: string | null
-          scheduled_date: string
-          session_number: number
-        }
-        Insert: {
-          created_at?: string
-          group_id: string
-          id?: string
-          notes?: string | null
-          scheduled_date: string
-          session_number: number
-        }
-        Update: {
-          created_at?: string
-          group_id?: string
-          id?: string
-          notes?: string | null
-          scheduled_date?: string
-          session_number?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "course_sessions_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "course_groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      virtual_courses: {
-        Row: {
-          code: string
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean
-          name: string
-          next_course_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name: string
-          next_course_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          next_course_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "virtual_courses_next_course_id_fkey"
-            columns: ["next_course_id"]
-            isOneToOne: false
-            referencedRelation: "virtual_courses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       activities: {
         Row: {
           area: string
@@ -265,6 +76,13 @@ export type Database = {
           student_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_records_course_session_id_fkey"
+            columns: ["course_session_id"]
+            isOneToOne: false
+            referencedRelation: "course_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_records_student_id_fkey"
             columns: ["student_id"]
@@ -337,6 +155,164 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_enrollments: {
+        Row: {
+          created_at: string
+          enrollment_date: string
+          group_id: string
+          id: string
+          installment_1_amount: number | null
+          installment_1_paid_at: string | null
+          installment_2_amount: number | null
+          installment_2_due_date: string | null
+          installment_2_paid_at: string | null
+          notes: string | null
+          payment_plan: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enrollment_date?: string
+          group_id: string
+          id?: string
+          installment_1_amount?: number | null
+          installment_1_paid_at?: string | null
+          installment_2_amount?: number | null
+          installment_2_due_date?: string | null
+          installment_2_paid_at?: string | null
+          notes?: string | null
+          payment_plan?: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enrollment_date?: string
+          group_id?: string
+          id?: string
+          installment_1_amount?: number | null
+          installment_1_paid_at?: string | null
+          installment_2_amount?: number | null
+          installment_2_due_date?: string | null
+          installment_2_paid_at?: string | null
+          notes?: string | null
+          payment_plan?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_enrollments_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "course_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_groups: {
+        Row: {
+          code: string
+          created_at: string
+          end_date: string | null
+          id: string
+          min_students: number | null
+          notes: string | null
+          start_date: string
+          status: string
+          teacher_id: string | null
+          updated_at: string
+          virtual_course_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          min_students?: number | null
+          notes?: string | null
+          start_date: string
+          status?: string
+          teacher_id?: string | null
+          updated_at?: string
+          virtual_course_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          min_students?: number | null
+          notes?: string | null
+          start_date?: string
+          status?: string
+          teacher_id?: string | null
+          updated_at?: string
+          virtual_course_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_groups_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_groups_virtual_course_id_fkey"
+            columns: ["virtual_course_id"]
+            isOneToOne: false
+            referencedRelation: "virtual_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_sessions: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          notes: string | null
+          scheduled_date: string
+          session_number: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          notes?: string | null
+          scheduled_date: string
+          session_number: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          notes?: string | null
+          scheduled_date?: string
+          session_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_sessions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "course_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -565,6 +541,27 @@ export type Database = {
         }
         Relationships: []
       }
+      teachers: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       trial_leads: {
         Row: {
           calendly_uri: string | null
@@ -630,6 +627,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      virtual_courses: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          next_course_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          next_course_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          next_course_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "virtual_courses_next_course_id_fkey"
+            columns: ["next_course_id"]
+            isOneToOne: false
+            referencedRelation: "virtual_courses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

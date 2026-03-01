@@ -23,8 +23,10 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'Cancelado',  variant: 'destructive' },
 };
 
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
 function generateGroupCode(courseCode: string, startDate: Date): string {
-  const month = startDate.toLocaleString('en', { month: 'short' }).toUpperCase().slice(0, 3);
+  const month = MONTHS[startDate.getMonth()];
   const year = String(startDate.getFullYear()).slice(2);
   const day = String(startDate.getDate()).padStart(2, '0');
   return `${courseCode}-${month}${year}-${day}`;
@@ -43,7 +45,17 @@ export default function VirtualGroups() {
   const [endDate, setEndDate] = useState('');
   const [groupStatus, setGroupStatus] = useState('forming');
   const [notes, setNotes] = useState('');
+  const [teacherId, setTeacherId] = useState('');
   const [autoSessions, setAutoSessions] = useState(true);
+
+  const { data: teachers = [] } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('teachers').select('id, name').eq('is_active', true).order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: virtualCourses = [] } = useQuery({
     queryKey: ['virtual_courses'],
@@ -92,7 +104,14 @@ export default function VirtualGroups() {
       if (!course) throw new Error('Selecciona un curso');
       if (!startDate) throw new Error('La fecha de inicio es obligatoria');
 
-      const code = generateGroupCode(course.code, new Date(startDate + 'T12:00:00'));
+      const base = generateGroupCode(course.code, new Date(startDate + 'T12:00:00'));
+
+      const { data: existing } = await supabase
+        .from('course_groups')
+        .select('code')
+        .eq('code', base)
+        .maybeSingle();
+      const code = existing ? `${base}-B` : base;
 
       const { data: group, error } = await supabase
         .from('course_groups')
@@ -102,6 +121,7 @@ export default function VirtualGroups() {
           start_date: startDate,
           end_date: endDate || null,
           status: groupStatus,
+          teacher_id: teacherId || null,
           notes: notes.trim() || null,
         })
         .select()
@@ -140,14 +160,30 @@ export default function VirtualGroups() {
     setStartDate('');
     setEndDate('');
     setGroupStatus('forming');
+    setTeacherId('');
     setNotes('');
     setAutoSessions(true);
   };
 
   const selectedCourse = (virtualCourses as any[]).find((c) => c.id === courseId);
-  const previewCode = selectedCourse && startDate
+  const baseCode = selectedCourse && startDate
     ? generateGroupCode(selectedCourse.code, new Date(startDate + 'T12:00:00'))
     : '';
+
+  const { data: resolvedCode } = useQuery({
+    queryKey: ['group_code_check', baseCode],
+    enabled: !!baseCode,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('course_groups')
+        .select('code')
+        .eq('code', baseCode)
+        .maybeSingle();
+      return data ? `${baseCode}-B` : baseCode;
+    },
+  });
+
+  const previewCode = resolvedCode ?? baseCode;
 
   const filteredGroups = (groups as any[]).filter((g) =>
     statusFilter === 'all' ? true : g.status === statusFilter
@@ -274,6 +310,21 @@ export default function VirtualGroups() {
                 Código generado: <span className="font-mono font-semibold text-foreground">{previewCode}</span>
               </div>
             )}
+
+            <div>
+              <Label className="mb-2 block">Profesor (opcional)</Label>
+              <Select value={teacherId} onValueChange={setTeacherId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sin profesor asignado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Sin profesor asignado</SelectItem>
+                  {(teachers as any[]).map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div>
               <Label className="mb-2 block">Fecha de fin (opcional)</Label>

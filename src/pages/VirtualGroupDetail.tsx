@@ -55,6 +55,13 @@ export default function VirtualGroupDetail() {
   const [editInst2PaidAt, setEditInst2PaidAt] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
+  // Edit group dialog
+  const [showEditGroup, setShowEditGroup] = useState(false);
+  const [editGroupStartDate, setEditGroupStartDate] = useState('');
+  const [editGroupEndDate, setEditGroupEndDate] = useState('');
+  const [editGroupNotes, setEditGroupNotes] = useState('');
+  const [editGroupTeacherId, setEditGroupTeacherId] = useState('');
+
   // Session attendance dialog
   const [attendanceSession, setAttendanceSession] = useState<any>(null);
   const [attendanceMap, setAttendanceMap] = useState<Record<string, boolean>>({});
@@ -64,7 +71,7 @@ export default function VirtualGroupDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('course_groups')
-        .select('*, virtual_courses(code, name)')
+        .select('*, virtual_courses(code, name), teachers(id, name)')
         .eq('id', id)
         .maybeSingle();
       if (error) throw error;
@@ -109,6 +116,15 @@ export default function VirtualGroupDetail() {
         .eq('is_active', true)
         .eq('archived', false)
         .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: teachers = [] } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('teachers').select('id, name').eq('is_active', true).order('name');
       if (error) throw error;
       return data || [];
     },
@@ -164,6 +180,29 @@ export default function VirtualGroupDetail() {
       queryClient.invalidateQueries({ queryKey: ['course_group', id] });
       queryClient.invalidateQueries({ queryKey: ['course_groups'] });
       toast.success('Estado actualizado');
+    },
+    onError: (error: Error) => { toast.error(error.message); },
+  });
+
+  const updateGroupMutation = useMutation({
+    mutationFn: async () => {
+      if (!editGroupStartDate) throw new Error('La fecha de inicio es obligatoria');
+      const { error } = await supabase
+        .from('course_groups')
+        .update({
+          start_date: editGroupStartDate,
+          end_date: editGroupEndDate || null,
+          teacher_id: editGroupTeacherId || null,
+          notes: editGroupNotes.trim() || null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course_group', id] });
+      queryClient.invalidateQueries({ queryKey: ['course_groups'] });
+      toast.success('Grupo actualizado');
+      setShowEditGroup(false);
     },
     onError: (error: Error) => { toast.error(error.message); },
   });
@@ -441,10 +480,26 @@ export default function VirtualGroupDetail() {
             <p className="text-sm text-muted-foreground mt-1">
               Inicio: {new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}
               {group.end_date && ` · Fin: ${new Date(group.end_date + 'T12:00:00').toLocaleDateString('es-CO')}`}
+              {(group as any).teachers?.name && ` · Profesor: ${(group as any).teachers.name}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-sm whitespace-nowrap">Cambiar estado:</Label>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                setEditGroupStartDate(group.start_date ?? '');
+                setEditGroupEndDate(group.end_date ?? '');
+                setEditGroupNotes(group.notes ?? '');
+                setEditGroupTeacherId((group as any).teacher_id ?? '');
+                setShowEditGroup(true);
+              }}
+            >
+              <Pencil size={14} />
+              Editar
+            </Button>
+            <Label className="text-sm whitespace-nowrap">Estado:</Label>
             <Select value={group.status} onValueChange={(v) => updateGroupStatusMutation.mutate(v)}>
               <SelectTrigger className="w-36">
                 <SelectValue />
@@ -648,6 +703,68 @@ export default function VirtualGroupDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ── Edit Group Dialog ─────────────────────────────────── */}
+      <Dialog open={showEditGroup} onOpenChange={(open) => !open && setShowEditGroup(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar grupo</DialogTitle>
+            <DialogDescription>{group.code} — {(group as any).virtual_courses?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="mb-2 block">Fecha de inicio *</Label>
+              <Input
+                type="date"
+                value={editGroupStartDate}
+                onChange={(e) => setEditGroupStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block">Fecha de fin (opcional)</Label>
+              <Input
+                type="date"
+                value={editGroupEndDate}
+                onChange={(e) => setEditGroupEndDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block">Profesor (opcional)</Label>
+              <Select value={editGroupTeacherId} onValueChange={setEditGroupTeacherId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sin profesor asignado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Sin profesor asignado</SelectItem>
+                  {(teachers as any[]).map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-2 block">Notas (opcional)</Label>
+              <Textarea
+                value={editGroupNotes}
+                onChange={(e) => setEditGroupNotes(e.target.value)}
+                rows={3}
+                placeholder="Observaciones sobre el grupo..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditGroup(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => updateGroupMutation.mutate()}
+              disabled={updateGroupMutation.isPending || !editGroupStartDate}
+            >
+              {updateGroupMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Enroll Dialog ─────────────────────────────────────── */}
       <Dialog open={showEnrollDialog} onOpenChange={(open) => { if (!open) { setShowEnrollDialog(false); resetEnrollForm(); } }}>
