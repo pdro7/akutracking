@@ -250,6 +250,18 @@ export default function VirtualGroupDetail() {
         const { error } = await supabase.from('course_enrollments').insert(payload);
         if (error) throw error;
       }
+
+      // Auto-create payment record if payment is marked as received
+      if (payload.installment_1_paid_at && payload.installment_1_amount) {
+        const { error: payErr } = await supabase.from('payments').insert({
+          student_id: enrollStudentId,
+          payment_date: payload.installment_1_paid_at,
+          amount: payload.installment_1_amount,
+          payment_method: 'Unknown',
+          notes: enrollPaymentPlan === 'full' ? 'Pago completo (curso virtual)' : '1ª cuota (curso virtual)',
+        });
+        if (payErr) throw payErr;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['course_enrollments', id] });
