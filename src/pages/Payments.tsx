@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, DollarSign } from 'lucide-react';
+import { Loader2, DollarSign, Clock } from 'lucide-react';
 import { formatCOP } from '@/lib/currency';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Navigate } from 'react-router-dom';
@@ -73,6 +73,35 @@ export default function Payments() {
 
   const totalAmount = (paymentsData as any[])?.reduce((sum: number, item: any) => sum + item.totalAmount, 0) || 0;
   const totalTransactions = (paymentsData as any[])?.reduce((sum: number, item: any) => sum + item.count, 0) || 0;
+
+  const { data: pendingData } = useQuery({
+    queryKey: ['pending-revenue'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('course_enrollments')
+        .select('installment_1_amount, installment_1_paid_at, installment_2_amount, installment_2_paid_at, payment_plan')
+        .eq('status', 'active');
+      if (error) throw error;
+
+      let pendingAmount = 0;
+      let pendingCount = 0;
+
+      (data || []).forEach((e: any) => {
+        // Full/first payment not yet registered
+        if (!e.installment_1_paid_at && e.installment_1_amount) {
+          pendingAmount += Number(e.installment_1_amount);
+          pendingCount += 1;
+        }
+        // Second installment pending
+        if (e.payment_plan === 'installments' && e.installment_1_paid_at && !e.installment_2_paid_at && e.installment_2_amount) {
+          pendingAmount += Number(e.installment_2_amount);
+          pendingCount += 1;
+        }
+      });
+
+      return { pendingAmount, pendingCount };
+    },
+  });
 
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   const months = [
@@ -157,6 +186,20 @@ export default function Payments() {
             <p className="text-3xl font-bold">{formatCOP(totalAmount)}</p>
             <p className="text-sm text-muted-foreground mt-1">
               {totalTransactions} transaction{totalTransactions !== 1 ? 's' : ''}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-orange-500" />
+              Pending Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-orange-500">{formatCOP(pendingData?.pendingAmount ?? 0)}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {pendingData?.pendingCount ?? 0} pago{(pendingData?.pendingCount ?? 0) !== 1 ? 's' : ''} pendiente{(pendingData?.pendingCount ?? 0) !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
