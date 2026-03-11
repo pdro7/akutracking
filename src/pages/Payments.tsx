@@ -120,7 +120,18 @@ export default function Payments() {
     { value: '12', label: 'December' },
   ];
 
-  const colors = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', 'hsl(var(--destructive))'];
+  const METHOD_COLORS: Record<string, string> = {
+    'Bancolombia':  '#1d4ed8',
+    'Davivienda':   '#f43f5e',
+    'Wompi':        '#38bdf8',
+    'BCP':          '#9ca3af',
+    'Unknown':      '#a78bfa',
+  };
+  const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6'];
+  const getColor = (method: string, index: number) =>
+    METHOD_COLORS[method] ?? DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+
+  const sortedData = [...((paymentsData as any[]) || [])].sort((a, b) => b.totalAmount - a.totalAmount);
 
   // Show loading while checking role
   if (roleLoading || isLoading) {
@@ -211,9 +222,9 @@ export default function Payments() {
           <CardDescription>Distribution of payments across different payment methods</CardDescription>
         </CardHeader>
         <CardContent>
-          {paymentsData && paymentsData.length > 0 ? (
+          {sortedData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={paymentsData}>
+              <BarChart data={sortedData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="method" className="text-xs" />
                 <YAxis className="text-xs" />
@@ -236,8 +247,8 @@ export default function Payments() {
                   }}
                 />
                 <Bar dataKey="totalAmount" radius={[8, 8, 0, 0]}>
-                  {(paymentsData as any[]).map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  {sortedData.map((item: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={getColor(item.method, index)} />
                   ))}
                 </Bar>
               </BarChart>
@@ -251,8 +262,8 @@ export default function Payments() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {paymentsData?.map((item: any, index: number) => (
-          <Card key={item.method}>
+        {sortedData.map((item: any, index: number) => (
+          <Card key={item.method} style={{ borderTop: `4px solid ${getColor(item.method, index)}` }}>
             <CardHeader>
               <CardTitle className="text-lg">{item.method}</CardTitle>
             </CardHeader>
