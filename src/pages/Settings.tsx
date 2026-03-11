@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,13 +69,19 @@ export default function Settings() {
     queryFn: async () => {
       const { data, error } = await supabase.from('settings').select('*').maybeSingle();
       if (error) throw error;
-      const result = data || { default_pack_size: 8, class_day: 'Saturday', payment_methods: ['Cash', 'Bancololombia', 'Davivienda', 'Wompi', 'Nequi'] };
-      setPackSize(result.default_pack_size);
-      setClassDay(result.class_day);
-      setPaymentMethods(result.payment_methods || ['Cash', 'Bancololombia', 'Davivienda', 'Wompi', 'Nequi']);
-      return result;
+      return data || { default_pack_size: 8, class_day: 'Saturday', payment_methods: ['Cash', 'Bancolombia', 'Davivienda', 'Wompi', 'Nequi'] };
     }
   });
+
+  // Initialize form state once when settings first load (not on background refetches)
+  useEffect(() => {
+    if (settings) {
+      setPackSize(settings.default_pack_size);
+      setClassDay(settings.class_day);
+      setPaymentMethods(settings.payment_methods || ['Cash', 'Bancolombia', 'Davivienda', 'Wompi', 'Nequi']);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(settings as any)?.id ?? 'default']);
 
   const { data: activities = [] } = useQuery({
     queryKey: ['activities'],
@@ -183,20 +189,21 @@ export default function Settings() {
   });
 
   const updateSettingsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (payload: { packSize: number; classDay: string; paymentMethods: string[] }) => {
       const { data: existing } = await supabase.from('settings').select('id').maybeSingle();
       if (existing) {
-        const { error } = await supabase.from('settings').update({
-          default_pack_size: packSize,
-          class_day: classDay,
-          payment_methods: paymentMethods,
-        }).eq('id', existing.id);
+        const { data: updated, error } = await supabase.from('settings').update({
+          default_pack_size: payload.packSize,
+          class_day: payload.classDay,
+          payment_methods: payload.paymentMethods,
+        }).eq('id', existing.id).select();
         if (error) throw error;
+        if (!updated || updated.length === 0) throw new Error('No tienes permisos para editar la configuración');
       } else {
         const { error } = await supabase.from('settings').insert({
-          default_pack_size: packSize,
-          class_day: classDay,
-          payment_methods: paymentMethods,
+          default_pack_size: payload.packSize,
+          class_day: payload.classDay,
+          payment_methods: payload.paymentMethods,
         });
         if (error) throw error;
       }
@@ -393,7 +400,16 @@ export default function Settings() {
               </div>
             </div>
             <div className="pt-4 border-t">
-              <Button onClick={() => updateSettingsMutation.mutate()} className="gap-2">
+              <Button onClick={() => {
+                const methods = newPaymentMethod.trim()
+                  ? [...paymentMethods, newPaymentMethod.trim()]
+                  : paymentMethods;
+                if (newPaymentMethod.trim()) {
+                  setPaymentMethods(methods);
+                  setNewPaymentMethod('');
+                }
+                updateSettingsMutation.mutate({ packSize, classDay, paymentMethods: methods });
+              }} className="gap-2">
                 <Save size={20} />
                 Save Settings
               </Button>
