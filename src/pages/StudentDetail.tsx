@@ -885,7 +885,7 @@ export default function StudentDetail() {
                               </button>
                             )}
                             {/* 2nd installment pending */}
-                            {enrollment.payment_plan === 'installments' && enrollment.installment_1_paid_at && !enrollment.installment_2_paid_at && (
+                            {enrollment.payment_plan === 'installments' && !enrollment.installment_2_paid_at && (
                               <button
                                 onClick={() => {
                                   setPendingPayEnrollment(enrollment);
