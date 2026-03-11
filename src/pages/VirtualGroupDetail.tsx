@@ -396,6 +396,34 @@ export default function VirtualGroupDetail() {
         .update(payload)
         .eq('id', editEnrollment.id);
       if (error) throw error;
+
+      // Auto-create payment records when a paid_at date is newly set
+      const paymentsToInsert: any[] = [];
+      const inst1NewlyPaid = editInst1PaidAt && !editEnrollment.installment_1_paid_at;
+      const inst2NewlyPaid = editPaymentPlan === 'installments' && editInst2PaidAt && !editEnrollment.installment_2_paid_at;
+
+      if (inst1NewlyPaid && editInst1Amount) {
+        paymentsToInsert.push({
+          student_id: editEnrollment.student_id,
+          payment_date: editInst1PaidAt,
+          amount: parseFloat(editInst1Amount),
+          payment_method: 'Unknown',
+          notes: editPaymentPlan === 'full' ? 'Pago completo (curso virtual)' : '1ª cuota (curso virtual)',
+        });
+      }
+      if (inst2NewlyPaid && editInst2Amount) {
+        paymentsToInsert.push({
+          student_id: editEnrollment.student_id,
+          payment_date: editInst2PaidAt,
+          amount: parseFloat(editInst2Amount),
+          payment_method: 'Unknown',
+          notes: '2ª cuota (curso virtual)',
+        });
+      }
+      if (paymentsToInsert.length > 0) {
+        const { error: payErr } = await supabase.from('payments').insert(paymentsToInsert);
+        if (payErr) throw payErr;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['course_enrollments', id] });
