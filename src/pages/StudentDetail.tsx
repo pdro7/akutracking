@@ -62,6 +62,14 @@ export default function StudentDetail() {
   const [paymentPackSize, setPaymentPackSize] = useState(8);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
 
+  // Pending installment payment dialog (inst1 = full/first payment, inst2 = second installment)
+  const [pendingPayEnrollment, setPendingPayEnrollment] = useState<any>(null);
+  const [pendingPayType, setPendingPayType] = useState<'inst1' | 'inst2'>('inst1');
+  const [inst2Date, setInst2Date] = useState<Date>(new Date());
+  const [inst2Amount, setInst2Amount] = useState('');
+  const [inst2Method, setInst2Method] = useState('Cash');
+  const [inst2Notes, setInst2Notes] = useState('');
+
   // Class log state
   const [showClassLogDialog, setShowClassLogDialog] = useState(false);
   const [editingClassLog, setEditingClassLog] = useState<any>(null);
@@ -321,6 +329,49 @@ export default function StudentDetail() {
       queryClient.invalidateQueries({ queryKey: ['payments', id] });
       toast.success('Payment deleted');
       if (isMounted.current) setDeletePaymentId(null);
+    },
+    onError: (error: Error) => { toast.error(error.message); }
+  });
+
+  // ── Pending installment payment mutation ────────────────────
+  const payInstallmentMutation = useMutation({
+    mutationFn: async () => {
+      if (!pendingPayEnrollment) return;
+      if (!inst2Amount || parseFloat(inst2Amount) <= 0) throw new Error('El monto debe ser mayor a 0');
+
+      const dateStr = format(inst2Date, 'yyyy-MM-dd');
+
+      const { error: payErr } = await supabase.from('payments').insert({
+        student_id: id,
+        payment_date: dateStr,
+        amount: parseFloat(inst2Amount),
+        payment_method: inst2Method,
+        notes: inst2Notes.trim() || null,
+      });
+      if (payErr) throw payErr;
+
+      const updateField = pendingPayType === 'inst1'
+        ? { installment_1_paid_at: dateStr }
+        : { installment_2_paid_at: dateStr };
+
+      const { error: enrollErr } = await supabase
+        .from('course_enrollments')
+        .update(updateField)
+        .eq('id', pendingPayEnrollment.id);
+      if (enrollErr) throw enrollErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      queryClient.invalidateQueries({ queryKey: ['virtual_enrollments_student', id] });
+      queryClient.invalidateQueries({ queryKey: ['pending_installments'] });
+      toast.success(pendingPayType === 'inst1' ? 'Pago registrado' : '2ª cuota registrada como pagada');
+      if (isMounted.current) {
+        setPendingPayEnrollment(null);
+        setInst2Amount('');
+        setInst2Method(settings?.payment_methods?.[0] || 'Cash');
+        setInst2Notes('');
+        setInst2Date(new Date());
+      }
     },
     onError: (error: Error) => { toast.error(error.message); }
   });
@@ -789,7 +840,12 @@ export default function StudentDetail() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{group?.virtual_courses?.name}</span>
+                            <button
+                              className="font-medium hover:underline text-primary"
+                              onClick={() => navigate(`/virtual-groups/${group?.id}`)}
+                            >
+                              {group?.virtual_courses?.name}
+                            </button>
                             <span className="font-mono text-xs text-muted-foreground">{group?.code}</span>
                             <Badge variant={
                               group?.status === 'active' ? 'success' :
@@ -808,14 +864,43 @@ export default function StudentDetail() {
                               {group.end_date && ` · Fin: ${new Date(group.end_date + 'T12:00:00').toLocaleDateString('es-CO')}`}
                             </p>
                           )}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant={enrollment.payment_plan === 'full' ? 'outline' : 'warning'} className="text-xs">
                               {enrollment.payment_plan === 'full' ? 'Pago completo' : 'Cuotas'}
                             </Badge>
-                            {isInstallmentAlert && (
-                              <span className="text-xs text-destructive font-medium">
-                                ⚠️ 2ª cuota vence {inst2Due!.toLocaleDateString('es-CO')}
-                              </span>
+                            {/* 1st payment / full payment pending */}
+                            {!enrollment.installment_1_paid_at && (
+                              <button
+                                onClick={() => {
+                                  setPendingPayEnrollment(enrollment);
+                                  setPendingPayType('inst1');
+                                  setInst2Amount(enrollment.installment_1_amount?.toString() ?? '');
+                                  setInst2Method(settings?.payment_methods?.[0] || 'Cash');
+                                  setInst2Notes('');
+                                  setInst2Date(new Date());
+                                }}
+                                className="text-xs font-medium text-destructive underline-offset-2 hover:underline"
+                              >
+                                ⚠️ Pago pendiente — Registrar
+                              </button>
+                            )}
+                            {/* 2nd installment pending */}
+                            {enrollment.payment_plan === 'installments' && enrollment.installment_1_paid_at && !enrollment.installment_2_paid_at && (
+                              <button
+                                onClick={() => {
+                                  setPendingPayEnrollment(enrollment);
+                                  setPendingPayType('inst2');
+                                  setInst2Amount(enrollment.installment_2_amount?.toString() ?? '');
+                                  setInst2Method(settings?.payment_methods?.[0] || 'Cash');
+                                  setInst2Notes('');
+                                  setInst2Date(new Date());
+                                }}
+                                className={`text-xs font-medium underline-offset-2 hover:underline ${isInstallmentAlert ? 'text-destructive' : 'text-orange-600'}`}
+                              >
+                                {isInstallmentAlert
+                                  ? `⚠️ 2ª cuota vence ${inst2Due!.toLocaleDateString('es-CO')} — Registrar`
+                                  : '2ª cuota pendiente — Registrar'}
+                              </button>
                             )}
                             {enrollment.payment_plan === 'installments' && enrollment.installment_2_paid_at && (
                               <span className="text-xs text-green-600">✓ 2ª cuota pagada</span>
@@ -1000,6 +1085,68 @@ export default function StudentDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Pending Installment Payment Dialog ───────────────── */}
+      <Dialog open={!!pendingPayEnrollment} onOpenChange={(open) => !open && setPendingPayEnrollment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pendingPayType === 'inst1' ? 'Registrar pago' : 'Registrar 2ª cuota'}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingPayEnrollment?.course_groups?.virtual_courses?.name} — {pendingPayEnrollment?.course_groups?.code}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Fecha de pago</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !inst2Date && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {inst2Date ? format(inst2Date, 'PPP') : <span>Selecciona una fecha</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarPicker mode="single" selected={inst2Date} onSelect={(date) => date && setInst2Date(date)} initialFocus />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Monto</label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={inst2Amount}
+                onChange={(e) => setInst2Amount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Método de pago</label>
+              <Select value={inst2Method} onValueChange={setInst2Method}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(settings?.payment_methods || ['Cash', 'Bancolombia', 'Davivienda', 'Wompi', 'Nequi']).map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Notas (opcional)</label>
+              <Textarea value={inst2Notes} onChange={(e) => setInst2Notes(e.target.value)} rows={2} placeholder="Observaciones..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingPayEnrollment(null)}>Cancelar</Button>
+            <Button onClick={() => payInstallmentMutation.mutate()} disabled={payInstallmentMutation.isPending || !inst2Amount}>
+              {payInstallmentMutation.isPending ? 'Guardando...' : 'Registrar pago'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Class Log Dialog ──────────────────────────────────── */}
       <Dialog open={showClassLogDialog} onOpenChange={(open) => {

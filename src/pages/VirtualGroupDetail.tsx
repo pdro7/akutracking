@@ -48,6 +48,7 @@ export default function VirtualGroupDetail() {
 
   // Edit enrollment dialog
   const [editEnrollment, setEditEnrollment] = useState<any>(null);
+  const [editPaymentPlan, setEditPaymentPlan] = useState('full');
   const [editInst1Amount, setEditInst1Amount] = useState('');
   const [editInst1PaidAt, setEditInst1PaidAt] = useState('');
   const [editInst2Amount, setEditInst2Amount] = useState('');
@@ -382,12 +383,13 @@ export default function VirtualGroupDetail() {
     mutationFn: async () => {
       if (!editEnrollment) return;
       const payload: any = {
+        payment_plan: editPaymentPlan,
         notes: editNotes.trim() || null,
         installment_1_amount: editInst1Amount ? parseFloat(editInst1Amount) : null,
         installment_1_paid_at: editInst1PaidAt || null,
-        installment_2_amount: editInst2Amount ? parseFloat(editInst2Amount) : null,
-        installment_2_due_date: editInst2DueDate || null,
-        installment_2_paid_at: editInst2PaidAt || null,
+        installment_2_amount: editPaymentPlan === 'installments' && editInst2Amount ? parseFloat(editInst2Amount) : null,
+        installment_2_due_date: editPaymentPlan === 'installments' ? (editInst2DueDate || null) : null,
+        installment_2_paid_at: editPaymentPlan === 'installments' ? (editInst2PaidAt || null) : null,
       };
       const { error } = await supabase
         .from('course_enrollments')
@@ -406,6 +408,7 @@ export default function VirtualGroupDetail() {
 
   const handleOpenEditEnrollment = (enrollment: any) => {
     setEditEnrollment(enrollment);
+    setEditPaymentPlan(enrollment.payment_plan ?? 'full');
     setEditInst1Amount(enrollment.installment_1_amount?.toString() ?? '');
     setEditInst1PaidAt(enrollment.installment_1_paid_at ?? '');
     setEditInst2Amount(enrollment.installment_2_amount?.toString() ?? '');
@@ -906,14 +909,26 @@ export default function VirtualGroupDetail() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Editar inscripción</DialogTitle>
-            <DialogDescription>
-              {editEnrollment?.students?.name} — {editEnrollment?.payment_plan === 'full' ? 'Pago completo' : 'En cuotas'}
-            </DialogDescription>
+            <DialogDescription>{editEnrollment?.students?.name}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[65vh] overflow-y-auto pr-1">
+            <div>
+              <Label className="mb-2 block">Plan de pago</Label>
+              <Select value={editPaymentPlan} onValueChange={setEditPaymentPlan}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full">Pago completo</SelectItem>
+                  <SelectItem value="installments">En cuotas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="mb-2 block">Monto 1ª cuota / pago</Label>
+                <Label className="mb-2 block">
+                  {editPaymentPlan === 'full' ? 'Monto' : 'Monto 1ª cuota'}
+                </Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -932,7 +947,7 @@ export default function VirtualGroupDetail() {
                 />
               </div>
             </div>
-            {editEnrollment?.payment_plan === 'installments' && (
+            {editPaymentPlan === 'installments' && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="mb-2 block">Monto 2ª cuota</Label>
