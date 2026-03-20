@@ -29,6 +29,14 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const MONTHS_VE = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+function generateVeGroupCode(courseCode: string, startDate: Date): string {
+  const month = MONTHS_VE[startDate.getMonth()];
+  const year = String(startDate.getFullYear()).slice(2);
+  const day = String(startDate.getDate()).padStart(2, '0');
+  return `${courseCode}-${month}${year}-${day}`;
+}
+
 const AREA_CONFIG: Record<string, { label: string; className: string }> = {
   programming: { label: 'Programación', className: 'bg-blue-100 text-blue-800' },
   robotics: { label: 'Robótica', className: 'bg-green-100 text-green-800' },
@@ -84,6 +92,23 @@ export default function StudentDetail() {
 
   // Archive state
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+
+  // Virtual enroll dialog
+  const [showVirtualEnrollDialog, setShowVirtualEnrollDialog] = useState(false);
+  const [virtualEnrollMode, setVirtualEnrollMode] = useState<'select' | 'create'>('select');
+  const [veGroupId, setVeGroupId] = useState('');
+  const [veCourseId, setVeCourseId] = useState('');
+  const [veStartDate, setVeStartDate] = useState('');
+  const [veEndDate, setVeEndDate] = useState('');
+  const [veTeacherId, setVeTeacherId] = useState('none');
+  const [vePaymentPlan, setVePaymentPlan] = useState('full');
+  const [veFullAmount, setVeFullAmount] = useState('');
+  const [veInst1Amount, setVeInst1Amount] = useState('');
+  const [veInst2Amount, setVeInst2Amount] = useState('');
+  const [veInst2DueDate, setVeInst2DueDate] = useState('');
+  const [vePaymentReceived, setVePaymentReceived] = useState(false);
+  const [veInst1PaidAt, setVeInst1PaidAt] = useState('');
+  const [veNotes, setVeNotes] = useState('');
 
   useEffect(() => {
     return () => { isMounted.current = false; };
@@ -181,6 +206,44 @@ export default function StudentDetail() {
       return data || [];
     },
     enabled: !!id,
+  });
+
+  const { data: openGroups = [] } = useQuery({
+    queryKey: ['open_groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('course_groups')
+        .select('id, code, status, start_date, virtual_courses(name, code)')
+        .in('status', ['forming', 'active'])
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: showVirtualEnrollDialog,
+  });
+
+  const { data: veVirtualCourses = [] } = useQuery({
+    queryKey: ['virtual_courses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('virtual_courses')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: showVirtualEnrollDialog && virtualEnrollMode === 'create',
+  });
+
+  const { data: veTeachers = [] } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('teachers').select('id, name').eq('is_active', true).order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: showVirtualEnrollDialog && virtualEnrollMode === 'create',
   });
 
   // ── Attendance mutation ──────────────────────────────────────
@@ -374,6 +437,108 @@ export default function StudentDetail() {
       }
     },
     onError: (error: Error) => { toast.error(error.message); }
+  });
+
+  const enrollInVirtualGroupMutation = useMutation({
+    mutationFn: async () => {
+      let groupId = veGroupId;
+
+      if (virtualEnrollMode === 'create') {
+        const course = (veVirtualCourses as any[]).find((c: any) => c.id === veCourseId);
+        if (!course) throw new Error('Selecciona un curso');
+        if (!veStartDate) throw new Error('La fecha de inicio es obligatoria');
+
+        const base = generateVeGroupCode(course.code, new Date(veStartDate + 'T12:00:00'));
+        const { data: existing } = await supabase.from('course_groups').select('code').eq('code', base).maybeSingle();
+        const code = existing ? `${base}-B` : base;
+
+        const { data: group, error: groupErr } = await supabase
+          .from('course_groups')
+          .insert({
+            code,
+            virtual_course_id: veCourseId,
+            start_date: veStartDate,
+            end_date: veEndDate || null,
+            status: 'forming',
+            teacher_id: veTeacherId && veTeacherId !== 'none' ? veTeacherId : null,
+          })
+          .select()
+          .single();
+        if (groupErr) throw groupErr;
+        groupId = group.id;
+
+        // Auto-create 8 weekly sessions
+        const sessions = Array.from({ length: 8 }, (_, i) => {
+          const d = new Date(veStartDate + 'T12:00:00');
+          d.setDate(d.getDate() + i * 7);
+          return { group_id: group.id, session_number: i + 1, scheduled_date: d.toISOString().split('T')[0] };
+        });
+        const { error: sessErr } = await supabase.from('course_sessions').insert(sessions);
+        if (sessErr) throw sessErr;
+      }
+
+      if (!groupId) throw new Error('Selecciona o crea un grupo');
+
+      const today = new Date().toISOString().split('T')[0];
+      const paidAt = vePaymentReceived ? (veInst1PaidAt || today) : null;
+
+      const payload: any = {
+        student_id: id,
+        group_id: groupId,
+        payment_plan: vePaymentPlan,
+        notes: veNotes.trim() || null,
+        installment_1_paid_at: paidAt,
+      };
+      if (vePaymentPlan === 'full') {
+        payload.installment_1_amount = veFullAmount ? parseFloat(veFullAmount) : null;
+      } else {
+        payload.installment_1_amount = veInst1Amount ? parseFloat(veInst1Amount) : null;
+        payload.installment_2_amount = veInst2Amount ? parseFloat(veInst2Amount) : null;
+        payload.installment_2_due_date = veInst2DueDate || null;
+      }
+
+      const { data: existingEnroll } = await supabase
+        .from('course_enrollments')
+        .select('id, status')
+        .eq('student_id', id)
+        .eq('group_id', groupId)
+        .maybeSingle();
+
+      if (existingEnroll) {
+        if (existingEnroll.status === 'active') throw new Error('El alumno ya está inscrito en este grupo');
+        const { error } = await supabase.from('course_enrollments').update({ ...payload, status: 'active' }).eq('id', existingEnroll.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('course_enrollments').insert(payload);
+        if (error) throw error;
+      }
+
+      // Auto-create payment record if payment received
+      if (paidAt && payload.installment_1_amount) {
+        const { error: payErr } = await supabase.from('payments').insert({
+          student_id: id,
+          payment_date: paidAt,
+          amount: payload.installment_1_amount,
+          payment_method: 'Unknown',
+          notes: vePaymentPlan === 'full' ? 'Pago completo (curso virtual)' : '1ª cuota (curso virtual)',
+        });
+        if (payErr) throw payErr;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['virtual_enrollments_student', id] });
+      queryClient.invalidateQueries({ queryKey: ['open_groups'] });
+      queryClient.invalidateQueries({ queryKey: ['course_groups'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      queryClient.invalidateQueries({ queryKey: ['pending_installments'] });
+      toast.success('Inscripción creada correctamente');
+      setShowVirtualEnrollDialog(false);
+      setVeGroupId(''); setVeCourseId(''); setVeStartDate(''); setVeEndDate('');
+      setVeTeacherId('none'); setVePaymentPlan('full'); setVeFullAmount('');
+      setVeInst1Amount(''); setVeInst2Amount(''); setVeInst2DueDate('');
+      setVePaymentReceived(false); setVeInst1PaidAt(''); setVeNotes('');
+    },
+    onError: (error: Error) => { toast.error(error.message); },
   });
 
   // ── Class log mutations ──────────────────────────────────────
@@ -817,9 +982,15 @@ export default function StudentDetail() {
         {/* Virtual Courses Section */}
         {student.modality !== 'presencial' && (
           <Card className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <Monitor size={24} className="text-primary" />
-              <h3 className="text-xl font-bold">Cursos Virtuales</h3>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Monitor size={24} className="text-primary" />
+                <h3 className="text-xl font-bold">Cursos Virtuales</h3>
+              </div>
+              <Button size="sm" className="gap-2" onClick={() => setShowVirtualEnrollDialog(true)}>
+                <Plus size={16} />
+                Inscribir en curso
+              </Button>
             </div>
             {(virtualEnrollments as any[]).length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No hay inscripciones en cursos virtuales</p>
@@ -1284,6 +1455,166 @@ export default function StudentDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Virtual Group Enroll Dialog ─────────────────────── */}
+      <Dialog open={showVirtualEnrollDialog} onOpenChange={(open) => { if (!open) setShowVirtualEnrollDialog(false); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Inscribir en curso virtual</DialogTitle>
+            <DialogDescription>{student?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2 max-h-[65vh] overflow-y-auto pr-1">
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border overflow-hidden">
+              <button
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${virtualEnrollMode === 'select' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                onClick={() => setVirtualEnrollMode('select')}
+              >
+                Grupo existente
+              </button>
+              <button
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${virtualEnrollMode === 'create' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                onClick={() => setVirtualEnrollMode('create')}
+              >
+                Crear nuevo grupo
+              </button>
+            </div>
+
+            {/* Select existing group */}
+            {virtualEnrollMode === 'select' && (
+              <div>
+                <Label className="mb-2 block">Grupo *</Label>
+                <Select value={veGroupId} onValueChange={setVeGroupId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un grupo abierto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(openGroups as any[]).map((g: any) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.code} — {g.virtual_courses?.name} ({g.status === 'forming' ? 'Formando' : 'Activo'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Create new group */}
+            {virtualEnrollMode === 'create' && (
+              <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+                <p className="text-sm font-medium">Nuevo grupo</p>
+                <div>
+                  <Label className="mb-2 block">Curso *</Label>
+                  <Select value={veCourseId} onValueChange={setVeCourseId}>
+                    <SelectTrigger><SelectValue placeholder="Selecciona un curso" /></SelectTrigger>
+                    <SelectContent>
+                      {(veVirtualCourses as any[]).map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="mb-2 block">Fecha inicio *</Label>
+                    <Input type="date" value={veStartDate} onChange={(e) => setVeStartDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block">Fecha fin</Label>
+                    <Input type="date" value={veEndDate} onChange={(e) => setVeEndDate(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <Label className="mb-2 block">Profesor</Label>
+                  <Select value={veTeacherId} onValueChange={setVeTeacherId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin asignar</SelectItem>
+                      {(veTeachers as any[]).map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {/* Payment plan */}
+            <div>
+              <Label className="mb-2 block">Plan de pago</Label>
+              <Select value={vePaymentPlan} onValueChange={setVePaymentPlan}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full">Pago completo</SelectItem>
+                  <SelectItem value="installments">En cuotas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {vePaymentPlan === 'full' && (
+              <div>
+                <Label className="mb-2 block">Monto</Label>
+                <Input type="number" min="0" step="0.01" value={veFullAmount} onChange={(e) => setVeFullAmount(e.target.value)} placeholder="0.00" />
+              </div>
+            )}
+
+            {vePaymentPlan === 'installments' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="mb-2 block">Monto 1ª cuota</Label>
+                  <Input type="number" min="0" step="0.01" value={veInst1Amount} onChange={(e) => setVeInst1Amount(e.target.value)} placeholder="0.00" />
+                </div>
+                <div>
+                  <Label className="mb-2 block">Monto 2ª cuota</Label>
+                  <Input type="number" min="0" step="0.01" value={veInst2Amount} onChange={(e) => setVeInst2Amount(e.target.value)} placeholder="0.00" />
+                </div>
+                <div className="col-span-2">
+                  <Label className="mb-2 block">Vencimiento 2ª cuota</Label>
+                  <Input type="date" value={veInst2DueDate} onChange={(e) => setVeInst2DueDate(e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            {/* Payment received */}
+            <div className="flex items-center gap-3 p-3 border rounded-lg">
+              <input
+                type="checkbox"
+                id="ve-payment-received"
+                checked={vePaymentReceived}
+                onChange={(e) => setVePaymentReceived(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="ve-payment-received" className="cursor-pointer">
+                {vePaymentPlan === 'full' ? 'Pago completo recibido' : '1ª cuota recibida'}
+              </Label>
+            </div>
+            {vePaymentReceived && (
+              <div>
+                <Label className="mb-2 block">Fecha de pago</Label>
+                <Input type="date" value={veInst1PaidAt} onChange={(e) => setVeInst1PaidAt(e.target.value)} />
+              </div>
+            )}
+
+            <div>
+              <Label className="mb-2 block">Notas (opcional)</Label>
+              <Textarea value={veNotes} onChange={(e) => setVeNotes(e.target.value)} rows={2} placeholder="Observaciones..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowVirtualEnrollDialog(false)}>Cancelar</Button>
+            <Button
+              onClick={() => enrollInVirtualGroupMutation.mutate()}
+              disabled={
+                enrollInVirtualGroupMutation.isPending ||
+                (virtualEnrollMode === 'select' && !veGroupId) ||
+                (virtualEnrollMode === 'create' && (!veCourseId || !veStartDate))
+              }
+            >
+              {enrollInVirtualGroupMutation.isPending ? 'Guardando...' : 'Inscribir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
