@@ -1041,37 +1041,47 @@ export default function StudentDetail() {
                             </Badge>
                             {/* 1st payment / full payment pending */}
                             {!enrollment.installment_1_paid_at && (
-                              <button
-                                onClick={() => {
-                                  setPendingPayEnrollment(enrollment);
-                                  setPendingPayType('inst1');
-                                  setInst2Amount(enrollment.installment_1_amount?.toString() ?? '');
-                                  setInst2Method(settings?.payment_methods?.[0] || 'Cash');
-                                  setInst2Notes('');
-                                  setInst2Date(new Date());
-                                }}
-                                className="text-xs font-medium text-destructive underline-offset-2 hover:underline"
-                              >
-                                ⚠️ Pago pendiente — Registrar
-                              </button>
+                              <span className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => {
+                                    setPendingPayEnrollment(enrollment);
+                                    setPendingPayType('inst1');
+                                    setInst2Amount(enrollment.installment_1_amount?.toString() ?? '');
+                                    setInst2Method(settings?.payment_methods?.[0] || 'Cash');
+                                    setInst2Notes('');
+                                    setInst2Date(new Date());
+                                  }}
+                                  className="text-xs font-medium text-destructive underline-offset-2 hover:underline"
+                                >
+                                  ⚠️ Pago pendiente — Registrar
+                                </button>
+                                {(enrollment as any).payment_requested_at && (
+                                  <span className="text-xs text-blue-600 border border-blue-300 rounded px-1.5 py-0.5">✓ Solicitado</span>
+                                )}
+                              </span>
                             )}
                             {/* 2nd installment pending */}
                             {enrollment.payment_plan === 'installments' && !enrollment.installment_2_paid_at && (
-                              <button
-                                onClick={() => {
-                                  setPendingPayEnrollment(enrollment);
-                                  setPendingPayType('inst2');
-                                  setInst2Amount(enrollment.installment_2_amount?.toString() ?? '');
-                                  setInst2Method(settings?.payment_methods?.[0] || 'Cash');
-                                  setInst2Notes('');
-                                  setInst2Date(new Date());
-                                }}
-                                className={`text-xs font-medium underline-offset-2 hover:underline ${isInstallmentAlert ? 'text-destructive' : 'text-orange-600'}`}
-                              >
-                                {isInstallmentAlert
-                                  ? `⚠️ 2ª cuota vence ${inst2Due!.toLocaleDateString('es-CO')} — Registrar`
-                                  : '2ª cuota pendiente — Registrar'}
-                              </button>
+                              <span className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => {
+                                    setPendingPayEnrollment(enrollment);
+                                    setPendingPayType('inst2');
+                                    setInst2Amount(enrollment.installment_2_amount?.toString() ?? '');
+                                    setInst2Method(settings?.payment_methods?.[0] || 'Cash');
+                                    setInst2Notes('');
+                                    setInst2Date(new Date());
+                                  }}
+                                  className={`text-xs font-medium underline-offset-2 hover:underline ${isInstallmentAlert ? 'text-destructive' : 'text-orange-600'}`}
+                                >
+                                  {isInstallmentAlert
+                                    ? `⚠️ 2ª cuota vence ${inst2Due!.toLocaleDateString('es-CO')} — Registrar`
+                                    : '2ª cuota pendiente — Registrar'}
+                                </button>
+                                {(enrollment as any).payment_requested_at && (
+                                  <span className="text-xs text-blue-600 border border-blue-300 rounded px-1.5 py-0.5">✓ Solicitado</span>
+                                )}
+                              </span>
                             )}
                             {enrollment.payment_plan === 'installments' && enrollment.installment_2_paid_at && (
                               <span className="text-xs text-green-600">✓ 2ª cuota pagada</span>
