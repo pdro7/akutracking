@@ -252,7 +252,7 @@ export default function Dashboard() {
                       >
                         <TableCell className="font-medium text-primary">{(e.students as any)?.name}</TableCell>
                         <TableCell>
-                          <Badge variant={badgeVariant}>{label}</Badge>
+                          <Badge variant={badgeVariant} className="whitespace-nowrap">{label}</Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {firstPending
