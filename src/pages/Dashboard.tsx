@@ -5,12 +5,30 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Calendar, TrendingUp, Monitor, Video } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const markRequestedMutation = useMutation({
+    mutationFn: async (enrollmentId: string) => {
+      const { error } = await supabase
+        .from('course_enrollments')
+        .update({ payment_requested_at: new Date().toISOString() })
+        .eq('id', enrollmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending_installments'] });
+      toast.success('Marcado como solicitado');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],
     queryFn: async () => {
@@ -44,7 +62,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('course_enrollments')
-        .select('id, payment_plan, installment_1_paid_at, installment_1_amount, installment_2_due_date, installment_2_amount, students(id, name), course_groups(code, virtual_courses(name))')
+        .select('id, payment_plan, installment_1_paid_at, installment_1_amount, installment_2_due_date, installment_2_amount, payment_requested_at, students(id, name), course_groups(code, virtual_courses(name))')
         .eq('status', 'active')
         .or('installment_1_paid_at.is.null,and(payment_plan.eq.installments,installment_2_paid_at.is.null,installment_2_due_date.not.is.null)');
       if (error) throw error;
@@ -195,6 +213,7 @@ export default function Dashboard() {
                     <TableHead>Alumno</TableHead>
                     <TableHead>Motivo</TableHead>
                     <TableHead>Detalle</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -209,6 +228,7 @@ export default function Dashboard() {
                         <Badge variant="destructive">Pack agotado</Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">0 clases restantes</TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                   ))}
                   {(pendingInstallments as any[]).map((e: any) => {
@@ -238,6 +258,23 @@ export default function Dashboard() {
                           {firstPending
                             ? `${e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota'}${e.installment_1_amount ? ` · $${fmt(e.installment_1_amount)}` : ''}`
                             : `Vence ${dueDate}${e.installment_2_amount ? ` · $${fmt(e.installment_2_amount)}` : ''}`}
+                        </TableCell>
+                        <TableCell onClick={(ev) => ev.stopPropagation()}>
+                          {e.payment_requested_at ? (
+                            <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 whitespace-nowrap">
+                              ✓ Solicitado
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs h-7 px-2 text-muted-foreground hover:text-blue-600"
+                              disabled={markRequestedMutation.isPending}
+                              onClick={() => markRequestedMutation.mutate(e.id)}
+                            >
+                              Marcar solicitado
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

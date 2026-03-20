@@ -172,6 +172,7 @@ export type Database = {
           installment_2_paid_at: string | null
           notes: string | null
           payment_plan: string
+          payment_requested_at: string | null
           status: string
           student_id: string
           updated_at: string
@@ -188,6 +189,7 @@ export type Database = {
           installment_2_paid_at?: string | null
           notes?: string | null
           payment_plan?: string
+          payment_requested_at?: string | null
           status?: string
           student_id: string
           updated_at?: string
@@ -204,6 +206,7 @@ export type Database = {
           installment_2_paid_at?: string | null
           notes?: string | null
           payment_plan?: string
+          payment_requested_at?: string | null
           status?: string
           student_id?: string
           updated_at?: string
