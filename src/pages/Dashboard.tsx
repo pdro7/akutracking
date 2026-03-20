@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Calendar, TrendingUp, Monitor } from 'lucide-react';
+import { Plus, Users, Calendar, TrendingUp, Monitor, Video } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +54,24 @@ export default function Dashboard() {
 
   // Students with 0 classes remaining (pack exhausted)
   const packDue = students.filter(s => s.classes_remaining === 0);
+
+  // Today's sessions
+  const today = new Date().toISOString().split('T')[0];
+  const { data: todaySessions = [] } = useQuery({
+    queryKey: ['today_sessions', today],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('course_sessions')
+        .select('id, session_number, group_id, course_groups(id, code, status, virtual_courses(name), teachers(name))')
+        .eq('scheduled_date', today)
+        .order('session_number');
+      if (error) throw error;
+      // Only show groups that are active or forming (not completed/cancelled)
+      return (data || []).filter((s: any) =>
+        s.course_groups && !['completed', 'cancelled'].includes(s.course_groups.status)
+      );
+    },
+  });
 
   // Last 7 enrolled students
   const { data: recentStudents = [] } = useQuery({
@@ -114,6 +132,50 @@ export default function Dashboard() {
             </div>
           </Card>
         ))}
+      </div>
+
+      {/* ── Clases de hoy ── */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+          <Video size={20} className="text-primary" />
+          Clases de hoy — {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+        </h2>
+        <Card>
+          {(todaySessions as any[]).length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground text-sm">
+              No hay clases programadas para hoy
+            </div>
+          ) : (
+            <div className="divide-y">
+              {(todaySessions as any[]).map((session: any) => {
+                const group = session.course_groups;
+                return (
+                  <div
+                    key={session.id}
+                    className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-accent/50"
+                    onClick={() => navigate(`/virtual-groups/${group?.id}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                        {session.session_number}
+                      </div>
+                      <div>
+                        <p className="font-medium">{group?.virtual_courses?.name}</p>
+                        <p className="text-xs text-muted-foreground">{group?.code}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {group?.teachers?.name && (
+                        <p className="text-sm text-muted-foreground">{group.teachers.name}</p>
+                      )}
+                      <Badge variant="success" className="text-xs">Sesión {session.session_number}</Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
