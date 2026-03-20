@@ -198,6 +198,27 @@ export default function VirtualGroupDetail() {
         })
         .eq('id', id);
       if (error) throw error;
+
+      // If start_date changed, recalculate all session dates
+      const originalStartDate = (group as any)?.start_date;
+      if (editGroupStartDate !== originalStartDate) {
+        const { data: sessions, error: sessErr } = await supabase
+          .from('course_sessions')
+          .select('id, session_number')
+          .eq('group_id', id)
+          .order('session_number');
+        if (sessErr) throw sessErr;
+
+        for (const session of (sessions || [])) {
+          const newDate = new Date(editGroupStartDate + 'T12:00:00');
+          newDate.setDate(newDate.getDate() + (session.session_number - 1) * 7);
+          const { error: updateErr } = await supabase
+            .from('course_sessions')
+            .update({ scheduled_date: newDate.toISOString().split('T')[0] })
+            .eq('id', session.id);
+          if (updateErr) throw updateErr;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['course_group', id] });
