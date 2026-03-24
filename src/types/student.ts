@@ -37,7 +37,7 @@ export interface User {
 export type PaymentStatus = 'good' | 'low' | 'due';
 
 export function getPaymentStatus(classesRemaining: number): PaymentStatus {
-  if (classesRemaining === 0) return 'due';
+  if (classesRemaining <= 0) return 'due';
   if (classesRemaining <= 2) return 'low';
   return 'good';
 }

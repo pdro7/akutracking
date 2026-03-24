@@ -70,8 +70,8 @@ export default function Dashboard() {
     }
   });
 
-  // Students with 0 classes remaining (pack exhausted)
-  const packDue = students.filter(s => s.classes_remaining === 0);
+  // Students with 0 or fewer classes remaining (pack exhausted or overdrawn)
+  const packDue = students.filter(s => s.classes_remaining <= 0);
 
   // Today's sessions
   const today = new Date().toISOString().split('T')[0];
