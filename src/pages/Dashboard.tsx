@@ -29,6 +29,21 @@ export default function Dashboard() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const markPackRequestedMutation = useMutation({
+    mutationFn: async (studentId: string) => {
+      const { error } = await supabase
+        .from('students')
+        .update({ pack_payment_requested_at: new Date().toISOString() })
+        .eq('id', studentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Marcado como solicitado');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],
     queryFn: async () => {
@@ -225,10 +240,30 @@ export default function Dashboard() {
                     >
                       <TableCell className="font-medium text-primary">{student.name}</TableCell>
                       <TableCell>
-                        <Badge variant="destructive">Pack agotado</Badge>
+                        <Badge variant="destructive" className="whitespace-nowrap">Pack agotado</Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">0 clases restantes</TableCell>
-                      <TableCell></TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {student.classes_remaining < 0
+                          ? `${Math.abs(student.classes_remaining)} clase${Math.abs(student.classes_remaining) !== 1 ? 's' : ''} en deuda`
+                          : '0 clases restantes'}
+                      </TableCell>
+                      <TableCell onClick={(ev) => ev.stopPropagation()}>
+                        {(student as any).pack_payment_requested_at ? (
+                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 whitespace-nowrap">
+                            ✓ Solicitado
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs h-7 px-2 text-muted-foreground hover:text-blue-600"
+                            disabled={markPackRequestedMutation.isPending}
+                            onClick={() => markPackRequestedMutation.mutate(student.id)}
+                          >
+                            Marcar solicitado
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {(pendingInstallments as any[]).map((e: any) => {

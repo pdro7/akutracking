@@ -466,6 +466,7 @@ export type Database = {
           name: string
           newsletter_opt_in: boolean
           notes: string | null
+          pack_payment_requested_at: string | null
           pack_size: number
           parent_cedula: string | null
           parent_name: string
@@ -500,6 +501,7 @@ export type Database = {
           name: string
           newsletter_opt_in?: boolean
           notes?: string | null
+          pack_payment_requested_at?: string | null
           pack_size?: number
           parent_cedula?: string | null
           parent_name: string
@@ -534,6 +536,7 @@ export type Database = {
           name?: string
           newsletter_opt_in?: boolean
           notes?: string | null
+          pack_payment_requested_at?: string | null
           pack_size?: number
           parent_cedula?: string | null
           parent_name?: string
