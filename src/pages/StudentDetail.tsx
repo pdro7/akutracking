@@ -362,6 +362,7 @@ export default function StudentDetail() {
             pack_size: paymentPackSize,
             classes_remaining: paymentPackSize - (currentStudent?.classes_attended || 0),
             last_payment_date: format(paymentDate, 'yyyy-MM-dd'),
+            pack_payment_requested_at: null,
           }).eq('id', id);
         if (updateError) throw updateError;
       }
