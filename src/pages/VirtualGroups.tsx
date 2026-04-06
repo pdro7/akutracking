@@ -15,6 +15,7 @@ import { Plus, Monitor } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { generateSessionDates } from '@/lib/holidays';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' }> = {
   forming:   { label: 'Formando',   variant: 'secondary' },
@@ -47,6 +48,14 @@ export default function VirtualGroups() {
   const [notes, setNotes] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [autoSessions, setAutoSessions] = useState(true);
+
+  const { data: holidays = [] } = useQuery({
+    queryKey: ['settings_holidays'],
+    queryFn: async () => {
+      const { data } = await supabase.from('settings').select('holidays').maybeSingle();
+      return (data?.holidays as string[]) || [];
+    },
+  });
 
   const { data: teachers = [] } = useQuery({
     queryKey: ['teachers'],
@@ -130,15 +139,12 @@ export default function VirtualGroups() {
       if (error) throw error;
 
       if (autoSessions && group) {
-        const sessions = Array.from({ length: 8 }, (_, i) => {
-          const d = new Date(startDate + 'T12:00:00');
-          d.setDate(d.getDate() + i * 7);
-          return {
-            group_id: group.id,
-            session_number: i + 1,
-            scheduled_date: d.toISOString().split('T')[0],
-          };
-        });
+        const dates = generateSessionDates(startDate, 8, holidays);
+        const sessions = dates.map((date, i) => ({
+          group_id: group.id,
+          session_number: i + 1,
+          scheduled_date: date,
+        }));
         const { error: sessErr } = await supabase.from('course_sessions').insert(sessions);
         if (sessErr) throw sessErr;
       }

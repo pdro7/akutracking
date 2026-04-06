@@ -13,6 +13,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { differenceInYears, format } from 'date-fns';
+import { generateSessionDates } from '@/lib/holidays';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -468,12 +469,14 @@ export default function StudentDetail() {
         if (groupErr) throw groupErr;
         groupId = group.id;
 
-        // Auto-create 8 weekly sessions
-        const sessions = Array.from({ length: 8 }, (_, i) => {
-          const d = new Date(veStartDate + 'T12:00:00');
-          d.setDate(d.getDate() + i * 7);
-          return { group_id: group.id, session_number: i + 1, scheduled_date: d.toISOString().split('T')[0] };
-        });
+        // Auto-create 8 weekly sessions (skipping holidays)
+        const sessionHolidays = ((settings as any)?.holidays as string[]) || [];
+        const sessionDates = generateSessionDates(veStartDate, 8, sessionHolidays);
+        const sessions = sessionDates.map((date, i) => ({
+          group_id: group.id,
+          session_number: i + 1,
+          scheduled_date: date,
+        }));
         const { error: sessErr } = await supabase.from('course_sessions').insert(sessions);
         if (sessErr) throw sessErr;
       }

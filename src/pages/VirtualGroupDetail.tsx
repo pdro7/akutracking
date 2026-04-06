@@ -20,6 +20,7 @@ import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, Users, Calendar, Pencil 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { generateSessionDates } from '@/lib/holidays';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' }> = {
   forming:   { label: 'Formando',   variant: 'secondary' },
@@ -67,6 +68,10 @@ export default function VirtualGroupDetail() {
   const [attendanceSession, setAttendanceSession] = useState<any>(null);
   const [attendanceMap, setAttendanceMap] = useState<Record<string, boolean>>({});
 
+  // Session date editing
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingSessionDate, setEditingSessionDate] = useState('');
+
   const { data: group, isLoading } = useQuery({
     queryKey: ['course_group', id],
     queryFn: async () => {
@@ -92,6 +97,14 @@ export default function VirtualGroupDetail() {
       return data || [];
     },
     enabled: !!id,
+  });
+
+  const { data: holidays = [] } = useQuery({
+    queryKey: ['settings_holidays'],
+    queryFn: async () => {
+      const { data } = await supabase.from('settings').select('holidays').maybeSingle();
+      return (data?.holidays as string[]) || [];
+    },
   });
 
   const { data: enrollments = [] } = useQuery({
@@ -199,22 +212,21 @@ export default function VirtualGroupDetail() {
         .eq('id', id);
       if (error) throw error;
 
-      // If start_date changed, recalculate all session dates
+      // If start_date changed, recalculate all session dates (skipping holidays)
       const originalStartDate = (group as any)?.start_date;
       if (editGroupStartDate !== originalStartDate) {
-        const { data: sessions, error: sessErr } = await supabase
+        const { data: sessionsToUpdate, error: sessErr } = await supabase
           .from('course_sessions')
           .select('id, session_number')
           .eq('group_id', id)
           .order('session_number');
         if (sessErr) throw sessErr;
 
-        for (const session of (sessions || [])) {
-          const newDate = new Date(editGroupStartDate + 'T12:00:00');
-          newDate.setDate(newDate.getDate() + (session.session_number - 1) * 7);
+        const newDates = generateSessionDates(editGroupStartDate, (sessionsToUpdate || []).length, holidays);
+        for (const session of (sessionsToUpdate || [])) {
           const { error: updateErr } = await supabase
             .from('course_sessions')
-            .update({ scheduled_date: newDate.toISOString().split('T')[0] })
+            .update({ scheduled_date: newDates[session.session_number - 1] })
             .eq('id', session.id);
           if (updateErr) throw updateErr;
         }
@@ -225,6 +237,23 @@ export default function VirtualGroupDetail() {
       queryClient.invalidateQueries({ queryKey: ['course_groups'] });
       toast.success('Grupo actualizado');
       setShowEditGroup(false);
+    },
+    onError: (error: Error) => { toast.error(error.message); },
+  });
+
+  const updateSessionDateMutation = useMutation({
+    mutationFn: async ({ sessionId, date }: { sessionId: string; date: string }) => {
+      const { error } = await supabase
+        .from('course_sessions')
+        .update({ scheduled_date: date })
+        .eq('id', sessionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course_sessions', id] });
+      setEditingSessionId(null);
+      setEditingSessionDate('');
+      toast.success('Fecha actualizada');
     },
     onError: (error: Error) => { toast.error(error.message); },
   });
@@ -733,13 +762,47 @@ export default function VirtualGroupDetail() {
                 <TableBody>
                   {(sessions as any[]).map((session: any) => {
                     const counts = (sessionAttendanceCounts as any)[session.id];
+                    const isEditing = editingSessionId === session.id;
                     return (
                       <TableRow key={session.id}>
                         <TableCell className="font-medium">Sesión {session.session_number}</TableCell>
                         <TableCell>
-                          {new Date(session.scheduled_date + 'T12:00:00').toLocaleDateString('es-CO', {
-                            weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-                          })}
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="date"
+                                value={editingSessionDate}
+                                onChange={(e) => setEditingSessionDate(e.target.value)}
+                                className="h-8 w-40"
+                              />
+                              <Button
+                                size="sm"
+                                className="h-8 px-2"
+                                disabled={!editingSessionDate || updateSessionDateMutation.isPending}
+                                onClick={() => updateSessionDateMutation.mutate({ sessionId: session.id, date: editingSessionDate })}
+                              >
+                                Guardar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2"
+                                onClick={() => { setEditingSessionId(null); setEditingSessionDate(''); }}
+                              >
+                                Cancelar
+                              </Button>
+                            </div>
+                          ) : (
+                            <span
+                              className="flex items-center gap-1.5 group cursor-pointer hover:text-primary"
+                              onClick={() => { setEditingSessionId(session.id); setEditingSessionDate(session.scheduled_date); }}
+                            >
+                              {new Date(session.scheduled_date + 'T12:00:00').toLocaleDateString('es-CO', {
+                                weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                              })}
+                              <Pencil size={12} className="opacity-0 group-hover:opacity-50" />
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {counts

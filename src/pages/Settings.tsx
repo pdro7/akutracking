@@ -34,6 +34,8 @@ export default function Settings() {
   const [classDay, setClassDay] = useState('Saturday');
   const [paymentMethods, setPaymentMethods] = useState<string[]>(['Cash', 'Bancololombia', 'Davivienda', 'Wompi', 'Nequi']);
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
+  const [holidays, setHolidays] = useState<string[]>([]);
+  const [newHoliday, setNewHoliday] = useState('');
 
   // Activity state
   const [showActivityDialog, setShowActivityDialog] = useState(false);
@@ -79,6 +81,7 @@ export default function Settings() {
       setPackSize(settings.default_pack_size);
       setClassDay(settings.class_day);
       setPaymentMethods(settings.payment_methods || ['Cash', 'Bancolombia', 'Davivienda', 'Wompi', 'Nequi']);
+      setHolidays((settings as any).holidays || []);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [(settings as any)?.id ?? 'default']);
@@ -189,13 +192,14 @@ export default function Settings() {
   });
 
   const updateSettingsMutation = useMutation({
-    mutationFn: async (payload: { packSize: number; classDay: string; paymentMethods: string[] }) => {
+    mutationFn: async (payload: { packSize: number; classDay: string; paymentMethods: string[]; holidays: string[] }) => {
       const { data: existing } = await supabase.from('settings').select('id').maybeSingle();
       if (existing) {
         const { data: updated, error } = await supabase.from('settings').update({
           default_pack_size: payload.packSize,
           class_day: payload.classDay,
           payment_methods: payload.paymentMethods,
+          holidays: payload.holidays,
         }).eq('id', existing.id).select();
         if (error) throw error;
         if (!updated || updated.length === 0) throw new Error('No tienes permisos para editar la configuración');
@@ -204,6 +208,7 @@ export default function Settings() {
           default_pack_size: payload.packSize,
           class_day: payload.classDay,
           payment_methods: payload.paymentMethods,
+          holidays: payload.holidays,
         });
         if (error) throw error;
       }
@@ -399,6 +404,40 @@ export default function Settings() {
                 </div>
               </div>
             </div>
+            <div>
+              <Label className="text-base mb-2 block">Festivos</Label>
+              <p className="text-sm text-muted-foreground mb-3">Las sesiones programadas en estas fechas se moverán automáticamente a la siguiente semana</p>
+              <div className="space-y-2">
+                {holidays.sort().map((date, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={new Date(date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      readOnly
+                      className="max-w-xs"
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => setHolidays(holidays.filter((_, i) => i !== index))}>
+                      <X size={16} />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={newHoliday}
+                    onChange={(e) => setNewHoliday(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <Button variant="outline" size="icon" onClick={() => {
+                    if (newHoliday && !holidays.includes(newHoliday)) {
+                      setHolidays([...holidays, newHoliday]);
+                      setNewHoliday('');
+                    }
+                  }}>
+                    <Plus size={16} />
+                  </Button>
+                </div>
+              </div>
+            </div>
             <div className="pt-4 border-t">
               <Button onClick={() => {
                 const methods = newPaymentMethod.trim()
@@ -408,7 +447,14 @@ export default function Settings() {
                   setPaymentMethods(methods);
                   setNewPaymentMethod('');
                 }
-                updateSettingsMutation.mutate({ packSize, classDay, paymentMethods: methods });
+                const allHolidays = newHoliday && !holidays.includes(newHoliday)
+                  ? [...holidays, newHoliday]
+                  : holidays;
+                if (newHoliday && !holidays.includes(newHoliday)) {
+                  setHolidays(allHolidays);
+                  setNewHoliday('');
+                }
+                updateSettingsMutation.mutate({ packSize, classDay, paymentMethods: methods, holidays: allHolidays });
               }} className="gap-2">
                 <Save size={20} />
                 Save Settings

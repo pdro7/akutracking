@@ -417,6 +417,7 @@ export type Database = {
           class_day: string
           created_at: string
           default_pack_size: number
+          holidays: string[] | null
           id: string
           payment_methods: string[] | null
           updated_at: string
@@ -425,6 +426,7 @@ export type Database = {
           class_day?: string
           created_at?: string
           default_pack_size?: number
+          holidays?: string[] | null
           id?: string
           payment_methods?: string[] | null
           updated_at?: string
@@ -433,6 +435,7 @@ export type Database = {
           class_day?: string
           created_at?: string
           default_pack_size?: number
+          holidays?: string[] | null
           id?: string
           payment_methods?: string[] | null
           updated_at?: string
