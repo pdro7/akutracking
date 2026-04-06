@@ -411,7 +411,12 @@ export default function Settings() {
                 mode="multiple"
                 selected={holidays.map(d => new Date(d + 'T12:00:00'))}
                 onSelect={(dates) => {
-                  setHolidays((dates || []).map(d => d.toISOString().split('T')[0]));
+                  setHolidays((dates || []).map(d => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                  }));
                 }}
                 className="rounded-md border w-fit"
                 numberOfMonths={2}
