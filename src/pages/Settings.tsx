@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Settings as SettingsIcon, Save, Plus, X, Pencil, Trash2, BookOpen, Layers, Monitor, GraduationCap } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,7 +36,6 @@ export default function Settings() {
   const [paymentMethods, setPaymentMethods] = useState<string[]>(['Cash', 'Bancololombia', 'Davivienda', 'Wompi', 'Nequi']);
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [holidays, setHolidays] = useState<string[]>([]);
-  const [newHoliday, setNewHoliday] = useState('');
 
   // Activity state
   const [showActivityDialog, setShowActivityDialog] = useState(false);
@@ -406,37 +406,28 @@ export default function Settings() {
             </div>
             <div>
               <Label className="text-base mb-2 block">Festivos</Label>
-              <p className="text-sm text-muted-foreground mb-3">Las sesiones programadas en estas fechas se moverán automáticamente a la siguiente semana</p>
-              <div className="space-y-2">
-                {holidays.sort().map((date, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      value={new Date(date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                      readOnly
-                      className="max-w-xs"
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => setHolidays(holidays.filter((_, i) => i !== index))}>
-                      <X size={16} />
-                    </Button>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="date"
-                    value={newHoliday}
-                    onChange={(e) => setNewHoliday(e.target.value)}
-                    className="max-w-xs"
-                  />
-                  <Button variant="outline" size="icon" onClick={() => {
-                    if (newHoliday && !holidays.includes(newHoliday)) {
-                      setHolidays([...holidays, newHoliday]);
-                      setNewHoliday('');
-                    }
-                  }}>
-                    <Plus size={16} />
-                  </Button>
+              <p className="text-sm text-muted-foreground mb-3">Haz clic en los días festivos. Las sesiones que caigan en esas fechas se moverán automáticamente a la siguiente semana.</p>
+              <Calendar
+                mode="multiple"
+                selected={holidays.map(d => new Date(d + 'T12:00:00'))}
+                onSelect={(dates) => {
+                  setHolidays((dates || []).map(d => d.toISOString().split('T')[0]));
+                }}
+                className="rounded-md border w-fit"
+                numberOfMonths={2}
+              />
+              {holidays.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {holidays.sort().map((date) => (
+                    <span key={date} className="flex items-center gap-1 text-xs bg-accent rounded px-2 py-1">
+                      {new Date(date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      <button onClick={() => setHolidays(holidays.filter(d => d !== date))} className="ml-1 hover:text-destructive">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
             <div className="pt-4 border-t">
               <Button onClick={() => {
@@ -447,14 +438,7 @@ export default function Settings() {
                   setPaymentMethods(methods);
                   setNewPaymentMethod('');
                 }
-                const allHolidays = newHoliday && !holidays.includes(newHoliday)
-                  ? [...holidays, newHoliday]
-                  : holidays;
-                if (newHoliday && !holidays.includes(newHoliday)) {
-                  setHolidays(allHolidays);
-                  setNewHoliday('');
-                }
-                updateSettingsMutation.mutate({ packSize, classDay, paymentMethods: methods, holidays: allHolidays });
+                updateSettingsMutation.mutate({ packSize, classDay, paymentMethods: methods, holidays });
               }} className="gap-2">
                 <Save size={20} />
                 Save Settings
