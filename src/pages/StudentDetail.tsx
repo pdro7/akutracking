@@ -346,21 +346,21 @@ export default function StudentDetail() {
       if (editingPayment) {
         const { error } = await supabase.from('payments').update(paymentData).eq('id', editingPayment.id);
         if (error) throw error;
-        const { data: currentStudent, error: fetchError } = await supabase.from('students').select('classes_attended').eq('id', id).single();
+        const { data: currentStudent, error: fetchError } = await supabase.from('students').select('classes_remaining').eq('id', id).single();
         if (fetchError) throw fetchError;
         const { error: updateError } = await supabase.from('students')
-          .update({ pack_size: paymentPackSize, classes_remaining: paymentPackSize - (currentStudent?.classes_attended || 0) })
+          .update({ pack_size: paymentPackSize, classes_remaining: (currentStudent?.classes_remaining ?? 0) + paymentPackSize })
           .eq('id', id);
         if (updateError) throw updateError;
       } else {
         const { error } = await supabase.from('payments').insert(paymentData);
         if (error) throw error;
-        const { data: currentStudent, error: fetchError } = await supabase.from('students').select('classes_attended').eq('id', id).single();
+        const { data: currentStudent, error: fetchError } = await supabase.from('students').select('classes_remaining').eq('id', id).single();
         if (fetchError) throw fetchError;
         const { error: updateError } = await supabase.from('students')
           .update({
             pack_size: paymentPackSize,
-            classes_remaining: paymentPackSize - (currentStudent?.classes_attended || 0),
+            classes_remaining: (currentStudent?.classes_remaining ?? 0) + paymentPackSize,
             last_payment_date: format(paymentDate, 'yyyy-MM-dd'),
             pack_payment_requested_at: null,
           }).eq('id', id);
