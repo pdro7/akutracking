@@ -3,69 +3,52 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Bot, Home, Users, Settings, Calendar, LogOut, DollarSign, UserPlus, Monitor } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useQuery } from '@tanstack/react-query';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { data: userRole } = useUserRole();
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      
       const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
-      
       return data;
-    }
-  });
-
-  const { data: userRole } = useQuery({
-    queryKey: ['userRole'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      return data?.role || 'user';
     }
   });
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Logout failed",
-        description: error.message,
-      });
+      toast({ variant: "destructive", title: "Logout failed", description: error.message });
     } else {
       navigate("/auth");
     }
   };
 
-  // Filter nav items based on user role
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: Home },
-    { path: '/attendance', label: 'Attendance', icon: Calendar },
-    { path: '/students', label: 'Students', icon: Users },
-    { path: '/trial-leads', label: 'Trial Leads', icon: UserPlus },
-    { path: '/virtual-groups', label: 'Virtual', icon: Monitor },
-    ...(userRole === 'admin' ? [{ path: '/payments', label: 'Payments', icon: DollarSign }] : []),
-    { path: '/settings', label: 'Settings', icon: Settings },
-  ];
+  const isTeacher = userRole === 'teacher';
+
+  const navItems = isTeacher
+    ? [{ path: '/virtual-groups', label: 'Mis grupos', icon: Monitor }]
+    : [
+        { path: '/', label: 'Dashboard', icon: Home },
+        { path: '/attendance', label: 'Attendance', icon: Calendar },
+        { path: '/students', label: 'Students', icon: Users },
+        { path: '/trial-leads', label: 'Trial Leads', icon: UserPlus },
+        { path: '/virtual-groups', label: 'Virtual', icon: Monitor },
+        ...(userRole === 'admin' ? [{ path: '/payments', label: 'Payments', icon: DollarSign }] : []),
+        { path: '/settings', label: 'Settings', icon: Settings },
+      ];
 
   return (
     <header className="border-b bg-card">

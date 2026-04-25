@@ -553,21 +553,27 @@ export type Database = {
       teachers: {
         Row: {
           created_at: string
+          email: string | null
           id: string
           is_active: boolean
           name: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name?: string
+          user_id?: string | null
         }
         Relationships: []
       }

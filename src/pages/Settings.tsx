@@ -49,6 +49,7 @@ export default function Settings() {
   const [showTeacherDialog, setShowTeacherDialog] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [teacherName, setTeacherName] = useState('');
+  const [teacherEmail, setTeacherEmail] = useState('');
   const [deleteTeacherId, setDeleteTeacherId] = useState<string | null>(null);
 
   // Virtual course edit state
@@ -138,11 +139,12 @@ export default function Settings() {
   const saveTeacherMutation = useMutation({
     mutationFn: async () => {
       if (!teacherName.trim()) throw new Error('El nombre es obligatorio');
+      const payload: any = { name: teacherName.trim(), email: teacherEmail.trim() || null };
       if (editingTeacher) {
-        const { error } = await supabase.from('teachers').update({ name: teacherName.trim() }).eq('id', editingTeacher.id);
+        const { error } = await supabase.from('teachers').update(payload).eq('id', editingTeacher.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('teachers').insert({ name: teacherName.trim() });
+        const { error } = await supabase.from('teachers').insert(payload);
         if (error) throw error;
       }
     },
@@ -152,6 +154,7 @@ export default function Settings() {
       setShowTeacherDialog(false);
       setEditingTeacher(null);
       setTeacherName('');
+      setTeacherEmail('');
     },
     onError: (error: Error) => { toast.error(error.message); }
   });
@@ -581,7 +584,7 @@ export default function Settings() {
                 <p className="text-sm text-muted-foreground">Lista de profesores activos de la academia</p>
               </div>
             </div>
-            <Button onClick={() => { setEditingTeacher(null); setTeacherName(''); setShowTeacherDialog(true); }} size="sm" className="gap-2">
+            <Button onClick={() => { setEditingTeacher(null); setTeacherName(''); setTeacherEmail(''); setShowTeacherDialog(true); }} size="sm" className="gap-2">
               <Plus size={16} />
               Añadir profesor
             </Button>
@@ -602,7 +605,7 @@ export default function Settings() {
                     <TableCell className="font-medium">{teacher.name}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setShowTeacherDialog(true); }}>
+                        <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setTeacherEmail(teacher.email || ''); setShowTeacherDialog(true); }}>
                           <Pencil size={14} />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => setDeleteTeacherId(teacher.id)}>
@@ -819,14 +822,25 @@ export default function Settings() {
           <DialogHeader>
             <DialogTitle>{editingTeacher ? 'Editar profesor' : 'Nuevo profesor'}</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <Label className="mb-2 block">Nombre *</Label>
-            <Input
-              value={teacherName}
-              onChange={(e) => setTeacherName(e.target.value)}
-              placeholder="Nombre del profesor"
-              onKeyDown={(e) => { if (e.key === 'Enter' && teacherName.trim()) saveTeacherMutation.mutate(); }}
-            />
+          <div className="py-4 space-y-4">
+            <div>
+              <Label className="mb-2 block">Nombre *</Label>
+              <Input
+                value={teacherName}
+                onChange={(e) => setTeacherName(e.target.value)}
+                placeholder="Nombre del profesor"
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block">Email de cuenta</Label>
+              <Input
+                type="email"
+                value={teacherEmail}
+                onChange={(e) => setTeacherEmail(e.target.value)}
+                placeholder="email@ejemplo.com"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Email con el que iniciará sesión. Si se asigna, tendrá acceso solo a sus grupos.</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTeacherDialog(false)}>Cancelar</Button>

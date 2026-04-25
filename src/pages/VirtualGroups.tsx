@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { generateSessionDates } from '@/lib/holidays';
+import { useUserRole, useTeacherRecord } from '@/hooks/useUserRole';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' }> = {
   forming:   { label: 'Formando',   variant: 'secondary' },
@@ -36,6 +37,9 @@ function generateGroupCode(courseCode: string, startDate: Date): string {
 export default function VirtualGroups() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: userRole } = useUserRole();
+  const { data: teacherRecord } = useTeacherRecord();
+  const isTeacher = userRole === 'teacher';
 
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showDialog, setShowDialog] = useState(false);
@@ -80,12 +84,16 @@ export default function VirtualGroups() {
   });
 
   const { data: groups = [], isLoading } = useQuery({
-    queryKey: ['course_groups'],
+    queryKey: ['course_groups', isTeacher ? teacherRecord?.id : 'all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('course_groups')
         .select('*, virtual_courses(code, name)')
         .order('created_at', { ascending: false });
+      if (isTeacher && teacherRecord?.id) {
+        query = query.eq('teacher_id', teacherRecord.id);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -203,13 +211,15 @@ export default function VirtualGroups() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Grupos Virtuales</h1>
-          <p className="text-muted-foreground">Gestión de cohortes de cursos virtuales</p>
+          <h1 className="text-3xl font-bold mb-2">{isTeacher ? 'Mis grupos' : 'Grupos Virtuales'}</h1>
+          <p className="text-muted-foreground">{isTeacher ? 'Grupos asignados a ti' : 'Gestión de cohortes de cursos virtuales'}</p>
         </div>
-        <Button onClick={() => setShowDialog(true)} className="gap-2">
-          <Plus size={20} />
-          Nuevo grupo
-        </Button>
+        {!isTeacher && (
+          <Button onClick={() => setShowDialog(true)} className="gap-2">
+            <Plus size={20} />
+            Nuevo grupo
+          </Button>
+        )}
       </div>
 
       {/* Status filter */}
