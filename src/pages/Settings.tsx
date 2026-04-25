@@ -159,6 +159,23 @@ export default function Settings() {
     onError: (error: Error) => { toast.error(error.message); }
   });
 
+  const inviteTeacherMutation = useMutation({
+    mutationFn: async ({ email, teacher_id }: { email: string; teacher_id: string }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('invite-teacher', {
+        body: { email, teacher_id },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success('Invitación enviada correctamente');
+    },
+    onError: (error: Error) => { toast.error(error.message); },
+  });
+
   const deleteTeacherMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('teachers').delete().eq('id', id);
@@ -596,6 +613,7 @@ export default function Settings() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
+                  <TableHead>Email / Acceso</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -603,6 +621,28 @@ export default function Settings() {
                 {(teachers as any[]).map((teacher: any) => (
                   <TableRow key={teacher.id}>
                     <TableCell className="font-medium">{teacher.name}</TableCell>
+                    <TableCell>
+                      {teacher.email ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">{teacher.email}</span>
+                          {teacher.user_id ? (
+                            <span className="text-xs text-green-600 border border-green-300 rounded px-1.5 py-0.5">✓ Activo</span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1"
+                              disabled={inviteTeacherMutation.isPending}
+                              onClick={() => inviteTeacherMutation.mutate({ email: teacher.email, teacher_id: teacher.id })}
+                            >
+                              Enviar invitación
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Sin email asignado</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setTeacherEmail(teacher.email || ''); setShowTeacherDialog(true); }}>
