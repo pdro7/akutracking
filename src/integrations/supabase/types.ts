@@ -577,6 +577,81 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_notes: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          calendly_uri: string | null
+          child_name: string
+          course_interest: string | null
+          created_at: string
+          created_by: string | null
+          date_of_birth: string | null
+          email: string | null
+          id: string
+          parent_name: string
+          phone: string
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+          trial_class_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          calendly_uri?: string | null
+          child_name: string
+          course_interest?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          id?: string
+          parent_name: string
+          phone: string
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          trial_class_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          calendly_uri?: string | null
+          child_name?: string
+          course_interest?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          id?: string
+          parent_name?: string
+          phone?: string
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          trial_class_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trial_leads: {
         Row: {
           calendly_uri: string | null
@@ -699,6 +774,8 @@ export type Database = {
     }
     Enums: {
       app_role: "staff" | "admin" | "teacher"
+      lead_source: "whatsapp" | "google_organic" | "web" | "calendly" | "referral" | "other"
+      lead_status: "new" | "contacted" | "trial_scheduled" | "trial_attended" | "trial_no_show" | "enrolled" | "lost"
       trial_lead_status:
         | "scheduled"
         | "attended"
