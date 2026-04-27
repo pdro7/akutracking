@@ -386,6 +386,16 @@ Deno.serve(async (req) => {
       ? { role: 'user', content: body || '[Imagen]', image_url: imageData.permanentUrl }
       : { role: 'user', content: userContent };
 
+    // If the conversation is escalated, save the message but do NOT call Claude
+    if (conversation?.escalated) {
+      const updatedMessages = [...existingMessages, storedUserMessage].slice(-MAX_HISTORY_MESSAGES);
+      await supabase
+        .from('whatsapp_conversations')
+        .update({ messages: updatedMessages, updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+      return twimlResponse('');
+    }
+
     // Call Claude API
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not set');

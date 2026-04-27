@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Textarea } from '@/components/ui/textarea';
+import { ExternalLink, Send, Bot } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -29,7 +31,10 @@ function lastMessagePreview(messages: Message[]): string {
 
 export default function Conversations() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [manualMsg, setManualMsg] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: conversations = [], isLoading } = useQuery({
     queryKey: ['whatsapp_conversations'],
@@ -41,13 +46,54 @@ export default function Conversations() {
       if (error) throw error;
       return (data || []) as Conversation[];
     },
+    refetchInterval: 15000,
   });
 
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
 
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selected?.messages?.length]);
+
+  const sendMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const { data, error } = await supabase.functions.invoke('send-whatsapp', {
+        body: { conversation_id: selectedId, message },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations'] });
+      setManualMsg('');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any)
+        .from('whatsapp_conversations')
+        .update({ escalated: false, updated_at: new Date().toISOString() })
+        .eq('id', selectedId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations'] });
+      toast.success('Pablo reactivado — volverá a responder automáticamente');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleSend = () => {
+    if (!manualMsg.trim()) return;
+    sendMutation.mutate(manualMsg.trim());
+  };
+
   return (
     <div className="flex h-[calc(100vh-73px)] overflow-hidden">
-      {/* Left sidebar — conversation list */}
+      {/* Left sidebar */}
       <div className="w-80 flex-shrink-0 border-r flex flex-col bg-card">
         <div className="px-4 py-3 border-b">
           <h2 className="font-semibold text-base">Pablo · Conversaciones</h2>
@@ -61,9 +107,7 @@ export default function Conversations() {
             <div className="p-4 text-center text-sm text-muted-foreground">Sin conversaciones aún</div>
           ) : (
             conversations.map((conv) => {
-              const name = conv.leads?.child_name
-                ? `${conv.leads.child_name}`
-                : conv.phone;
+              const name = conv.leads?.child_name ?? conv.phone;
               const sub = conv.leads?.child_name ? conv.phone : null;
               const isActive = conv.id === selectedId;
               const msgs = Array.isArray(conv.messages) ? conv.messages : [];
@@ -77,11 +121,9 @@ export default function Conversations() {
                     isActive ? 'bg-accent' : ''
                   }`}
                 >
-                  {/* Avatar */}
                   <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 text-green-700 font-semibold text-sm">
                     {name.charAt(0).toUpperCase()}
                   </div>
-
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
                       <p className="font-medium text-sm truncate">{name}</p>
@@ -105,7 +147,7 @@ export default function Conversations() {
         </div>
       </div>
 
-      {/* Right panel — chat view */}
+      {/* Right panel */}
       <div className="flex-1 flex flex-col bg-background">
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -144,6 +186,25 @@ export default function Conversations() {
               )}
             </div>
 
+            {/* Escalation banner */}
+            {selected.escalated && (
+              <div className="bg-orange-50 border-b border-orange-200 px-4 py-2 flex items-center justify-between gap-3">
+                <p className="text-xs text-orange-800">
+                  <strong>Pablo está en pausa.</strong> El padre espera tu respuesta directa.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs gap-1.5 border-orange-300 text-orange-800 hover:bg-orange-100 flex-shrink-0"
+                  onClick={() => reactivateMutation.mutate()}
+                  disabled={reactivateMutation.isPending}
+                >
+                  <Bot size={13} />
+                  Reactivar Pablo
+                </Button>
+              </div>
+            )}
+
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
               {(Array.isArray(selected.messages) ? selected.messages : []).map((msg, i) => (
@@ -167,12 +228,36 @@ export default function Conversations() {
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Footer note */}
-            <div className="bg-card border-t px-4 py-2 text-center text-xs text-muted-foreground">
-              Las respuestas las envía Pablo automáticamente por WhatsApp
-            </div>
+            {/* Footer — manual reply when escalated, info note otherwise */}
+            {selected.escalated ? (
+              <div className="bg-card border-t p-3 flex gap-2 items-end">
+                <Textarea
+                  value={manualMsg}
+                  onChange={(e) => setManualMsg(e.target.value)}
+                  placeholder="Escribe tu respuesta..."
+                  rows={2}
+                  className="resize-none flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.metaKey && manualMsg.trim()) handleSend();
+                  }}
+                />
+                <Button
+                  onClick={handleSend}
+                  disabled={!manualMsg.trim() || sendMutation.isPending}
+                  size="icon"
+                  className="h-10 w-10 flex-shrink-0"
+                >
+                  <Send size={16} />
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-card border-t px-4 py-2 text-center text-xs text-muted-foreground">
+                Las respuestas las envía Pablo automáticamente por WhatsApp
+              </div>
+            )}
           </>
         )}
       </div>
