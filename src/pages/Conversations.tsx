@@ -1,162 +1,185 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { ExternalLink } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-type ConvStatus = 'active' | 'waiting' | 'escalated' | 'closed';
+type Message = { role: 'user' | 'assistant'; content: string; image_url?: string };
 
-const COLUMNS: { status: ConvStatus; label: string; color: string }[] = [
-  { status: 'active',    label: 'Activa',              color: 'bg-blue-50 border-blue-200' },
-  { status: 'waiting',   label: 'Esperando respuesta', color: 'bg-yellow-50 border-yellow-200' },
-  { status: 'escalated', label: 'Escalada',            color: 'bg-orange-50 border-orange-200' },
-  { status: 'closed',    label: 'Cerrada',             color: 'bg-gray-50 border-gray-200' },
-];
+type Conversation = {
+  id: string;
+  phone: string;
+  messages: Message[];
+  escalated: boolean;
+  lead_id: string | null;
+  updated_at: string;
+  leads: { child_name: string; parent_name: string } | null;
+};
 
-function lastMessage(messages: any[]): string {
+function lastMessagePreview(messages: Message[]): string {
   if (!messages?.length) return '—';
   const last = messages[messages.length - 1];
   if (!last?.content || last.content === '[Imagen]') return '📷 Imagen';
-  return last.content.length > 80 ? last.content.slice(0, 80) + '…' : last.content;
-}
-
-function lastRole(messages: any[]): 'user' | 'assistant' | null {
-  if (!messages?.length) return null;
-  return messages[messages.length - 1]?.role ?? null;
+  return last.content.length > 50 ? last.content.slice(0, 50) + '…' : last.content;
 }
 
 export default function Conversations() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data: conversations = [], isLoading } = useQuery({
     queryKey: ['whatsapp_conversations'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('whatsapp_conversations')
-        .select('id, phone, messages, status, escalated, lead_id, updated_at, leads(child_name, parent_name)')
+        .select('id, phone, messages, escalated, lead_id, updated_at, leads(child_name, parent_name)')
         .order('updated_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as Array<{
-        id: string;
-        phone: string;
-        messages: any[];
-        status: ConvStatus;
-        escalated: boolean;
-        lead_id: string | null;
-        updated_at: string;
-        leads: { child_name: string; parent_name: string } | null;
-      }>;
+      return (data || []) as Conversation[];
     },
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: ConvStatus }) => {
-      const { error } = await (supabase as any)
-        .from('whatsapp_conversations')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations'] }),
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const grouped = COLUMNS.reduce<Record<ConvStatus, typeof conversations>>((acc, col) => {
-    acc[col.status] = conversations.filter((c) => c.status === col.status);
-    return acc;
-  }, { active: [], waiting: [], escalated: [], closed: [] });
+  const selected = conversations.find((c) => c.id === selectedId) ?? null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center">
-          <MessageCircle className="text-primary-foreground" size={24} />
+    <div className="flex h-[calc(100vh-73px)] overflow-hidden">
+      {/* Left sidebar — conversation list */}
+      <div className="w-80 flex-shrink-0 border-r flex flex-col bg-card">
+        <div className="px-4 py-3 border-b">
+          <h2 className="font-semibold text-base">Pablo · Conversaciones</h2>
+          <p className="text-xs text-muted-foreground">{conversations.length} conversaciones</p>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold">Pablo · Conversaciones</h1>
-          <p className="text-muted-foreground">Conversaciones de WhatsApp gestionadas por el asistente</p>
+
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">Cargando...</div>
+          ) : conversations.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">Sin conversaciones aún</div>
+          ) : (
+            conversations.map((conv) => {
+              const name = conv.leads?.child_name
+                ? `${conv.leads.child_name}`
+                : conv.phone;
+              const sub = conv.leads?.child_name ? conv.phone : null;
+              const isActive = conv.id === selectedId;
+              const msgs = Array.isArray(conv.messages) ? conv.messages : [];
+              const lastRole = msgs.length ? msgs[msgs.length - 1].role : null;
+
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => setSelectedId(conv.id)}
+                  className={`w-full text-left px-4 py-3 border-b hover:bg-accent/50 transition-colors flex gap-3 items-start ${
+                    isActive ? 'bg-accent' : ''
+                  }`}
+                >
+                  {/* Avatar */}
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 text-green-700 font-semibold text-sm">
+                    {name.charAt(0).toUpperCase()}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="font-medium text-sm truncate">{name}</p>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">
+                        {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: false, locale: es })}
+                      </span>
+                    </div>
+                    {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {lastRole === 'assistant' && <span className="text-primary/70">Pablo: </span>}
+                      {lastMessagePreview(msgs)}
+                    </p>
+                    {conv.escalated && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0 mt-1">Escalada</Badge>
+                    )}
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="p-8 text-center text-muted-foreground">Cargando...</div>
-      ) : conversations.length === 0 ? (
-        <div className="p-8 text-center text-muted-foreground">No hay conversaciones aún</div>
-      ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {COLUMNS.map((col) => (
-            <div
-              key={col.status}
-              className="flex-shrink-0 w-72"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const convId = e.dataTransfer.getData('convId');
-                if (convId) updateStatusMutation.mutate({ id: convId, status: col.status });
-              }}
-            >
-              <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="text-sm font-semibold">{col.label}</h3>
-                <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
-                  {grouped[col.status].length}
-                </span>
+      {/* Right panel — chat view */}
+      <div className="flex-1 flex flex-col bg-[#efeae2] dark:bg-background">
+        {!selected ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-3xl">💬</div>
+            <p className="font-medium">Selecciona una conversación</p>
+            <p className="text-sm">Elige un chat de la lista para ver los mensajes</p>
+          </div>
+        ) : (
+          <>
+            {/* Chat header */}
+            <div className="bg-card border-b px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold text-sm">
+                {(selected.leads?.child_name ?? selected.phone).charAt(0).toUpperCase()}
               </div>
-
-              <div className={`min-h-24 rounded-xl border-2 p-2 space-y-2 ${col.color}`}>
-                {grouped[col.status].map((conv) => {
-                  const msgs = Array.isArray(conv.messages) ? conv.messages : [];
-                  const role = lastRole(msgs);
-                  const name = conv.leads?.child_name
-                    ? `${conv.leads.child_name} (${conv.leads.parent_name})`
-                    : conv.phone;
-
-                  return (
-                    <div
-                      key={conv.id}
-                      draggable
-                      onDragStart={(e) => e.dataTransfer.setData('convId', conv.id)}
-                      onClick={() => conv.lead_id ? navigate(`/leads/${conv.lead_id}`) : undefined}
-                      className={`bg-card border rounded-lg p-3 select-none transition-shadow hover:shadow-md ${
-                        conv.lead_id ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium text-sm leading-tight">{name}</p>
-                        {conv.escalated && (
-                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shrink-0">Escalada</Badge>
-                        )}
-                      </div>
-
-                      {conv.leads && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{conv.phone}</p>
-                      )}
-
-                      <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                        {role === 'assistant' && <span className="text-primary/70 font-medium">Pablo: </span>}
-                        {lastMessage(msgs)}
-                      </p>
-
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground">
-                          {msgs.length} mensaje{msgs.length !== 1 ? 's' : ''}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true, locale: es })}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex-1">
+                <p className="font-semibold text-sm leading-tight">
+                  {selected.leads?.child_name ?? selected.phone}
+                </p>
+                {selected.leads && (
+                  <p className="text-xs text-muted-foreground">{selected.phone}</p>
+                )}
               </div>
+              {selected.lead_id && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => navigate(`/leads/${selected.lead_id}`)}
+                >
+                  <ExternalLink size={13} />
+                  Ver lead
+                </Button>
+              )}
+              {selected.escalated && (
+                <Badge variant="destructive" className="text-xs">Escalada</Badge>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
+              {(Array.isArray(selected.messages) ? selected.messages : []).map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[70%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
+                      msg.role === 'assistant'
+                        ? 'bg-[#d9fdd3] dark:bg-primary text-foreground rounded-br-none'
+                        : 'bg-card text-foreground rounded-bl-none'
+                    }`}
+                  >
+                    {msg.image_url && (
+                      <img
+                        src={msg.image_url}
+                        alt="imagen"
+                        className="max-w-full rounded-lg mb-1 max-h-60 object-contain"
+                      />
+                    )}
+                    {msg.content && msg.content !== '[Imagen]' && (
+                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer note */}
+            <div className="bg-card border-t px-4 py-2 text-center text-xs text-muted-foreground">
+              Las respuestas las envía Pablo automáticamente por WhatsApp
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
