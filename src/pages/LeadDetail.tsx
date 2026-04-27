@@ -66,6 +66,19 @@ export default function LeadDetail() {
     enabled: !!id,
   });
 
+  const { data: conversation } = useQuery({
+    queryKey: ['whatsapp_conversation', id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('whatsapp_conversations')
+        .select('messages, created_at')
+        .eq('lead_id', id!)
+        .maybeSingle();
+      return data as { messages: { role: string; content: string }[]; created_at: string } | null;
+    },
+    enabled: !!id,
+  });
+
   const { data: notes = [] } = useQuery({
     queryKey: ['lead_notes', id],
     queryFn: async () => {
@@ -251,6 +264,28 @@ export default function LeadDetail() {
           </div>
         </div>
       </Card>
+
+      {/* WhatsApp conversation */}
+      {conversation && (conversation.messages as any[]).length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold mb-4 flex items-center gap-2">
+            <span className="text-green-600">💬</span> Conversación con Pablo
+          </h2>
+          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+            {(conversation.messages as { role: string; content: string }[]).map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${
+                  msg.role === 'assistant'
+                    ? 'bg-primary text-primary-foreground rounded-br-none'
+                    : 'bg-muted rounded-bl-none'
+                }`}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Notes */}
       <Card className="p-4">
