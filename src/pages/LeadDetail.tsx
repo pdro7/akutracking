@@ -74,7 +74,7 @@ export default function LeadDetail() {
         .select('messages, created_at')
         .eq('lead_id', id!)
         .maybeSingle();
-      return data as { messages: { role: string; content: string }[]; created_at: string } | null;
+      return data as { messages: { role: string; content: string; image_url?: string }[]; created_at: string } | null;
     },
     enabled: !!id,
   });
@@ -272,14 +272,21 @@ export default function LeadDetail() {
             <span className="text-green-600">💬</span> Conversación con Pablo
           </h2>
           <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-            {(conversation.messages as { role: string; content: string }[]).map((msg, i) => (
+            {(conversation.messages as { role: string; content: string; image_url?: string }[]).map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${
                   msg.role === 'assistant'
                     ? 'bg-primary text-primary-foreground rounded-br-none'
                     : 'bg-muted rounded-bl-none'
                 }`}>
-                  {msg.content}
+                  {msg.image_url && (
+                    <img
+                      src={msg.image_url}
+                      alt="Imagen enviada"
+                      className="max-w-full rounded-lg mb-1"
+                    />
+                  )}
+                  {msg.content && msg.content !== '[Imagen]' && msg.content}
                 </div>
               </div>
             ))}

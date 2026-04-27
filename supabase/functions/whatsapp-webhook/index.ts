@@ -269,23 +269,58 @@ Deno.serve(async (req) => {
     const body = params.get('Body') ?? '';
     const numMedia = parseInt(params.get('NumMedia') ?? '0', 10);
 
-    // Build user message content (text + optional media info)
+    // Process media attachments
+    type ImageData = { base64: string; mediaType: string; permanentUrl: string };
+    let imageData: ImageData | null = null;
     let userContent = body;
+
     if (numMedia > 0) {
       const mediaType = params.get('MediaContentType0') ?? '';
       const mediaUrl = params.get('MediaUrl0') ?? '';
-      if (mediaType.startsWith('audio/')) {
+
+      if (mediaType.startsWith('image/')) {
+        const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+        const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+
+        if (accountSid && authToken) {
+          try {
+            // Download image from Twilio (requires Basic Auth)
+            const mediaRes = await fetch(mediaUrl, {
+              headers: { 'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`) },
+            });
+            const imageBuffer = await mediaRes.arrayBuffer();
+
+            // Safe base64 encoding (avoids stack overflow on large images)
+            const uint8 = new Uint8Array(imageBuffer);
+            let binary = '';
+            const chunk = 8192;
+            for (let i = 0; i < uint8.length; i += chunk) {
+              binary += String.fromCharCode(...uint8.subarray(i, i + chunk));
+            }
+            const base64 = btoa(binary);
+
+            // Upload to Supabase Storage for permanent URL
+            const ext = mediaType.split('/')[1]?.split(';')[0] || 'jpg';
+            const fileName = `${crypto.randomUUID()}.${ext}`;
+            await supabase.storage.from('whatsapp-media').upload(fileName, imageBuffer, { contentType: mediaType });
+            const { data: urlData } = supabase.storage.from('whatsapp-media').getPublicUrl(fileName);
+
+            imageData = { base64, mediaType, permanentUrl: urlData.publicUrl };
+          } catch (e) {
+            console.error('Image processing error:', e);
+            userContent = body ? `[Imagen adjunta]\n${body}` : '[El usuario envió una imagen]';
+          }
+        } else {
+          userContent = body ? `[Imagen adjunta]\n${body}` : '[El usuario envió una imagen]';
+        }
+      } else if (mediaType.startsWith('audio/')) {
         userContent = body
           ? `[Audio adjunto: ${mediaUrl}]\n${body}`
-          : `[El usuario envió un audio: ${mediaUrl}]`;
-      } else if (mediaType.startsWith('image/')) {
-        userContent = body
-          ? `[Imagen adjunta: ${mediaUrl}]\n${body}`
-          : `[El usuario envió una imagen: ${mediaUrl}]`;
+          : `[El usuario envió un audio]`;
       }
     }
 
-    if (!userContent.trim()) {
+    if (!imageData && !userContent.trim()) {
       return twimlResponse('');
     }
 
@@ -301,11 +336,35 @@ Deno.serve(async (req) => {
       conversation?.messages ?? [];
     const existingLeadId: string | null = conversation?.lead_id ?? null;
 
-    // Add new user message
-    const messages = [
-      ...existingMessages,
-      { role: 'user', content: userContent },
-    ].slice(-MAX_HISTORY_MESSAGES);
+    // Build Claude-compatible message list from history
+    // Messages with image_url become text placeholders (we only send base64 for the current message)
+    type StoredMessage = { role: string; content: string; image_url?: string };
+    const claudeHistory = (existingMessages as StoredMessage[]).map(msg => ({
+      role: msg.role,
+      content: msg.image_url
+        ? (msg.content && msg.content !== '[Imagen]'
+            ? `[Imagen enviada anteriormente] ${msg.content}`
+            : '[Imagen enviada anteriormente]')
+        : msg.content,
+    }));
+
+    // Current user message — use vision content array if image present
+    const currentClaudeMessage = imageData
+      ? {
+          role: 'user' as const,
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: imageData.mediaType, data: imageData.base64 } },
+            ...(body.trim() ? [{ type: 'text', text: body }] : []),
+          ],
+        }
+      : { role: 'user' as const, content: userContent };
+
+    const messages = [...claudeHistory, currentClaudeMessage].slice(-MAX_HISTORY_MESSAGES);
+
+    // What we store in DB for the current user turn
+    const storedUserMessage: StoredMessage = imageData
+      ? { role: 'user', content: body || '[Imagen]', image_url: imageData.permanentUrl }
+      : { role: 'user', content: userContent };
 
     // Call Claude API
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -440,9 +499,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Save updated conversation
+    // Save updated conversation (use stored format, not Claude format)
     const updatedMessages = [
-      ...messages,
+      ...existingMessages,
+      storedUserMessage,
       { role: 'assistant', content: assistantText },
     ].slice(-MAX_HISTORY_MESSAGES);
 
