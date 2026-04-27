@@ -106,7 +106,7 @@ export default function Conversations() {
       </div>
 
       {/* Right panel — chat view */}
-      <div className="flex-1 flex flex-col bg-[#efeae2] dark:bg-background">
+      <div className="flex-1 flex flex-col bg-background">
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-3xl">💬</div>
@@ -145,29 +145,25 @@ export default function Conversations() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
               {(Array.isArray(selected.messages) ? selected.messages : []).map((msg, i) => (
                 <div
                   key={i}
                   className={`flex ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`max-w-[70%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
-                      msg.role === 'assistant'
-                        ? 'bg-[#d9fdd3] dark:bg-primary text-foreground rounded-br-none'
-                        : 'bg-card text-foreground rounded-bl-none'
-                    }`}
-                  >
+                  <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${
+                    msg.role === 'assistant'
+                      ? 'bg-primary text-primary-foreground rounded-br-none'
+                      : 'bg-muted rounded-bl-none'
+                  }`}>
                     {msg.image_url && (
                       <img
                         src={msg.image_url}
-                        alt="imagen"
-                        className="max-w-full rounded-lg mb-1 max-h-60 object-contain"
+                        alt="Imagen enviada"
+                        className="max-w-full rounded-lg mb-1"
                       />
                     )}
-                    {msg.content && msg.content !== '[Imagen]' && (
-                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                    )}
+                    {msg.content && msg.content !== '[Imagen]' && msg.content}
                   </div>
                 </div>
               ))}
