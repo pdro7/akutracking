@@ -243,6 +243,17 @@ const TOOLS = [
   },
 ];
 
+// Extraction prompt — used when the internal AKU number sends "Nuevo LID" + image
+const EXTRACTION_SYSTEM_PROMPT = `Eres un asistente interno de AKUMAYA. Tu única tarea es extraer información de leads a partir de imágenes o texto y registrarlos en el sistema con register_lead.
+
+Cuando recibas una imagen o mensaje con datos de un potencial cliente:
+1. Extrae toda la información visible: nombre del niño/a, nombre del padre/madre, teléfono, edad, ciudad, curso de interés.
+2. El teléfono es el dato más importante — encuéntralo aunque esté en formato informal (ej: "312 345 6789", "3123456789", "+57 312 345 6789"). Normalízalo quitando espacios.
+3. Llama a register_lead con todo lo que hayas podido extraer.
+4. Responde con un resumen breve: qué datos encontraste y qué registraste. Si faltó algún dato clave, indícalo.
+
+NUNCA inventes datos. Si algo no aparece en la imagen o el texto, omítelo.`;
+
 // Max messages to keep in history (to avoid token overflow)
 const MAX_HISTORY_MESSAGES = 40;
 
@@ -324,6 +335,15 @@ Deno.serve(async (req) => {
       return twimlResponse('');
     }
 
+    // Detect if this is a lead extraction request from the internal AKU number
+    const internalNumber = Deno.env.get('AKU_INTERNAL_NUMBER') ?? '';
+    const isFromInternal = internalNumber && from.includes(internalNumber);
+    const isNewLeadTrigger = isFromInternal && (
+      body.toLowerCase().includes('nuevo lid') ||
+      body.toLowerCase().includes('nuevo lead') ||
+      body.toLowerCase().includes('new lead')
+    );
+
     // Fetch or create conversation record
     const { data: conversation } = await supabase
       .from('whatsapp_conversations')
@@ -380,8 +400,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
-        system: PABLO_SYSTEM_PROMPT,
-        messages,
+        system: isNewLeadTrigger ? EXTRACTION_SYSTEM_PROMPT : PABLO_SYSTEM_PROMPT,
+        // In extraction mode, skip history — just send the current image/message
+        messages: isNewLeadTrigger ? [currentClaudeMessage] : messages,
         tools: TOOLS,
       }),
     });
@@ -483,7 +504,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1024,
-          system: PABLO_SYSTEM_PROMPT,
+          system: isNewLeadTrigger ? EXTRACTION_SYSTEM_PROMPT : PABLO_SYSTEM_PROMPT,
           messages: [
             ...messages,
             { role: 'assistant', content: claudeData.content },
