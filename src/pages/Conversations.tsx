@@ -71,17 +71,17 @@ export default function Conversations() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const reactivateMutation = useMutation({
-    mutationFn: async () => {
+  const toggleEscalationMutation = useMutation({
+    mutationFn: async (escalate: boolean) => {
       const { error } = await (supabase as any)
         .from('whatsapp_conversations')
-        .update({ escalated: false, updated_at: new Date().toISOString() })
+        .update({ escalated: escalate, updated_at: new Date().toISOString() })
         .eq('id', selectedId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_: void, escalate: boolean) => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations'] });
-      toast.success('Pablo reactivado — volverá a responder automáticamente');
+      toast.success(escalate ? 'Pablo en pausa — ahora respondes tú' : 'Pablo reactivado — volverá a responder automáticamente');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -181,27 +181,27 @@ export default function Conversations() {
                   Ver lead
                 </Button>
               )}
-              {selected.escalated && (
-                <Badge variant="destructive" className="text-xs">Escalada</Badge>
-              )}
+              {/* Pablo / Manual toggle */}
+              <button
+                onClick={() => toggleEscalationMutation.mutate(!selected.escalated)}
+                disabled={toggleEscalationMutation.isPending}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                  selected.escalated
+                    ? 'bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100'
+                    : 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+                }`}
+              >
+                <Bot size={13} />
+                {selected.escalated ? 'Manual' : 'Pablo activo'}
+              </button>
             </div>
 
-            {/* Escalation banner */}
+            {/* Escalation banner — info only, no button */}
             {selected.escalated && (
-              <div className="bg-orange-50 border-b border-orange-200 px-4 py-2 flex items-center justify-between gap-3">
+              <div className="bg-orange-50 border-b border-orange-200 px-4 py-2">
                 <p className="text-xs text-orange-800">
-                  <strong>Pablo está en pausa.</strong> El padre espera tu respuesta directa.
+                  <strong>Pablo está en pausa.</strong> Los mensajes del padre se guardan pero él no responde. Escribe tú directamente abajo.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs gap-1.5 border-orange-300 text-orange-800 hover:bg-orange-100 flex-shrink-0"
-                  onClick={() => reactivateMutation.mutate()}
-                  disabled={reactivateMutation.isPending}
-                >
-                  <Bot size={13} />
-                  Reactivar Pablo
-                </Button>
               </div>
             )}
 
