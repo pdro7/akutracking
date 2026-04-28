@@ -68,7 +68,9 @@ Deno.serve(async (req) => {
     }
 
     // Normalize phone to whatsapp: format
-    const rawPhone = lead.phone.replace(/\s+/g, '').replace(/^\+/, '');
+    // Colombian numbers stored without country code (e.g. "3001234567") need +57 prefix
+    let rawPhone = lead.phone.replace(/\s+/g, '').replace(/^\+/, '');
+    if (rawPhone.length === 10 && rawPhone.startsWith('3')) rawPhone = '57' + rawPhone;
     const toNumber = `whatsapp:+${rawPhone}`;
 
     // Send template via Twilio Content API
@@ -90,8 +92,14 @@ Deno.serve(async (req) => {
     );
 
     if (!twilioRes.ok) {
-      const err = await twilioRes.text();
-      throw new Error(`Twilio error: ${err}`);
+      const twilioErr = await twilioRes.json().catch(() => twilioRes.text());
+      const msg = typeof twilioErr === 'object'
+        ? (twilioErr.message ?? JSON.stringify(twilioErr))
+        : String(twilioErr);
+      return new Response(JSON.stringify({ ok: false, error: msg }), {
+        status: 200,
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+      });
     }
 
     // Build the template message text to store in history
@@ -135,8 +143,8 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error('start-conversation error:', err);
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
+    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+      status: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },
     });
   }
