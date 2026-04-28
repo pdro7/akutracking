@@ -73,6 +73,9 @@ Deno.serve(async (req) => {
     if (rawPhone.length === 10 && rawPhone.startsWith('3')) rawPhone = '57' + rawPhone;
     const toNumber = `whatsapp:+${rawPhone}`;
 
+    // Ensure fromNumber has whatsapp: prefix regardless of how the secret was saved
+    const from = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
+
     // Send template via Twilio Content API
     const twilioRes = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
@@ -83,7 +86,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          From: fromNumber,
+          From: from,
           To: toNumber,
           ContentSid: templateSid,
           ContentVariables: JSON.stringify({ '1': lead.parent_name }),
