@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, UserPlus } from 'lucide-react';
+import { ArrowLeft, UserPlus, MessageCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -143,6 +143,23 @@ export default function LeadDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const startConversationMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('start-conversation', {
+        body: { lead_id: id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lead', id] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp_conversation', id] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Pablo ha iniciado la conversación con el padre');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const convertMutation = useMutation({
     mutationFn: async () => {
       if (!lead) throw new Error('Lead no encontrado');
@@ -203,6 +220,17 @@ export default function LeadDetail() {
           <p className="text-muted-foreground">{lead.parent_name} · {lead.phone}</p>
         </div>
         <div className="flex items-center gap-2">
+          {!conversation && lead.status !== 'enrolled' && (
+            <Button
+              variant="outline"
+              className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
+              onClick={() => startConversationMutation.mutate()}
+              disabled={startConversationMutation.isPending}
+            >
+              <MessageCircle size={16} />
+              {startConversationMutation.isPending ? 'Iniciando...' : 'Iniciar con Pablo'}
+            </Button>
+          )}
           {lead.status !== 'enrolled' && (
             <Button variant="outline" className="gap-2" onClick={() => setShowConvertDialog(true)}>
               <UserPlus size={16} />

@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Users, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, Users, LayoutGrid, List, MessageCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -85,6 +85,22 @@ export default function Leads() {
       }
       return c;
     },
+  });
+
+  const startConversationMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const { data, error } = await supabase.functions.invoke('start-conversation', {
+        body: { lead_id: leadId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['leads_counts'] });
+      toast.success('Pablo ha iniciado la conversación');
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const updateStatusMutation = useMutation({
@@ -198,6 +214,7 @@ export default function Leads() {
                   <TableHead>Curso interés</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Fecha entrada</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -230,6 +247,20 @@ export default function Leads() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(lead.created_at).toLocaleDateString('es-CO')}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {lead.status === 'new' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                          disabled={startConversationMutation.isPending}
+                          onClick={() => startConversationMutation.mutate(lead.id)}
+                        >
+                          <MessageCircle size={13} />
+                          Iniciar con Pablo
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
