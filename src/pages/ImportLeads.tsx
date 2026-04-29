@@ -23,12 +23,21 @@ const LEAD_FIELDS = [
 ];
 
 const STUDENT_FIELDS = [
-  { key: 'name',            label: 'Nombre del niño/a',      required: true },
-  { key: 'parent_name',     label: 'Nombre del padre/madre',  required: true },
-  { key: 'phone',           label: 'Teléfono',                required: true },
-  { key: 'email',           label: 'Email',                   required: false },
-  { key: 'city',            label: 'Ciudad',                  required: false },
-  { key: 'course_interest', label: 'Curso de interés',        required: false },
+  { key: 'name',             label: 'Nombre del niño/a',                      required: true },
+  { key: 'parent_name',      label: 'Nombre del padre/madre',                 required: true },
+  { key: 'phone',            label: 'Celular',                                required: true },
+  { key: 'email',            label: 'Correo electrónico',                     required: false },
+  { key: 'age_at_enrollment',label: 'Edad',                                   required: false },
+  { key: 'parent_cedula',    label: 'Cédula',                                 required: false },
+  { key: 'address',          label: 'Dirección',                              required: false },
+  { key: 'city',             label: 'Ciudad',                                 required: false },
+  { key: 'department',       label: 'Departamento',                           required: false },
+  { key: 'school_name',      label: 'Colegio',                                required: false },
+  { key: 'grade_level',      label: 'Grado que cursa',                        required: false },
+  { key: 'referral_source',  label: 'Cómo nos conoció',                       required: false },
+  { key: 'course_interest',  label: 'Curso de interés',                       required: false },
+  { key: 'newsletter_opt_in',label: 'Newsletter (sí/no)',                     required: false },
+  { key: 'enrollment_date',  label: 'Fecha (Timestamp)',                      required: false },
 ];
 
 type Mapping = Record<string, string>;
@@ -141,15 +150,37 @@ export default function ImportLeads() {
           });
           if (error) { skipped++; continue; }
         } else {
+          const ageRaw = parseInt(r.mapped.age_at_enrollment ?? '', 10);
+          const newsletterRaw = (r.mapped.newsletter_opt_in ?? '').toLowerCase();
+          const newsletterOptIn = newsletterRaw.includes('sí') || newsletterRaw.includes('si') || newsletterRaw === 'true' || newsletterRaw === '1';
+
+          // Parse enrollment_date from timestamp (e.g. "4/15/2025 10:23:00")
+          let enrollmentDate: string | null = null;
+          if (r.mapped.enrollment_date) {
+            const parsed = new Date(r.mapped.enrollment_date);
+            if (!isNaN(parsed.getTime())) {
+              enrollmentDate = parsed.toISOString().split('T')[0];
+            }
+          }
+
           const { error } = await supabase.from('students').insert({
-            name:            r.mapped.name || 'Sin nombre',
-            parent_name:     r.mapped.parent_name || 'Sin nombre',
+            name:             r.mapped.name || 'Sin nombre',
+            parent_name:      r.mapped.parent_name || 'Sin nombre',
             phone,
-            email:           r.mapped.email || null,
-            city:            r.mapped.city || null,
-            course_interest: r.mapped.course_interest || null,
-            is_active:       false,
-            archived:        false,
+            email:            r.mapped.email || null,
+            age_at_enrollment: !isNaN(ageRaw) ? ageRaw : null,
+            parent_cedula:    r.mapped.parent_cedula || null,
+            address:          r.mapped.address || null,
+            city:             r.mapped.city || null,
+            department:       r.mapped.department || null,
+            school_name:      r.mapped.school_name || null,
+            grade_level:      r.mapped.grade_level || null,
+            referral_source:  r.mapped.referral_source || null,
+            course_interest:  r.mapped.course_interest || null,
+            newsletter_opt_in: newsletterOptIn,
+            enrollment_date:  enrollmentDate,
+            is_active:        false,
+            archived:         false,
           });
           if (error) { skipped++; continue; }
         }
