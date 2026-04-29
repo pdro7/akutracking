@@ -853,10 +853,10 @@ export default function Settings() {
                           setSlotCourseCode(slot.course_code);
                           setSlotCourseName(slot.course_name);
                           setSlotDay(slot.day_of_week);
-                          setSlotStartTime(slot.start_time);
-                          setSlotEndTime(slot.end_time);
+                          setSlotStartTime((slot.start_time ?? '').slice(0, 5));
+                          setSlotEndTime((slot.end_time ?? '').slice(0, 5));
                           setSlotDate(slot.tentative_start_date || '');
-                          setSlotActive(slot.is_active);
+                          setSlotActive(slot.is_active ?? true);
                           setShowSlotDialog(true);
                         }}>
                           <Pencil size={14} />
