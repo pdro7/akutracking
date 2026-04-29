@@ -28,3 +28,12 @@ Ideas pendientes de evaluar e implementar, organizadas por área.
 - [ ] Vista de calendario con todas las clases (presencial + virtual)
 - [ ] Exportar listados a Excel/CSV
 - [ ] App móvil / PWA para marcar asistencia desde el teléfono
+
+## Pablo — mejoras pendientes
+- [ ] Seguimiento automático de conversaciones sin respuesta: job programado que detecta leads/ex-alumnos sin respuesta en X días y Pablo les envía un mensaje de seguimiento automáticamente
+- [ ] Plantillas adicionales de WhatsApp: follow-up para leads fríos, recordatorio de clase de prueba, post-prueba
+- [ ] Actualizar Google Apps Script de Calendly para insertar en `leads` en lugar de `trial_leads`
+
+## Reactivación de ex-alumnos
+- [ ] Flujo de reactivación desde `students` activos que llevan tiempo sin renovar pack (no solo ex-alumnos importados)
+- [ ] Mensaje de plantilla específico para reactivación (diferente al de captación de leads nuevos)
