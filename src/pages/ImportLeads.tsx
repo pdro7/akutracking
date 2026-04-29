@@ -10,19 +10,30 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+type ImportType = 'leads' | 'students';
+
 const LEAD_FIELDS = [
-  { key: 'child_name',      label: 'Nombre del niño/a',    required: true },
-  { key: 'parent_name',     label: 'Nombre del padre/madre', required: true },
-  { key: 'phone',           label: 'Teléfono',             required: true },
-  { key: 'email',           label: 'Email',                required: false },
-  { key: 'age',             label: 'Edad',                 required: false },
-  { key: 'city',            label: 'Ciudad',               required: false },
-  { key: 'course_interest', label: 'Curso de interés',     required: false },
+  { key: 'child_name',      label: 'Nombre del niño/a',      required: true },
+  { key: 'parent_name',     label: 'Nombre del padre/madre',  required: true },
+  { key: 'phone',           label: 'Teléfono',                required: true },
+  { key: 'email',           label: 'Email',                   required: false },
+  { key: 'age',             label: 'Edad',                    required: false },
+  { key: 'city',            label: 'Ciudad',                  required: false },
+  { key: 'course_interest', label: 'Curso de interés',        required: false },
 ];
 
-type Mapping = Record<string, string>; // leadField -> csvColumn
+const STUDENT_FIELDS = [
+  { key: 'name',            label: 'Nombre del niño/a',      required: true },
+  { key: 'parent_name',     label: 'Nombre del padre/madre',  required: true },
+  { key: 'phone',           label: 'Teléfono',                required: true },
+  { key: 'email',           label: 'Email',                   required: false },
+  { key: 'city',            label: 'Ciudad',                  required: false },
+  { key: 'course_interest', label: 'Curso de interés',        required: false },
+];
+
+type Mapping = Record<string, string>;
 type ParsedRow = Record<string, string>;
-type RowResult = { row: ParsedRow; mapped: Record<string, string>; isExStudent: boolean; duplicate: boolean };
+type RowResult = { row: ParsedRow; mapped: Record<string, string>; isDuplicate: boolean };
 
 function normalizePhone(raw: string): string {
   let p = raw.replace(/\s+/g, '').replace(/^\+/, '');
@@ -34,6 +45,7 @@ export default function ImportLeads() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [importType, setImportType] = useState<ImportType>('leads');
   const [step, setStep] = useState<'upload' | 'map' | 'preview' | 'done'>('upload');
   const [csvColumns, setCsvColumns] = useState<string[]>([]);
   const [rows, setRows] = useState<ParsedRow[]>([]);
@@ -41,18 +53,18 @@ export default function ImportLeads() {
   const [results, setResults] = useState<RowResult[]>([]);
   const [importSummary, setImportSummary] = useState<{ inserted: number; skipped: number } | null>(null);
 
-  // Fetch existing student phones and lead phones for duplicate detection
-  const { data: existingPhones = { students: new Set<string>(), leads: new Set<string>() } } = useQuery({
-    queryKey: ['existing_phones'],
+  const fields = importType === 'leads' ? LEAD_FIELDS : STUDENT_FIELDS;
+
+  const { data: existingPhones = new Set<string>() } = useQuery({
+    queryKey: ['existing_phones_import', importType],
     queryFn: async () => {
-      const [{ data: students }, { data: leads }] = await Promise.all([
-        supabase.from('students').select('phone'),
-        supabase.from('leads').select('phone'),
-      ]);
-      return {
-        students: new Set((students || []).map((s: any) => normalizePhone(s.phone))),
-        leads: new Set((leads || []).map((l: any) => normalizePhone(l.phone))),
-      };
+      if (importType === 'leads') {
+        const { data } = await supabase.from('leads').select('phone');
+        return new Set((data || []).map((r: any) => normalizePhone(r.phone)));
+      } else {
+        const { data } = await supabase.from('students').select('phone');
+        return new Set((data || []).map((r: any) => normalizePhone(r.phone)));
+      }
     },
     enabled: step === 'preview',
   });
@@ -65,9 +77,8 @@ export default function ImportLeads() {
         const cols = result.meta.fields ?? [];
         setCsvColumns(cols);
         setRows(result.data as ParsedRow[]);
-        // Auto-map columns with similar names
         const autoMap: Mapping = {};
-        for (const field of LEAD_FIELDS) {
+        for (const field of fields) {
           const match = cols.find((c) =>
             c.toLowerCase().includes(field.key.toLowerCase()) ||
             c.toLowerCase().includes(field.label.toLowerCase().split(' ')[0])
@@ -84,17 +95,12 @@ export default function ImportLeads() {
   const buildPreview = () => {
     const preview: RowResult[] = rows.map((row) => {
       const mapped: Record<string, string> = {};
-      for (const field of LEAD_FIELDS) {
+      for (const field of fields) {
         const col = mapping[field.key];
         if (col) mapped[field.key] = (row[col] ?? '').trim();
       }
       const phone = normalizePhone(mapped.phone ?? '');
-      return {
-        row,
-        mapped,
-        isExStudent: existingPhones.students.has(phone),
-        duplicate: existingPhones.leads.has(phone),
-      };
+      return { row, mapped, isDuplicate: existingPhones.has(phone) };
     });
     setResults(preview);
     setStep('preview');
@@ -102,53 +108,68 @@ export default function ImportLeads() {
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      const toInsert = results.filter((r) => !r.duplicate && r.mapped.phone);
+      const toInsert = results.filter((r) => !r.isDuplicate && r.mapped.phone);
       let inserted = 0;
       let skipped = 0;
 
       for (const r of toInsert) {
         const phone = normalizePhone(r.mapped.phone);
-        const { data: lead, error } = await supabase.from('leads').insert({
-          child_name:      r.mapped.child_name || 'Sin nombre',
-          parent_name:     r.mapped.parent_name || 'Sin nombre',
-          phone,
-          email:           r.mapped.email || null,
-          age:             r.mapped.age || null,
-          city:            r.mapped.city || null,
-          course_interest: r.mapped.course_interest || null,
-          source:          'reactivation' as any,
-          status:          'new' as any,
-        }).select('id').single();
 
-        if (error) { skipped++; continue; }
-
-        if (r.isExStudent && lead) {
-          await supabase.from('lead_notes').insert({
-            lead_id: lead.id,
-            content: 'Ex-alumno/a — importado desde base de datos de clientes anteriores',
+        if (importType === 'leads') {
+          const { error } = await supabase.from('leads').insert({
+            child_name:      r.mapped.child_name || 'Sin nombre',
+            parent_name:     r.mapped.parent_name || 'Sin nombre',
+            phone,
+            email:           r.mapped.email || null,
+            age:             r.mapped.age || null,
+            city:            r.mapped.city || null,
+            course_interest: r.mapped.course_interest || null,
+            source:          'reactivation' as any,
+            status:          'new' as any,
           });
+          if (error) { skipped++; continue; }
+        } else {
+          const { error } = await supabase.from('students').insert({
+            name:            r.mapped.name || 'Sin nombre',
+            parent_name:     r.mapped.parent_name || 'Sin nombre',
+            phone,
+            email:           r.mapped.email || null,
+            city:            r.mapped.city || null,
+            course_interest: r.mapped.course_interest || null,
+            is_active:       false,
+            archived:        false,
+          });
+          if (error) { skipped++; continue; }
         }
         inserted++;
       }
 
-      return { inserted, skipped: skipped + results.filter((r) => r.duplicate).length };
+      return { inserted, skipped: skipped + results.filter((r) => r.isDuplicate).length };
     },
     onSuccess: (summary) => {
       setImportSummary(summary);
       setStep('done');
-      toast.success(`${summary.inserted} leads importados correctamente`);
+      toast.success(`${summary.inserted} registros importados correctamente`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const requiredMapped = LEAD_FIELDS.filter((f) => f.required).every((f) => mapping[f.key]);
-  const validRows = results.filter((r) => !r.duplicate && r.mapped.phone).length;
+  const requiredMapped = fields.filter((f) => f.required).every((f) => mapping[f.key]);
+  const validRows = results.filter((r) => !r.isDuplicate && r.mapped.phone).length;
+
+  const resetWizard = () => {
+    setStep('upload');
+    setResults([]);
+    setRows([]);
+    setMapping({});
+    setImportSummary(null);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Button variant="ghost" onClick={() => navigate('/leads')} className="gap-2 mb-6">
+      <Button variant="ghost" onClick={() => navigate(importType === 'leads' ? '/leads' : '/students')} className="gap-2 mb-6">
         <ArrowLeft size={16} />
-        Volver a Leads
+        {importType === 'leads' ? 'Volver a Leads' : 'Volver a Estudiantes'}
       </Button>
 
       <div className="flex items-center gap-3 mb-8">
@@ -156,10 +177,37 @@ export default function ImportLeads() {
           <Upload className="text-primary-foreground" size={22} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Importar leads desde CSV</h1>
+          <h1 className="text-2xl font-bold">Importar desde CSV</h1>
           <p className="text-muted-foreground text-sm">Sube un archivo exportado desde Excel o cualquier hoja de cálculo</p>
         </div>
       </div>
+
+      {/* Import type selector — only shown on upload step */}
+      {step === 'upload' && (
+        <Card className="p-4 mb-6">
+          <p className="text-sm font-medium mb-3">¿Qué tipo de contactos estás importando?</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setImportType('leads')}
+              className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                importType === 'leads' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'
+              }`}
+            >
+              <p className="font-medium text-sm">Leads nuevos</p>
+              <p className="text-xs text-muted-foreground mt-1">Personas interesadas que nunca han comprado (ej. historial de Calendly)</p>
+            </button>
+            <button
+              onClick={() => setImportType('students')}
+              className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                importType === 'students' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'
+              }`}
+            >
+              <p className="font-medium text-sm">Ex-alumnos</p>
+              <p className="text-xs text-muted-foreground mt-1">Clientes anteriores que tomaron cursos y podrían reactivarse</p>
+            </button>
+          </div>
+        </Card>
+      )}
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8 text-sm">
@@ -212,7 +260,7 @@ export default function ImportLeads() {
               Se encontraron <strong>{rows.length} filas</strong> y <strong>{csvColumns.length} columnas</strong>. Indica qué columna del CSV corresponde a cada campo.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {LEAD_FIELDS.map((field) => (
+              {fields.map((field) => (
                 <div key={field.key}>
                   <label className="text-sm font-medium mb-1 block">
                     {field.label}
@@ -248,20 +296,14 @@ export default function ImportLeads() {
       {/* STEP 3: Preview */}
       {step === 'preview' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Card className="p-3 text-center">
               <p className="text-2xl font-bold text-green-600">{validRows}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Se importarán</p>
             </Card>
             <Card className="p-3 text-center">
-              <p className="text-2xl font-bold text-orange-500">
-                {results.filter((r) => r.isExStudent && !r.duplicate).length}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">Ex-alumnos detectados</p>
-            </Card>
-            <Card className="p-3 text-center">
               <p className="text-2xl font-bold text-muted-foreground">
-                {results.filter((r) => r.duplicate).length}
+                {results.filter((r) => r.isDuplicate).length}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">Ya existen (se omiten)</p>
             </Card>
@@ -273,30 +315,30 @@ export default function ImportLeads() {
                 <thead className="bg-muted sticky top-0">
                   <tr>
                     <th className="text-left px-3 py-2 font-medium">Estado</th>
-                    <th className="text-left px-3 py-2 font-medium">Niño/a</th>
+                    <th className="text-left px-3 py-2 font-medium">
+                      {importType === 'leads' ? 'Niño/a' : 'Alumno/a'}
+                    </th>
                     <th className="text-left px-3 py-2 font-medium">Padre/madre</th>
                     <th className="text-left px-3 py-2 font-medium">Teléfono</th>
                     {mapping.city && <th className="text-left px-3 py-2 font-medium">Ciudad</th>}
-                    {mapping.course_interest && <th className="text-left px-3 py-2 font-medium">Curso</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {results.map((r, i) => (
-                    <tr key={i} className={`border-t ${r.duplicate ? 'opacity-40' : ''}`}>
+                    <tr key={i} className={`border-t ${r.isDuplicate ? 'opacity-40' : ''}`}>
                       <td className="px-3 py-2">
-                        {r.duplicate ? (
+                        {r.isDuplicate ? (
                           <Badge variant="outline" className="text-xs">Duplicado</Badge>
-                        ) : r.isExStudent ? (
-                          <Badge variant="warning" className="text-xs">Ex-alumno</Badge>
                         ) : (
                           <Badge variant="success" className="text-xs">Nuevo</Badge>
                         )}
                       </td>
-                      <td className="px-3 py-2">{r.mapped.child_name || '—'}</td>
+                      <td className="px-3 py-2">
+                        {importType === 'leads' ? (r.mapped.child_name || '—') : (r.mapped.name || '—')}
+                      </td>
                       <td className="px-3 py-2">{r.mapped.parent_name || '—'}</td>
                       <td className="px-3 py-2 font-mono text-xs">{normalizePhone(r.mapped.phone || '')}</td>
                       {mapping.city && <td className="px-3 py-2">{r.mapped.city || '—'}</td>}
-                      {mapping.course_interest && <td className="px-3 py-2">{r.mapped.course_interest || '—'}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -304,17 +346,17 @@ export default function ImportLeads() {
             </div>
           </Card>
 
-          {results.filter((r) => r.isExStudent && !r.duplicate).length > 0 && (
-            <div className="flex items-start gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
+          {importType === 'students' && validRows > 0 && (
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
               <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-              <p>Los ex-alumnos detectados se importarán con una nota automática indicando que son clientes anteriores.</p>
+              <p>Los ex-alumnos se importarán como alumnos inactivos. Desde su perfil en Estudiantes podrás iniciar una conversación de reactivación con Pablo.</p>
             </div>
           )}
 
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setStep('map')}>Atrás</Button>
             <Button onClick={() => importMutation.mutate()} disabled={validRows === 0 || importMutation.isPending}>
-              {importMutation.isPending ? 'Importando...' : `Importar ${validRows} leads`}
+              {importMutation.isPending ? 'Importando...' : `Importar ${validRows} ${importType === 'leads' ? 'leads' : 'ex-alumnos'}`}
             </Button>
           </div>
         </div>
@@ -326,15 +368,15 @@ export default function ImportLeads() {
           <CheckCircle2 size={48} className="mx-auto mb-4 text-green-500" />
           <h2 className="text-xl font-bold mb-2">¡Importación completada!</h2>
           <p className="text-muted-foreground mb-6">
-            <strong>{importSummary.inserted}</strong> leads importados correctamente.
+            <strong>{importSummary.inserted}</strong> {importType === 'leads' ? 'leads' : 'ex-alumnos'} importados correctamente.
             {importSummary.skipped > 0 && ` ${importSummary.skipped} omitidos por duplicado o error.`}
           </p>
           <div className="flex gap-3 justify-center">
-            <Button variant="outline" onClick={() => { setStep('upload'); setResults([]); setRows([]); }}>
+            <Button variant="outline" onClick={resetWizard}>
               Importar otro archivo
             </Button>
-            <Button onClick={() => navigate('/leads')}>
-              Ver leads →
+            <Button onClick={() => navigate(importType === 'leads' ? '/leads' : '/students')}>
+              {importType === 'leads' ? 'Ver leads →' : 'Ver estudiantes →'}
             </Button>
           </div>
         </Card>

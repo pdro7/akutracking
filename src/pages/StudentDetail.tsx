@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
   ArrowLeft, Calendar, CheckCircle, XCircle, User, Phone, Mail, Edit,
-  Cake, Trash2, CalendarIcon, DollarSign, Plus, Archive, BookOpen, Monitor,
+  Cake, Trash2, CalendarIcon, DollarSign, Plus, Archive, BookOpen, Monitor, MessageCircle,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -608,6 +608,20 @@ export default function StudentDetail() {
     onError: (error: Error) => { toast.error(error.message); }
   });
 
+  const startConversationMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('start-conversation', {
+        body: { student_id: id },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.data?.ok === false) throw new Error(res.data.error);
+      if (res.error) throw new Error(res.error.message);
+    },
+    onSuccess: () => toast.success('Conversación iniciada con Pablo'),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // ── Handlers ─────────────────────────────────────────────────
   const handleAddAttendance = () => {
     setEditingRecord(null);
@@ -726,6 +740,17 @@ export default function StudentDetail() {
           Back to Dashboard
         </Button>
         <div className="flex gap-2">
+          {!student.is_active && !student.archived && (
+            <Button
+              variant="outline"
+              className="gap-2 text-green-700 border-green-300 hover:bg-green-50"
+              disabled={startConversationMutation.isPending}
+              onClick={() => startConversationMutation.mutate()}
+            >
+              <MessageCircle size={16} />
+              Reactivar con Pablo
+            </Button>
+          )}
           {!student.archived && (
             <Button variant="outline" onClick={() => setShowArchiveDialog(true)} className="gap-2">
               <Archive size={20} />
