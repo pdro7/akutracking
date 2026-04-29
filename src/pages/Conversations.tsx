@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ExternalLink, Send, Bot } from 'lucide-react';
+import { ExternalLink, Send, Bot, UserCheck } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -18,8 +18,10 @@ type Conversation = {
   messages: Message[];
   escalated: boolean;
   lead_id: string | null;
+  student_id: string | null;
   updated_at: string;
   leads: { child_name: string; parent_name: string } | null;
+  students: { name: string; parent_name: string } | null;
 };
 
 function lastMessagePreview(messages: Message[]): string {
@@ -41,7 +43,7 @@ export default function Conversations() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('whatsapp_conversations')
-        .select('id, phone, messages, escalated, lead_id, updated_at, leads(child_name, parent_name)')
+        .select('id, phone, messages, escalated, lead_id, student_id, updated_at, leads(child_name, parent_name), students(name, parent_name)')
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data || []) as Conversation[];
@@ -68,6 +70,18 @@ export default function Conversations() {
       queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations'] });
       setManualMsg('');
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const reactivateStudentMutation = useMutation({
+    mutationFn: async (studentId: string) => {
+      const { error } = await supabase
+        .from('students')
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq('id', studentId);
+      if (error) throw error;
+    },
+    onSuccess: () => toast.success('Alumno reactivado correctamente'),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -107,8 +121,8 @@ export default function Conversations() {
             <div className="p-4 text-center text-sm text-muted-foreground">Sin conversaciones aún</div>
           ) : (
             conversations.map((conv) => {
-              const name = conv.leads?.child_name ?? conv.phone;
-              const sub = conv.leads?.child_name ? conv.phone : null;
+              const name = conv.leads?.child_name ?? conv.students?.name ?? conv.phone;
+              const sub = (conv.leads?.child_name || conv.students?.name) ? conv.phone : null;
               const isActive = conv.id === selectedId;
               const msgs = Array.isArray(conv.messages) ? conv.messages : [];
               const lastRole = msgs.length ? msgs[msgs.length - 1].role : null;
@@ -160,13 +174,13 @@ export default function Conversations() {
             {/* Chat header */}
             <div className="bg-card border-b px-4 py-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold text-sm">
-                {(selected.leads?.child_name ?? selected.phone).charAt(0).toUpperCase()}
+                {(selected.leads?.child_name ?? selected.students?.name ?? selected.phone).charAt(0).toUpperCase()}
               </div>
               <div className="flex-1">
                 <p className="font-semibold text-sm leading-tight">
-                  {selected.leads?.child_name ?? selected.phone}
+                  {selected.leads?.child_name ?? selected.students?.name ?? selected.phone}
                 </p>
-                {selected.leads && (
+                {(selected.leads || selected.students) && (
                   <p className="text-xs text-muted-foreground">{selected.phone}</p>
                 )}
               </div>
@@ -179,6 +193,29 @@ export default function Conversations() {
                 >
                   <ExternalLink size={13} />
                   Ver lead
+                </Button>
+              )}
+              {selected.student_id && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => navigate(`/student/${selected.student_id}`)}
+                >
+                  <ExternalLink size={13} />
+                  Ver alumno
+                </Button>
+              )}
+              {selected.student_id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                  disabled={reactivateStudentMutation.isPending}
+                  onClick={() => reactivateStudentMutation.mutate(selected.student_id!)}
+                >
+                  <UserCheck size={13} />
+                  Reactivar alumno
                 </Button>
               )}
               {/* Pablo / Manual toggle */}
