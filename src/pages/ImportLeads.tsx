@@ -156,11 +156,21 @@ export default function ImportLeads() {
 
           // Parse enrollment_date from timestamp (e.g. "4/15/2025 10:23:00")
           let enrollmentDate: string | null = null;
+          let parsedEnrollment: Date | null = null;
           if (r.mapped.enrollment_date) {
             const parsed = new Date(r.mapped.enrollment_date);
             if (!isNaN(parsed.getTime())) {
+              parsedEnrollment = parsed;
               enrollmentDate = parsed.toISOString().split('T')[0];
             }
+          }
+
+          // Estimate date_of_birth from age_at_enrollment + enrollment year
+          // Using July 1 as midpoint to minimize average error (±6 months)
+          let dateOfBirth: string | null = null;
+          if (!isNaN(ageRaw) && parsedEnrollment) {
+            const birthYear = parsedEnrollment.getFullYear() - ageRaw;
+            dateOfBirth = `${birthYear}-07-01`;
           }
 
           const { error } = await supabase.from('students').insert({
@@ -169,6 +179,7 @@ export default function ImportLeads() {
             phone,
             email:            r.mapped.email || null,
             age_at_enrollment: !isNaN(ageRaw) ? ageRaw : null,
+            date_of_birth:    dateOfBirth,
             parent_cedula:    r.mapped.parent_cedula || null,
             address:          r.mapped.address || null,
             city:             r.mapped.city || null,
