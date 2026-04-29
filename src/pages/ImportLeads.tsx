@@ -33,12 +33,19 @@ const STUDENT_FIELDS = [
 
 type Mapping = Record<string, string>;
 type ParsedRow = Record<string, string>;
-type RowResult = { row: ParsedRow; mapped: Record<string, string>; isDuplicate: boolean };
+type RowResult = { row: ParsedRow; mapped: Record<string, string>; isDuplicate: boolean; invalidPhone: boolean };
 
 function normalizePhone(raw: string): string {
   let p = raw.replace(/\s+/g, '').replace(/^\+/, '');
   if (p.length === 10 && p.startsWith('3')) p = '57' + p;
   return p;
+}
+
+function isPhoneValid(raw: string): boolean {
+  const p = raw.replace(/\s+/g, '').replace(/^\+/, '');
+  if (p.length === 10 && p.startsWith('3')) return true; // Colombian mobile
+  if (p.length >= 11) return true; // Has country code
+  return false;
 }
 
 export default function ImportLeads() {
@@ -100,7 +107,12 @@ export default function ImportLeads() {
         if (col) mapped[field.key] = (row[col] ?? '').trim();
       }
       const phone = normalizePhone(mapped.phone ?? '');
-      return { row, mapped, isDuplicate: existingPhones.has(phone) };
+      return {
+        row,
+        mapped,
+        isDuplicate: existingPhones.has(phone),
+        invalidPhone: !isPhoneValid(mapped.phone ?? ''),
+      };
     });
     setResults(preview);
     setStep('preview');
@@ -296,10 +308,16 @@ export default function ImportLeads() {
       {/* STEP 3: Preview */}
       {step === 'preview' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Card className="p-3 text-center">
               <p className="text-2xl font-bold text-green-600">{validRows}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Se importarán</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold text-orange-500">
+                {results.filter((r) => !r.isDuplicate && r.invalidPhone).length}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Teléfono pendiente</p>
             </Card>
             <Card className="p-3 text-center">
               <p className="text-2xl font-bold text-muted-foreground">
@@ -329,6 +347,8 @@ export default function ImportLeads() {
                       <td className="px-3 py-2">
                         {r.isDuplicate ? (
                           <Badge variant="outline" className="text-xs">Duplicado</Badge>
+                        ) : r.invalidPhone ? (
+                          <Badge variant="warning" className="text-xs">Tel. pendiente</Badge>
                         ) : (
                           <Badge variant="success" className="text-xs">Nuevo</Badge>
                         )}

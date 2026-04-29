@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Archive, Search, MessageCircle } from 'lucide-react';
+import { Plus, Users, Archive, Search, MessageCircle, AlertCircle } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +16,13 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type ViewMode = 'active' | 'inactive' | 'archived';
+
+function isPhoneValid(raw: string): boolean {
+  const p = raw.replace(/\s+/g, '').replace(/^\+/, '');
+  if (p.length === 10 && p.startsWith('3')) return true;
+  if (p.length >= 11) return true;
+  return false;
+}
 
 export default function Students() {
   const navigate = useNavigate();
@@ -208,7 +215,17 @@ export default function Students() {
                     </>
                   )}
                   {viewMode === 'inactive' && (
-                    <TableCell className="text-sm text-muted-foreground">{student.city || '—'}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        {student.city || '—'}
+                        {!isPhoneValid(student.phone ?? '') && (
+                          <span className="flex items-center gap-1 text-orange-600 text-xs">
+                            <AlertCircle size={12} />
+                            Tel. pendiente
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                   )}
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {viewMode === 'inactive' && (
