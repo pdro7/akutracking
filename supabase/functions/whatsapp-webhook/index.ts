@@ -104,6 +104,7 @@ ESPERA su respuesta.
 🟣 ESPECIALISTAS (PG3, Unity, Godot)
 
 **PRINCIPIANTES por edad:**
+- 7 años (o cerca de cumplir 8) → Real Coders Zero (RCZ). La edad mínima orientativa son los 8 años, pero NO es un requisito estricto. Si el niño/a tiene 7 años y le falta poco para los 8, o si el padre menciona que ya maneja bien el computador, trátalo como si tuviera 8 años y recomienda RCZ normalmente. NUNCA le pidas que espere a cumplir los 8 años.
 - 8-10 años → Real Coders Zero (RCZ)
 - 11-12 años → Real Coders 1 (RC1) o Minecraft Coders 1 (MC1)
 - 13+ años → Python Zero (PGZ)
