@@ -19,6 +19,7 @@ import TrialLeadDetail from "./pages/TrialLeadDetail";
 import Leads from "./pages/Leads";
 import NewLead from "./pages/NewLead";
 import LeadDetail from "./pages/LeadDetail";
+import ImportLeads from "./pages/ImportLeads";
 import Settings from "./pages/Settings";
 import Payments from "./pages/Payments";
 import Auth from "./pages/Auth";
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/students/new" element={<ProtectedRoute><NoTeacher><Header /><NewStudent /></NoTeacher></ProtectedRoute>} />
             <Route path="/leads" element={<ProtectedRoute><NoTeacher><Header /><Leads /></NoTeacher></ProtectedRoute>} />
             <Route path="/leads/new" element={<ProtectedRoute><NoTeacher><Header /><NewLead /></NoTeacher></ProtectedRoute>} />
+            <Route path="/leads/import" element={<ProtectedRoute><NoTeacher><Header /><ImportLeads /></NoTeacher></ProtectedRoute>} />
             <Route path="/leads/:id" element={<ProtectedRoute><NoTeacher><Header /><LeadDetail /></NoTeacher></ProtectedRoute>} />
             <Route path="/trial-leads" element={<ProtectedRoute><NoTeacher><Header /><TrialLeads /></NoTeacher></ProtectedRoute>} />
             <Route path="/trial-leads/new" element={<ProtectedRoute><NoTeacher><Header /><NewTrialLead /></NoTeacher></ProtectedRoute>} />

@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Users, LayoutGrid, List, MessageCircle } from 'lucide-react';
+import { Plus, Search, Users, LayoutGrid, List, MessageCircle, Upload } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -163,6 +163,10 @@ export default function Leads() {
               <LayoutGrid size={16} />
             </Button>
           </div>
+          <Button variant="outline" onClick={() => navigate('/leads/import')} className="gap-2">
+            <Upload size={16} />
+            Importar CSV
+          </Button>
           <Button onClick={() => navigate('/leads/new')} className="gap-2">
             <Plus size={20} />
             Nuevo lead
