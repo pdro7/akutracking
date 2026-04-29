@@ -13,7 +13,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const PABLO_SYSTEM_PROMPT = `Eres Pablo, asistente de AKUMAYA Educación 🤖🇨🇴, una academia online que enseña programación, robótica, diseño 3D y creación de contenido a niños y niñas.
+function buildPabloPrompt(slotsSection: string): string { return `Eres Pablo, asistente de AKUMAYA Educación 🤖🇨🇴, una academia online que enseña programación, robótica, diseño 3D y creación de contenido a niños y niñas.
 
 ## TU PERSONALIDAD Y TONO
 - Eres cálido, cercano y entusiasta
@@ -112,10 +112,8 @@ ESPERA su respuesta.
 **CON MUCHA EXPERIENCIA:**
 "¡Qué bien que ya tenga experiencia! 😊 Con ese nivel, sería ideal hacer una clase de prueba gratuita para evaluar exactamente dónde está. ¿Te gustaría agendarla? https://www.akumaya.co/clase-de-prueba-gratuita"
 
-**HORARIOS SÁBADOS:**
-- 8:30-10:00 AM: RC1, RCZ, PGZ, PG3
-- 10:30-12:00 PM: RC2, PG1, PG2, MC1
-- 2:00-3:30 PM: RCZ
+## FRANJAS DISPONIBLES ACTUALMENTE
+${slotsSection}
 
 **Formato de recomendación:**
 "Perfecto! Para [nombre/edad] te recomiendo **[NOMBRE DEL CURSO]**.
@@ -153,7 +151,8 @@ Solo ofrece cuando: mucha experiencia, dudas después del precio, preguntan por 
 https://www.akumaya.co/clase-de-prueba-gratuita"
 
 ### 7. INFORMACIÓN
-**Horarios sábado:** Ver tabla en sección 4.
+**Horarios:** Consulta las franjas disponibles de la sección anterior.
+**Si el padre rechaza todas las franjas de sábado:** Pregunta "¿Qué días entre semana te vienen bien, después de las 4:00 PM?" y registra su disponibilidad con add_note.
 **Horarios entre semana:** "¿Qué días y horarios te quedan bien después de las 4:00 PM? Los organizamos según demanda 😊"
 **Próximo inicio:** "Cuando juntemos mínimo 3-4 niños. ¡Los cupos son limitados (máx 6-8 por grupo)!"
 **Formato:** "100% virtual, Zoom, EN VIVO con profesora (no grabadas). Se graban por si necesitan repasar 😊"
@@ -180,14 +179,18 @@ https://www.akumaya.co/clase-de-prueba-gratuita"
 6. PRIORIZA VENDER DIRECTAMENTE
 7. NUNCA te anticipes — ESPERA respuesta del usuario
 8. NO ofrezcas clase de prueba hasta que haya dudas o mucha experiencia
-9. NUNCA menciones fecha fija de inicio — los grupos abren bajo demanda
+9. Menciona la fecha tentativa de inicio cuando esté configurada en la franja. Si no hay fecha, di "estamos completando el grupo y te confirmamos la fecha de inicio"
 10. Usa register_lead tan pronto tengas nombre del niño, padre y ciudad. Incluye siempre city y age cuando los tengas. Hazlo en silencio — nunca menciones el registro al padre, continúa la conversación como si nada.
 11. Usa add_note en estos momentos clave:
     - Cuando el padre dice que lo va a consultar con su pareja → nota: "Lo consultará con su pareja/esposo/a"
     - Cuando muestra una objeción específica (precio, horario, etc.) → nota con el detalle
     - Cuando agenda clase de prueba → nota: "Agendó clase de prueba para [fecha]"
     - Al final de cualquier conversación significativa con un resumen breve
-12. REGLA DE ORO: después de cada mensaje, ESPERA respuesta antes de continuar`;
+12. REGLA DE ORO: después de cada mensaje, ESPERA respuesta antes de continuar
+13. Al proponer una franja, menciona siempre el curso, día, horario y fecha tentativa. Ejemplo: "El próximo grupo de RCZ arranca el [FECHA], sábados de [HORA INICIO] a [HORA FIN]. ¿Te viene bien ese horario?"
+14. Si el padre rechaza una franja, ofrece la siguiente franja activa del mismo curso (si la hay). Si no hay más franjas para ese curso, pregunta disponibilidad entre semana y regístrala con add_note.
+15. Si no hay franjas configuradas para el curso recomendado, di: "Estamos organizando el próximo grupo. ¿Qué horario te vendría mejor, sábados o entre semana?" y registra la respuesta con add_note.`; }
+
 
 // Claude tools definitions
 const TOOLS = [
@@ -272,6 +275,27 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
+
+    // Fetch active course slots to inject into Pablo's prompt
+    const { data: slotsData } = await supabase
+      .from('course_slots')
+      .select('course_code, course_name, day_of_week, start_time, end_time, tentative_start_date')
+      .eq('is_active', true)
+      .order('course_code')
+      .order('start_time');
+
+    let slotsSection: string;
+    if (!slotsData || slotsData.length === 0) {
+      slotsSection = 'No hay franjas configuradas actualmente. Pregunta al padre qué horario le viene mejor y registra su disponibilidad con add_note.';
+    } else {
+      slotsSection = slotsData.map((s: any) => {
+        const dateStr = s.tentative_start_date
+          ? new Date(s.tentative_start_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+          : 'fecha por confirmar';
+        return `- ${s.course_code} (${s.course_name}): ${s.day_of_week} ${s.start_time}–${s.end_time}, próximo inicio ${dateStr}`;
+      }).join('\n');
+    }
+    const DYNAMIC_PABLO_PROMPT = buildPabloPrompt(slotsSection);
 
     // Parse Twilio's form-encoded body
     const rawBody = await req.text();
@@ -411,7 +435,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
-        system: isNewLeadTrigger ? EXTRACTION_SYSTEM_PROMPT : PABLO_SYSTEM_PROMPT,
+        system: isNewLeadTrigger ? EXTRACTION_SYSTEM_PROMPT : DYNAMIC_PABLO_PROMPT,
         // In extraction mode, skip history — just send the current image/message
         messages: isNewLeadTrigger ? [currentClaudeMessage] : messages,
         tools: TOOLS,
@@ -515,7 +539,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1024,
-          system: isNewLeadTrigger ? EXTRACTION_SYSTEM_PROMPT : PABLO_SYSTEM_PROMPT,
+          system: isNewLeadTrigger ? EXTRACTION_SYSTEM_PROMPT : DYNAMIC_PABLO_PROMPT,
           messages: [
             ...messages,
             { role: 'assistant', content: claudeData.content },

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Settings as SettingsIcon, Save, Plus, X, Pencil, Trash2, BookOpen, Layers, Monitor, GraduationCap } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Plus, X, Pencil, Trash2, BookOpen, Layers, Monitor, GraduationCap, CalendarClock } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -51,6 +51,18 @@ export default function Settings() {
   const [teacherName, setTeacherName] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
   const [deleteTeacherId, setDeleteTeacherId] = useState<string | null>(null);
+
+  // Course slots state
+  const [showSlotDialog, setShowSlotDialog] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<any>(null);
+  const [slotCourseCode, setSlotCourseCode] = useState('RCZ');
+  const [slotCourseName, setSlotCourseName] = useState('Real Coders Zero');
+  const [slotDay, setSlotDay] = useState('Sábado');
+  const [slotStartTime, setSlotStartTime] = useState('09:00');
+  const [slotEndTime, setSlotEndTime] = useState('10:30');
+  const [slotDate, setSlotDate] = useState('');
+  const [slotActive, setSlotActive] = useState(true);
+  const [deleteSlotId, setDeleteSlotId] = useState<string | null>(null);
 
   // Virtual course edit state
   const [editingVirtualCourse, setEditingVirtualCourse] = useState<any>(null);
@@ -126,6 +138,15 @@ export default function Settings() {
     }
   });
 
+  const { data: courseSlots = [] } = useQuery({
+    queryKey: ['course_slots'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('course_slots').select('*').order('course_code').order('day_of_week').order('start_time');
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const { data: userRole } = useQuery({
     queryKey: ['userRole'],
     queryFn: async () => {
@@ -187,6 +208,49 @@ export default function Settings() {
       setDeleteTeacherId(null);
     },
     onError: (error: Error) => { toast.error(error.message); }
+  });
+
+  const saveSlotMutation = useMutation({
+    mutationFn: async () => {
+      if (!slotCourseCode || !slotDay || !slotStartTime || !slotEndTime) throw new Error('Completa los campos obligatorios');
+      const payload = {
+        course_code: slotCourseCode,
+        course_name: slotCourseName,
+        day_of_week: slotDay,
+        start_time: slotStartTime,
+        end_time: slotEndTime,
+        tentative_start_date: slotDate || null,
+        is_active: slotActive,
+        updated_at: new Date().toISOString(),
+      };
+      if (editingSlot) {
+        const { error } = await (supabase as any).from('course_slots').update(payload).eq('id', editingSlot.id);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any).from('course_slots').insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course_slots'] });
+      toast.success(editingSlot ? 'Franja actualizada' : 'Franja añadida');
+      setShowSlotDialog(false);
+      setEditingSlot(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteSlotMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from('course_slots').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course_slots'] });
+      toast.success('Franja eliminada');
+      setDeleteSlotId(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const updateVirtualCourseMutation = useMutation({
@@ -718,6 +782,97 @@ export default function Settings() {
           </Card>
         )}
 
+        {/* Course Slots — Pablo scheduling */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center">
+                <CalendarClock className="text-primary-foreground" size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Franjas de cursos</h2>
+                <p className="text-sm text-muted-foreground">Fechas y horarios tentativos que Pablo propone al recomendar un curso</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                setEditingSlot(null);
+                setSlotCourseCode('RCZ'); setSlotCourseName('Real Coders Zero');
+                setSlotDay('Sábado'); setSlotStartTime('09:00'); setSlotEndTime('10:30');
+                setSlotDate(''); setSlotActive(true);
+                setShowSlotDialog(true);
+              }}
+            >
+              <Plus size={16} />
+              Añadir franja
+            </Button>
+          </div>
+          {courseSlots.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No hay franjas configuradas. Pablo pedirá disponibilidad al padre.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Curso</TableHead>
+                  <TableHead>Día</TableHead>
+                  <TableHead>Horario</TableHead>
+                  <TableHead>Fecha tentativa</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {courseSlots.map((slot: any) => (
+                  <TableRow key={slot.id} className={!slot.is_active ? 'opacity-50' : ''}>
+                    <TableCell>
+                      <span className="font-mono font-semibold text-sm">{slot.course_code}</span>
+                      <span className="text-muted-foreground text-xs ml-2">{slot.course_name}</span>
+                    </TableCell>
+                    <TableCell>{slot.day_of_week}</TableCell>
+                    <TableCell className="font-mono text-sm">{slot.start_time} – {slot.end_time}</TableCell>
+                    <TableCell>
+                      {slot.tentative_start_date
+                        ? new Date(slot.tentative_start_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+                        : <span className="text-muted-foreground text-xs">Sin fecha</span>}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                        !slot.is_active ? 'bg-muted text-muted-foreground border-muted' :
+                        slot.status === 'confirmed' ? 'bg-green-50 text-green-700 border-green-300' :
+                        'bg-blue-50 text-blue-700 border-blue-300'
+                      }`}>
+                        {!slot.is_active ? 'Inactiva' : slot.status === 'confirmed' ? 'Confirmada' : 'Formando grupo'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setEditingSlot(slot);
+                          setSlotCourseCode(slot.course_code);
+                          setSlotCourseName(slot.course_name);
+                          setSlotDay(slot.day_of_week);
+                          setSlotStartTime(slot.start_time);
+                          setSlotEndTime(slot.end_time);
+                          setSlotDate(slot.tentative_start_date || '');
+                          setSlotActive(slot.is_active);
+                          setShowSlotDialog(true);
+                        }}>
+                          <Pencil size={14} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteSlotId(slot.id)}>
+                          <Trash2 size={14} className="text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
+
         <Card className="p-6">
           <h3 className="font-semibold mb-2">About</h3>
           <p className="text-sm text-muted-foreground">AKU Tracker v2.0</p>
@@ -915,6 +1070,111 @@ export default function Settings() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => deleteModuleId && deleteModuleMutation.mutate(deleteModuleId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Course Slot Dialog */}
+      <Dialog open={showSlotDialog} onOpenChange={(open) => !open && setShowSlotDialog(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingSlot ? 'Editar franja' : 'Nueva franja'}</DialogTitle>
+            <DialogDescription>Configura el curso, horario y fecha tentativa de inicio.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="mb-2 block">Código del curso *</Label>
+                <Select value={slotCourseCode} onValueChange={(v) => {
+                  setSlotCourseCode(v);
+                  const names: Record<string, string> = {
+                    RCZ: 'Real Coders Zero', RC1: 'Real Coders 1', RC2: 'Real Coders 2',
+                    MC1: 'Minecraft Coders 1', MC2: 'Minecraft Coders 2',
+                    PGZ: 'Python Zero', PG1: 'Python 1', PG2: 'Python 2', PG3: 'Python 3',
+                    RBX1: 'Roblox 1', RBX2: 'Roblox 2', D3D: 'Diseño 3D',
+                    Unity: 'Unity', Godot: 'Godot',
+                  };
+                  setSlotCourseName(names[v] || v);
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['RCZ','RC1','RC2','MC1','MC2','PGZ','PG1','PG2','PG3','RBX1','RBX2','D3D','Unity','Godot'].map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-2 block">Día *</Label>
+                <Select value={slotDay} onValueChange={setSlotDay}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['Sábado','Lunes','Martes','Miércoles','Jueves','Viernes'].map(d => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="mb-2 block">Hora inicio *</Label>
+                <Select value={slotStartTime} onValueChange={setSlotStartTime}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['09:00','10:30','14:00','16:00','17:00','18:00'].map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-2 block">Hora fin *</Label>
+                <Select value={slotEndTime} onValueChange={setSlotEndTime}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['10:30','12:00','15:30','17:30','18:30','19:30'].map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Fecha tentativa de inicio</Label>
+              <Input type="date" value={slotDate} onChange={(e) => setSlotDate(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="slotActive"
+                checked={slotActive}
+                onChange={(e) => setSlotActive(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="slotActive">Activa (Pablo la propone en conversaciones)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSlotDialog(false)}>Cancelar</Button>
+            <Button onClick={() => saveSlotMutation.mutate()} disabled={saveSlotMutation.isPending}>
+              {editingSlot ? 'Guardar cambios' : 'Añadir franja'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteSlotId} onOpenChange={(open) => !open && setDeleteSlotId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta franja?</AlertDialogTitle>
+            <AlertDialogDescription>Pablo dejará de proponer este horario en sus conversaciones.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteSlotId && deleteSlotMutation.mutate(deleteSlotId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
