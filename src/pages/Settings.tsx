@@ -1089,19 +1089,13 @@ export default function Settings() {
                 <Label className="mb-2 block">Código del curso *</Label>
                 <Select value={slotCourseCode} onValueChange={(v) => {
                   setSlotCourseCode(v);
-                  const names: Record<string, string> = {
-                    RCZ: 'Real Coders Zero', RC1: 'Real Coders 1', RC2: 'Real Coders 2',
-                    MC1: 'Minecraft Coders 1', MC2: 'Minecraft Coders 2',
-                    PGZ: 'Python Zero', PG1: 'Python 1', PG2: 'Python 2', PG3: 'Python 3',
-                    RBX1: 'Roblox 1', RBX2: 'Roblox 2', D3D: 'Diseño 3D',
-                    Unity: 'Unity', Godot: 'Godot',
-                  };
-                  setSlotCourseName(names[v] || v);
+                  const course = (virtualCourses as any[]).find((c: any) => c.code === v);
+                  setSlotCourseName(course?.name || v);
                 }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {['RCZ','RC1','RC2','MC1','MC2','PGZ','PG1','PG2','PG3','RBX1','RBX2','D3D','Unity','Godot'].map(c => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    {(virtualCourses as any[]).map((c: any) => (
+                      <SelectItem key={c.code} value={c.code}>{c.code} — {c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
