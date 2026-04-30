@@ -261,7 +261,7 @@ export default function Settings() {
         .update({
           name: vcName.trim(),
           description: vcDescription.trim() || null,
-          next_course_id: vcNextCourseId || null,
+          next_course_id: vcNextCourseId && vcNextCourseId !== 'none' ? vcNextCourseId : null,
         })
         .eq('id', editingVirtualCourse.id);
       if (error) throw error;
@@ -766,7 +766,7 @@ export default function Settings() {
                               setEditingVirtualCourse(course);
                               setVcName(course.name);
                               setVcDescription(course.description || '');
-                              setVcNextCourseId(course.next_course_id || '');
+                              setVcNextCourseId(course.next_course_id || 'none');
                               setShowVcDialog(true);
                             }}
                           >
@@ -992,7 +992,7 @@ export default function Settings() {
                   <SelectValue placeholder="Sin siguiente curso" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin siguiente curso</SelectItem>
+                  <SelectItem value="none">Sin siguiente curso</SelectItem>
                   {(virtualCourses as any[])
                     .filter((c: any) => c.id !== editingVirtualCourse?.id)
                     .map((c: any) => (
