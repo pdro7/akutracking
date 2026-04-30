@@ -252,6 +252,7 @@ export default function VirtualGroups() {
             <TableHeader>
               <TableRow>
                 <TableHead>Código</TableHead>
+                <TableHead>Día</TableHead>
                 <TableHead>Curso</TableHead>
                 <TableHead>Inicio</TableHead>
                 <TableHead>Fin</TableHead>
@@ -269,6 +270,11 @@ export default function VirtualGroups() {
                     onClick={() => navigate(`/virtual-groups/${group.id}`)}
                   >
                     <TableCell className="font-mono font-medium text-primary">{group.code}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground capitalize">
+                      {group.start_date
+                        ? new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })
+                        : '—'}
+                    </TableCell>
                     <TableCell>{group.virtual_courses?.name ?? '—'}</TableCell>
                     <TableCell>{new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}</TableCell>
                     <TableCell>
