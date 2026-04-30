@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -88,7 +88,7 @@ export default function VirtualGroups() {
     queryFn: async () => {
       let query = supabase
         .from('course_groups')
-        .select('*, virtual_courses(code, name)')
+        .select('*, virtual_courses(code, name), course_sessions(scheduled_date)')
         .order('created_at', { ascending: false });
       if (isTeacher && teacherRecord?.id) {
         query = query.eq('teacher_id', teacherRecord.id);
@@ -168,6 +168,36 @@ export default function VirtualGroups() {
     },
     onError: (error: Error) => { toast.error(error.message); },
   });
+
+  const autoCompleteMutation = useMutation({
+    mutationFn: async (groupIds: string[]) => {
+      const { error } = await supabase
+        .from('course_groups')
+        .update({ status: 'completed' })
+        .in('id', groupIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course_groups'] });
+    },
+  });
+
+  useEffect(() => {
+    if (!(groups as any[]).length) return;
+    const today = new Date().toISOString().split('T')[0];
+    const toComplete = (groups as any[])
+      .filter((g) => {
+        if (g.status === 'completed' || g.status === 'cancelled') return false;
+        const sessions: any[] = g.course_sessions || [];
+        if (!sessions.length) return false;
+        const lastDate = sessions.reduce((max: string, s: any) =>
+          s.scheduled_date > max ? s.scheduled_date : max, '');
+        return lastDate < today;
+      })
+      .map((g) => g.id);
+    if (toComplete.length > 0) autoCompleteMutation.mutate(toComplete);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups]);
 
   const resetForm = () => {
     setCourseId('');
@@ -269,24 +299,36 @@ export default function VirtualGroups() {
                     className="cursor-pointer hover:bg-accent/50"
                     onClick={() => navigate(`/virtual-groups/${group.id}`)}
                   >
-                    <TableCell className="font-mono font-medium text-primary">{group.code}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground capitalize">
-                      {group.start_date
-                        ? new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })
-                        : '—'}
-                    </TableCell>
-                    <TableCell>{group.virtual_courses?.name ?? '—'}</TableCell>
-                    <TableCell>{new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}</TableCell>
-                    <TableCell>
-                      {group.end_date
-                        ? new Date(group.end_date + 'T12:00:00').toLocaleDateString('es-CO')
-                        : '—'}
-                    </TableCell>
+                    {(() => {
+                      const sessions: any[] = group.course_sessions || [];
+                      const lastDate = sessions.length
+                        ? sessions.reduce((max: string, s: any) =>
+                            s.scheduled_date > max ? s.scheduled_date : max, '')
+                        : null;
+                      return (
+                        <>
+                          <TableCell className="font-mono font-medium text-primary">{group.code}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground capitalize">
+                            {group.start_date
+                              ? new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })
+                              : '—'}
+                          </TableCell>
+                          <TableCell>{group.virtual_courses?.name ?? '—'}</TableCell>
+                          <TableCell>{new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}</TableCell>
+                          <TableCell>
+                            {lastDate
+                              ? new Date(lastDate + 'T12:00:00').toLocaleDateString('es-CO')
+                              : '—'}
+                          </TableCell>
+                        </>
+                      );
+                    })()}
                     <TableCell>
                       <Badge variant={conf.variant}>{conf.label}</Badge>
                     </TableCell>
                     <TableCell>{(enrollmentCounts as any)[group.id] ?? 0}</TableCell>
                   </TableRow>
+
                 );
               })}
             </TableBody>
