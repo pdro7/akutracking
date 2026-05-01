@@ -163,13 +163,13 @@ export default function Leads() {
               <LayoutGrid size={16} />
             </Button>
           </div>
-          <Button variant="outline" onClick={() => navigate('/leads/import')} className="gap-2">
+          <Button variant="outline" onClick={() => navigate('/leads/import')} className="hidden sm:flex gap-2">
             <Upload size={16} />
             Importar CSV
           </Button>
           <Button onClick={() => navigate('/leads/new')} className="gap-2">
             <Plus size={20} />
-            Nuevo lead
+            <span className="hidden sm:inline">Nuevo lead</span>
           </Button>
         </div>
       </div>
@@ -203,75 +203,129 @@ export default function Leads() {
 
       {/* Table view */}
       {viewMode === 'table' && (
-        <Card>
-          {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Cargando...</div>
-          ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No hay leads en esta etapa</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Niño</TableHead>
-                  <TableHead>Contacto</TableHead>
-                  <TableHead>Fuente</TableHead>
-                  <TableHead>Curso interés</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha entrada</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((lead: any) => (
-                  <TableRow
-                    key={lead.id}
-                    className="cursor-pointer hover:bg-accent/50"
-                    onClick={() => navigate(`/leads/${lead.id}`)}
-                  >
-                    <TableCell>
-                      <p className="font-medium">{lead.child_name}</p>
-                      <p className="text-xs text-muted-foreground">{lead.parent_name}</p>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      <p>{lead.phone}</p>
-                      {lead.email && <p className="text-xs">{lead.email}</p>}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${SOURCE_CONFIG[lead.source as LeadSource]?.color}`}>
-                        {SOURCE_CONFIG[lead.source as LeadSource]?.label}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {lead.course_interest || '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_CONFIG[lead.status as LeadStatus]?.variant}>
-                        {STATUS_CONFIG[lead.status as LeadStatus]?.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(lead.created_at).toLocaleDateString('es-CO')}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {lead.status === 'new' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
-                          disabled={startConversationMutation.isPending}
-                          onClick={() => startConversationMutation.mutate(lead.id)}
-                        >
-                          <MessageCircle size={13} />
-                          Iniciar con Pablo
-                        </Button>
-                      )}
-                    </TableCell>
+        <>
+          {/* Mobile card list */}
+          <div className="md:hidden space-y-2">
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground">Cargando...</div>
+            ) : filtered.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">No hay leads en esta etapa</div>
+            ) : filtered.map((lead: any) => (
+              <Card
+                key={lead.id}
+                className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                onClick={() => navigate(`/leads/${lead.id}`)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm">{lead.child_name}</p>
+                    <p className="text-xs text-muted-foreground">{lead.parent_name}</p>
+                    <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                  </div>
+                  <Badge variant={STATUS_CONFIG[lead.status as LeadStatus]?.variant} className="flex-shrink-0">
+                    {STATUS_CONFIG[lead.status as LeadStatus]?.label}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${SOURCE_CONFIG[lead.source as LeadSource]?.color}`}>
+                    {SOURCE_CONFIG[lead.source as LeadSource]?.label}
+                  </span>
+                  {lead.course_interest && (
+                    <span className="text-xs text-muted-foreground">{lead.course_interest}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {new Date(lead.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                  </span>
+                </div>
+                {lead.status === 'new' && (
+                  <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 w-full"
+                      disabled={startConversationMutation.isPending}
+                      onClick={() => startConversationMutation.mutate(lead.id)}
+                    >
+                      <MessageCircle size={13} />
+                      Iniciar con Pablo
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <Card className="hidden md:block">
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground">Cargando...</div>
+            ) : filtered.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">No hay leads en esta etapa</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Niño</TableHead>
+                    <TableHead>Contacto</TableHead>
+                    <TableHead>Fuente</TableHead>
+                    <TableHead>Curso interés</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Fecha entrada</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((lead: any) => (
+                    <TableRow
+                      key={lead.id}
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => navigate(`/leads/${lead.id}`)}
+                    >
+                      <TableCell>
+                        <p className="font-medium">{lead.child_name}</p>
+                        <p className="text-xs text-muted-foreground">{lead.parent_name}</p>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        <p>{lead.phone}</p>
+                        {lead.email && <p className="text-xs">{lead.email}</p>}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${SOURCE_CONFIG[lead.source as LeadSource]?.color}`}>
+                          {SOURCE_CONFIG[lead.source as LeadSource]?.label}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {lead.course_interest || '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={STATUS_CONFIG[lead.status as LeadStatus]?.variant}>
+                          {STATUS_CONFIG[lead.status as LeadStatus]?.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(lead.created_at).toLocaleDateString('es-CO')}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {lead.status === 'new' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                            disabled={startConversationMutation.isPending}
+                            onClick={() => startConversationMutation.mutate(lead.id)}
+                          >
+                            <MessageCircle size={13} />
+                            Iniciar con Pablo
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Card>
+        </>
       )}
 
       {/* Kanban view */}

@@ -247,7 +247,7 @@ export default function VirtualGroups() {
         {!isTeacher && (
           <Button onClick={() => setShowDialog(true)} className="gap-2">
             <Plus size={20} />
-            Nuevo grupo
+            <span className="hidden sm:inline">Nuevo grupo</span>
           </Button>
         )}
       </div>
@@ -277,63 +277,102 @@ export default function VirtualGroups() {
           </Button>
         </Card>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Código</TableHead>
-                <TableHead>Día</TableHead>
-                <TableHead>Curso</TableHead>
-                <TableHead>Inicio</TableHead>
-                <TableHead>Fin</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Alumnos</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredGroups.map((group: any) => {
-                const conf = STATUS_CONFIG[group.status] ?? { label: group.status, variant: 'secondary' as const };
-                return (
-                  <TableRow
-                    key={group.id}
-                    className="cursor-pointer hover:bg-accent/50"
-                    onClick={() => navigate(`/virtual-groups/${group.id}`)}
-                  >
-                    {(() => {
-                      const sessions: any[] = group.course_sessions || [];
-                      const lastDate = sessions.length
-                        ? sessions.reduce((max: string, s: any) =>
-                            s.scheduled_date > max ? s.scheduled_date : max, '')
-                        : null;
-                      return (
-                        <>
-                          <TableCell className="font-mono font-medium text-primary">{group.code}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground capitalize">
-                            {group.start_date
-                              ? new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })
-                              : '—'}
-                          </TableCell>
-                          <TableCell>{group.virtual_courses?.name ?? '—'}</TableCell>
-                          <TableCell>{new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}</TableCell>
-                          <TableCell>
-                            {lastDate
-                              ? new Date(lastDate + 'T12:00:00').toLocaleDateString('es-CO')
-                              : '—'}
-                          </TableCell>
-                        </>
-                      );
-                    })()}
-                    <TableCell>
-                      <Badge variant={conf.variant}>{conf.label}</Badge>
-                    </TableCell>
-                    <TableCell>{(enrollmentCounts as any)[group.id] ?? 0}</TableCell>
-                  </TableRow>
+        <>
+          {/* Mobile card list */}
+          <div className="md:hidden space-y-2">
+            {filteredGroups.map((group: any) => {
+              const conf = STATUS_CONFIG[group.status] ?? { label: group.status, variant: 'secondary' as const };
+              const sessions: any[] = group.course_sessions || [];
+              const lastDate = sessions.length
+                ? sessions.reduce((max: string, s: any) =>
+                    s.scheduled_date > max ? s.scheduled_date : max, '')
+                : null;
+              return (
+                <Card
+                  key={group.id}
+                  className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => navigate(`/virtual-groups/${group.id}`)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-mono font-semibold text-sm text-primary">{group.code}</p>
+                      <p className="text-sm">{group.virtual_courses?.name ?? '—'}</p>
+                    </div>
+                    <Badge variant={conf.variant} className="flex-shrink-0">{conf.label}</Badge>
+                  </div>
+                  <div className="flex gap-2 mt-1.5 text-xs text-muted-foreground flex-wrap">
+                    {group.start_date && (
+                      <span className="capitalize">
+                        {new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })}
+                      </span>
+                    )}
+                    <span>{new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}</span>
+                    {lastDate && <span>→ {new Date(lastDate + 'T12:00:00').toLocaleDateString('es-CO')}</span>}
+                    <span className="ml-auto">{(enrollmentCounts as any)[group.id] ?? 0} alumnos</span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
 
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+          {/* Desktop table */}
+          <Card className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Día</TableHead>
+                  <TableHead>Curso</TableHead>
+                  <TableHead>Inicio</TableHead>
+                  <TableHead>Fin</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Alumnos</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredGroups.map((group: any) => {
+                  const conf = STATUS_CONFIG[group.status] ?? { label: group.status, variant: 'secondary' as const };
+                  return (
+                    <TableRow
+                      key={group.id}
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => navigate(`/virtual-groups/${group.id}`)}
+                    >
+                      {(() => {
+                        const sessions: any[] = group.course_sessions || [];
+                        const lastDate = sessions.length
+                          ? sessions.reduce((max: string, s: any) =>
+                              s.scheduled_date > max ? s.scheduled_date : max, '')
+                          : null;
+                        return (
+                          <>
+                            <TableCell className="font-mono font-medium text-primary">{group.code}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground capitalize">
+                              {group.start_date
+                                ? new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })
+                                : '—'}
+                            </TableCell>
+                            <TableCell>{group.virtual_courses?.name ?? '—'}</TableCell>
+                            <TableCell>{new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}</TableCell>
+                            <TableCell>
+                              {lastDate
+                                ? new Date(lastDate + 'T12:00:00').toLocaleDateString('es-CO')
+                                : '—'}
+                            </TableCell>
+                          </>
+                        );
+                      })()}
+                      <TableCell>
+                        <Badge variant={conf.variant}>{conf.label}</Badge>
+                      </TableCell>
+                      <TableCell>{(enrollmentCounts as any)[group.id] ?? 0}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
       )}
 
       {/* New Group Dialog */}

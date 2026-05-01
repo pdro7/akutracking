@@ -17,6 +17,12 @@ import {
 
 type ViewMode = 'active' | 'inactive' | 'archived';
 
+const PAYMENT_STATUS_CONFIG = {
+  good: { variant: 'success' as const, label: 'Active' },
+  low:  { variant: 'warning' as const, label: 'Low Credits' },
+  due:  { variant: 'destructive' as const, label: 'Payment Due' },
+};
+
 function isPhoneValid(raw: string): boolean {
   const p = raw.replace(/\s+/g, '').replace(/^\+/, '');
   if (p.length === 10 && p.startsWith('3')) return true;
@@ -105,7 +111,7 @@ export default function Students() {
         {viewMode === 'active' && (
           <Button onClick={() => navigate('/students/new')} className="gap-2">
             <Plus size={20} />
-            Add Student
+            <span className="hidden sm:inline">Add Student</span>
           </Button>
         )}
       </div>
@@ -167,7 +173,74 @@ export default function Students() {
         </div>
       )}
 
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {filteredStudents.map((student) => {
+          const status = getPaymentStatus(student.classes_remaining);
+          return (
+            <Card
+              key={student.id}
+              className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+              onClick={() => navigate(`/student/${student.id}`)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm text-primary">{student.name}</p>
+                  <p className="text-xs text-muted-foreground">{student.parent_name}</p>
+                </div>
+                {viewMode === 'active' && (
+                  <Badge variant={PAYMENT_STATUS_CONFIG[status].variant} className="flex-shrink-0">
+                    {PAYMENT_STATUS_CONFIG[status].label}
+                  </Badge>
+                )}
+              </div>
+              {viewMode === 'active' && (
+                <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
+                  <span>{student.classes_remaining} restantes</span>
+                  <span className="capitalize">{student.modality ?? 'presencial'}</span>
+                </div>
+              )}
+              {viewMode === 'inactive' && (
+                <div className="flex items-center justify-between mt-2" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    {student.city || '—'}
+                    {!isPhoneValid(student.phone ?? '') && (
+                      <span className="flex items-center gap-1 text-orange-600 ml-2">
+                        <AlertCircle size={11} />
+                        Tel. pendiente
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                    disabled={startConversationMutation.isPending}
+                    onClick={() => startConversationMutation.mutate(student.id)}
+                  >
+                    <MessageCircle size={13} />
+                    Reactivar
+                  </Button>
+                </div>
+              )}
+              {viewMode === 'active' && (
+                <div className="flex justify-end mt-1" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setArchiveStudentId(student.id); setArchiveStudentName(student.name); }}
+                  >
+                    <Archive size={14} className="text-muted-foreground" />
+                  </Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -189,12 +262,6 @@ export default function Students() {
           <TableBody>
             {filteredStudents.map((student) => {
               const status = getPaymentStatus(student.classes_remaining);
-              const statusConfig = {
-                good: { variant: 'success' as const, label: 'Active' },
-                low: { variant: 'warning' as const, label: 'Low Credits' },
-                due: { variant: 'destructive' as const, label: 'Payment Due' },
-              };
-
               return (
                 <TableRow
                   key={student.id}
@@ -210,7 +277,7 @@ export default function Students() {
                       <TableCell>{student.classes_remaining}</TableCell>
                       <TableCell className="capitalize text-sm text-muted-foreground">{student.modality ?? 'presencial'}</TableCell>
                       <TableCell>
-                        <Badge variant={statusConfig[status].variant}>{statusConfig[status].label}</Badge>
+                        <Badge variant={PAYMENT_STATUS_CONFIG[status].variant}>{PAYMENT_STATUS_CONFIG[status].label}</Badge>
                       </TableCell>
                     </>
                   )}
