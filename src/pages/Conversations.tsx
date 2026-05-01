@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ExternalLink, Send, Bot, UserCheck } from 'lucide-react';
+import { ExternalLink, Send, Bot, UserCheck, ArrowLeft } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -36,6 +36,12 @@ export default function Conversations() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [manualMsg, setManualMsg] = useState('');
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+
+  const handleSelectConversation = (id: string) => {
+    setSelectedId(id);
+    setMobileView('chat');
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: conversations = [], isLoading } = useQuery({
@@ -107,8 +113,8 @@ export default function Conversations() {
 
   return (
     <div className="flex h-[calc(100vh-73px)] overflow-hidden">
-      {/* Left sidebar */}
-      <div className="w-80 flex-shrink-0 border-r flex flex-col bg-card">
+      {/* Left sidebar — full screen on mobile when mobileView=list */}
+      <div className={`flex-shrink-0 border-r flex flex-col bg-card w-full md:w-80 ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
         <div className="px-4 py-3 border-b">
           <h2 className="font-semibold text-base">Pablo · Conversaciones</h2>
           <p className="text-xs text-muted-foreground">{conversations.length} conversaciones</p>
@@ -130,7 +136,7 @@ export default function Conversations() {
               return (
                 <button
                   key={conv.id}
-                  onClick={() => setSelectedId(conv.id)}
+                  onClick={() => handleSelectConversation(conv.id)}
                   className={`w-full text-left px-4 py-3 border-b hover:bg-accent/50 transition-colors flex gap-3 items-start ${
                     isActive ? 'bg-accent' : ''
                   }`}
@@ -161,8 +167,8 @@ export default function Conversations() {
         </div>
       </div>
 
-      {/* Right panel */}
-      <div className="flex-1 flex flex-col bg-background">
+      {/* Right panel — full screen on mobile when mobileView=chat */}
+      <div className={`flex-1 flex-col bg-background ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-3xl">💬</div>
@@ -172,65 +178,65 @@ export default function Conversations() {
         ) : (
           <>
             {/* Chat header */}
-            <div className="bg-card border-b px-4 py-3 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold text-sm">
-                {(selected.leads?.child_name ?? selected.students?.name ?? selected.phone).charAt(0).toUpperCase()}
+            <div className="bg-card border-b px-3 py-2 flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                {/* Back button — mobile only */}
+                <button
+                  className="md:hidden p-1 -ml-1 text-muted-foreground hover:text-foreground"
+                  onClick={() => setMobileView('list')}
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold text-sm flex-shrink-0">
+                  {(selected.leads?.child_name ?? selected.students?.name ?? selected.phone).charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm leading-tight truncate">
+                    {selected.leads?.child_name ?? selected.students?.name ?? selected.phone}
+                  </p>
+                  {(selected.leads || selected.students) && (
+                    <p className="text-xs text-muted-foreground">{selected.phone}</p>
+                  )}
+                </div>
+                {/* Pablo toggle — always visible */}
+                <button
+                  onClick={() => toggleEscalationMutation.mutate(!selected.escalated)}
+                  disabled={toggleEscalationMutation.isPending}
+                  className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border font-medium transition-colors flex-shrink-0 ${
+                    selected.escalated
+                      ? 'bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100'
+                      : 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+                  }`}
+                >
+                  <Bot size={13} />
+                  <span className="hidden sm:inline">{selected.escalated ? 'Manual' : 'Pablo activo'}</span>
+                </button>
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-sm leading-tight">
-                  {selected.leads?.child_name ?? selected.students?.name ?? selected.phone}
-                </p>
-                {(selected.leads || selected.students) && (
-                  <p className="text-xs text-muted-foreground">{selected.phone}</p>
-                )}
-              </div>
-              {selected.lead_id && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-xs"
-                  onClick={() => navigate(`/leads/${selected.lead_id}`)}
-                >
-                  <ExternalLink size={13} />
-                  Ver lead
-                </Button>
+              {/* Action buttons row — wraps on mobile */}
+              {(selected.lead_id || selected.student_id) && (
+                <div className="flex flex-wrap gap-1.5 pl-10 md:pl-0">
+                  {selected.lead_id && (
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2"
+                      onClick={() => navigate(`/leads/${selected.lead_id}`)}>
+                      <ExternalLink size={12} /> Ver lead
+                    </Button>
+                  )}
+                  {selected.student_id && (
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2"
+                      onClick={() => navigate(`/student/${selected.student_id}`)}>
+                      <ExternalLink size={12} /> Ver alumno
+                    </Button>
+                  )}
+                  {selected.student_id && (
+                    <Button variant="outline" size="sm"
+                      className="gap-1 text-xs h-7 px-2 text-green-700 border-green-300 hover:bg-green-50"
+                      disabled={reactivateStudentMutation.isPending}
+                      onClick={() => reactivateStudentMutation.mutate(selected.student_id!)}>
+                      <UserCheck size={12} /> Reactivar
+                    </Button>
+                  )}
+                </div>
               )}
-              {selected.student_id && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-xs"
-                  onClick={() => navigate(`/student/${selected.student_id}`)}
-                >
-                  <ExternalLink size={13} />
-                  Ver alumno
-                </Button>
-              )}
-              {selected.student_id && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-xs text-green-700 border-green-300 hover:bg-green-50"
-                  disabled={reactivateStudentMutation.isPending}
-                  onClick={() => reactivateStudentMutation.mutate(selected.student_id!)}
-                >
-                  <UserCheck size={13} />
-                  Reactivar alumno
-                </Button>
-              )}
-              {/* Pablo / Manual toggle */}
-              <button
-                onClick={() => toggleEscalationMutation.mutate(!selected.escalated)}
-                disabled={toggleEscalationMutation.isPending}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                  selected.escalated
-                    ? 'bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100'
-                    : 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
-                }`}
-              >
-                <Bot size={13} />
-                {selected.escalated ? 'Manual' : 'Pablo activo'}
-              </button>
             </div>
 
             {/* Escalation banner — info only, no button */}

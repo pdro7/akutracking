@@ -29,6 +29,11 @@ Ideas pendientes de evaluar e implementar, organizadas por área.
 - [ ] Exportar listados a Excel/CSV
 - [ ] App móvil / PWA para marcar asistencia desde el teléfono
 
+## Base de conocimiento de cursos
+- [ ] Añadir campos `curriculum` (resumen corto) y `program_url` (PDF) a `virtual_courses`
+- [ ] Inyectar descripción + curriculum en el prompt de Pablo dinámicamente
+- [ ] Pablo comparte el link al PDF cuando un padre pide el temario detallado
+
 ## Pablo — mejoras pendientes
 - [ ] Seguimiento automático de conversaciones sin respuesta: job programado que detecta leads/ex-alumnos sin respuesta en X días y Pablo les envía un mensaje de seguimiento automáticamente
 - [ ] Plantillas adicionales de WhatsApp: follow-up para leads fríos, recordatorio de clase de prueba, post-prueba
