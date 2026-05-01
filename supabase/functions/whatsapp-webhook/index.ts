@@ -591,8 +591,16 @@ Deno.serve(async (req) => {
   }
 });
 
+function toWhatsAppFormat(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '*$1*')   // **bold** → *bold*
+    .replace(/^#{1,3} .+$/gm, (h) => h.replace(/^#{1,3} /, '').toUpperCase()) // ### Title → TITLE
+    .replace(/^- /gm, '• ');             // - item → • item
+}
+
 function twimlResponse(message: string): Response {
-  const safe = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const formatted = toWhatsAppFormat(message);
+  const safe = formatted.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const xml = `<?xml version="1.0" encoding="UTF-8"?><Response>${safe ? `<Message>${safe}</Message>` : ''}</Response>`;
   return new Response(xml, {
     headers: { 'Content-Type': 'text/xml' },
