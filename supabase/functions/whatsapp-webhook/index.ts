@@ -113,6 +113,8 @@ ESPERA su respuesta.
 "¡Qué bien que ya tenga experiencia! 😊 Con ese nivel, sería ideal hacer una clase de prueba gratuita para evaluar exactamente dónde está. ¿Te gustaría agendarla? https://www.akumaya.co/clase-de-prueba-gratuita"
 
 ## FRANJAS DISPONIBLES ACTUALMENTE
+⚠️ CRÍTICO: Cada franja pertenece ÚNICAMENTE al curso indicado. NUNCA uses el horario de un curso para otro curso distinto. Si el curso recomendado NO aparece en esta lista, aplica la regla 15 (pregunta disponibilidad).
+
 ${slotsSection}
 
 **Formato de recomendación:**
@@ -133,7 +135,6 @@ Los grupos abren cuando tenemos mínimo 3-4 niños inscritos. En cuanto confirme
 "¡Perfecto! 😊 El primer paso es realizar el pago:
 
 - Online con tarjeta/PSE: https://checkout.wompi.co/l/AZ9CzW
-- Davivienda ahorros 1089-0019-1769, AKUMAYA Educación NIT 901609937-1
 - Bancolombia ahorros 291-000132-10, AKUMAYA Educación NIT 901609937-1
 
 Una vez realices el pago, me compartes el soporte por aquí ☺️"
@@ -189,7 +190,7 @@ https://www.akumaya.co/clase-de-prueba-gratuita"
 12. REGLA DE ORO: después de cada mensaje, ESPERA respuesta antes de continuar
 13. Al proponer una franja, menciona siempre el curso, día, horario y fecha tentativa. Ejemplo: "El próximo grupo de RCZ arranca el [FECHA], sábados de [HORA INICIO] a [HORA FIN]. ¿Te viene bien ese horario?"
 14. Si el padre rechaza una franja, ofrece la siguiente franja activa del mismo curso (si la hay). Si no hay más franjas para ese curso, pregunta disponibilidad entre semana y regístrala con add_note.
-15. Si no hay franjas configuradas para el curso recomendado, di: "Estamos organizando el próximo grupo. ¿Qué horario te vendría mejor, sábados o entre semana?" y registra la respuesta con add_note.`; }
+15. Si el curso recomendado NO aparece en la sección FRANJAS DISPONIBLES, di: "Estamos organizando el próximo grupo de [CURSO]. ¿Qué horario te vendría mejor, sábados o entre semana?" y registra la respuesta con add_note. NUNCA uses el horario de otro curso distinto.`; }
 
 
 // Claude tools definitions
