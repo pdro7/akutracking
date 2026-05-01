@@ -141,26 +141,26 @@ export default function Dashboard() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Dashboard</h1>
           <p className="text-muted-foreground">Welcome back! Here's your academy overview.</p>
         </div>
         <Button onClick={() => navigate('/students/new')} className="gap-2">
           <Plus size={20} />
-          Add Student
+          <span className="hidden sm:inline">Add Student</span>
         </Button>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8">
         {stats.map((stat) => (
-          <Card key={stat.label} className="p-6">
+          <Card key={stat.label} className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                <p className="text-3xl font-bold">{stat.value}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1">{stat.label}</p>
+                <p className="text-2xl md:text-3xl font-bold">{stat.value}</p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center text-white">
-                <stat.icon size={24} />
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-gradient-primary flex items-center justify-center text-white flex-shrink-0">
+                <stat.icon size={20} />
               </div>
             </div>
           </Card>
@@ -216,150 +216,225 @@ export default function Dashboard() {
         {/* ── Pendientes de pago ── */}
         <div>
           <h2 className="text-xl font-bold mb-3">Pendientes de pago</h2>
-          <Card>
-            {totalPaymentAlerts === 0 ? (
+          {totalPaymentAlerts === 0 ? (
+            <Card>
               <div className="p-6 text-center text-muted-foreground text-sm">
                 Sin alertas de pago pendientes
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Alumno</TableHead>
-                    <TableHead>Motivo</TableHead>
-                    <TableHead>Detalle</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {packDue.map((student) => (
-                    <TableRow
-                      key={student.id}
-                      className="cursor-pointer hover:bg-accent/50"
-                      onClick={() => navigate(`/student/${student.id}`)}
-                    >
-                      <TableCell className="font-medium text-primary">{student.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="destructive" className="whitespace-nowrap">Pack agotado</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+            </Card>
+          ) : (
+            <>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {packDue.map((student) => (
+                  <Card key={student.id} className="p-3 cursor-pointer hover:bg-accent/50"
+                    onClick={() => navigate(`/student/${student.id}`)}>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm text-primary">{student.name}</p>
+                      <Badge variant="destructive" className="flex-shrink-0 text-xs">Pack agotado</Badge>
+                    </div>
+                    <div className="flex items-center justify-between mt-2" onClick={(ev) => ev.stopPropagation()}>
+                      <p className="text-xs text-muted-foreground">
                         {student.classes_remaining < 0
                           ? `${Math.abs(student.classes_remaining)} clase${Math.abs(student.classes_remaining) !== 1 ? 's' : ''} en deuda`
                           : '0 clases restantes'}
-                      </TableCell>
-                      <TableCell onClick={(ev) => ev.stopPropagation()}>
-                        {(student as any).pack_payment_requested_at ? (
-                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 whitespace-nowrap">
-                            ✓ Solicitado
-                          </Badge>
+                      </p>
+                      {(student as any).pack_payment_requested_at ? (
+                        <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">✓ Solicitado</Badge>
+                      ) : (
+                        <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-muted-foreground hover:text-blue-600"
+                          disabled={markPackRequestedMutation.isPending}
+                          onClick={() => markPackRequestedMutation.mutate(student.id)}>
+                          Marcar solicitado
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+                {(pendingInstallments as any[]).map((e: any) => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const firstPending = !e.installment_1_paid_at;
+                  const secondPending = e.payment_plan === 'installments' && !e.installment_2_due_date?.includes('null') && e.installment_2_due_date;
+                  const isOverdue = secondPending && e.installment_2_due_date < todayStr;
+                  const dueDate = e.installment_2_due_date
+                    ? new Date(e.installment_2_due_date + 'T12:00:00').toLocaleDateString('es-CO')
+                    : null;
+                  const fmt = (n: number) => n.toLocaleString('es-CO');
+                  const label = firstPending
+                    ? (e.payment_plan === 'full' ? 'Pago pendiente' : '1ª cuota pendiente')
+                    : (isOverdue ? '2ª cuota vencida' : '2ª cuota pendiente');
+                  const badgeVariant = (firstPending || isOverdue) ? 'destructive' : 'warning';
+                  const detail = firstPending
+                    ? `${e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota'}${e.installment_1_amount ? ` · $${fmt(e.installment_1_amount)}` : ''}`
+                    : `Vence ${dueDate}${e.installment_2_amount ? ` · $${fmt(e.installment_2_amount)}` : ''}`;
+                  return (
+                    <Card key={`${e.id}-${firstPending ? '1' : '2'}`} className="p-3 cursor-pointer hover:bg-accent/50"
+                      onClick={() => navigate(`/student/${(e.students as any)?.id}`)}>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-sm text-primary">{(e.students as any)?.name}</p>
+                        <Badge variant={badgeVariant} className="flex-shrink-0 text-xs">{label}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between mt-2" onClick={(ev) => ev.stopPropagation()}>
+                        <p className="text-xs text-muted-foreground">{detail}</p>
+                        {e.payment_requested_at ? (
+                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">✓ Solicitado</Badge>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs h-7 px-2 text-muted-foreground hover:text-blue-600"
-                            disabled={markPackRequestedMutation.isPending}
-                            onClick={() => markPackRequestedMutation.mutate(student.id)}
-                          >
+                          <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-muted-foreground hover:text-blue-600"
+                            disabled={markRequestedMutation.isPending}
+                            onClick={() => markRequestedMutation.mutate(e.id)}>
                             Marcar solicitado
                           </Button>
                         )}
-                      </TableCell>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Desktop table */}
+              <Card className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Alumno</TableHead>
+                      <TableHead>Motivo</TableHead>
+                      <TableHead>Detalle</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
-                  ))}
-                  {(pendingInstallments as any[]).map((e: any) => {
-                    const today = new Date().toISOString().split('T')[0];
-                    const firstPending = !e.installment_1_paid_at;
-                    const secondPending = e.payment_plan === 'installments' && !e.installment_2_due_date?.includes('null') && e.installment_2_due_date;
-                    const isOverdue = secondPending && e.installment_2_due_date < today;
-                    const dueDate = e.installment_2_due_date
-                      ? new Date(e.installment_2_due_date + 'T12:00:00').toLocaleDateString('es-CO')
-                      : null;
-                    const fmt = (n: number) => n.toLocaleString('es-CO');
-                    const label = firstPending
-                      ? (e.payment_plan === 'full' ? 'Pago pendiente' : '1ª cuota pendiente')
-                      : (isOverdue ? '2ª cuota vencida' : '2ª cuota pendiente');
-                    const badgeVariant = (firstPending || isOverdue) ? 'destructive' : 'warning';
-                    return (
-                      <TableRow
-                        key={`${e.id}-${firstPending ? '1' : '2'}`}
-                        className="cursor-pointer hover:bg-accent/50"
-                        onClick={() => navigate(`/student/${(e.students as any)?.id}`)}
-                      >
-                        <TableCell className="font-medium text-primary">{(e.students as any)?.name}</TableCell>
+                  </TableHeader>
+                  <TableBody>
+                    {packDue.map((student) => (
+                      <TableRow key={student.id} className="cursor-pointer hover:bg-accent/50"
+                        onClick={() => navigate(`/student/${student.id}`)}>
+                        <TableCell className="font-medium text-primary">{student.name}</TableCell>
                         <TableCell>
-                          <Badge variant={badgeVariant} className="whitespace-nowrap">{label}</Badge>
+                          <Badge variant="destructive" className="whitespace-nowrap">Pack agotado</Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {firstPending
-                            ? `${e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota'}${e.installment_1_amount ? ` · $${fmt(e.installment_1_amount)}` : ''}`
-                            : `Vence ${dueDate}${e.installment_2_amount ? ` · $${fmt(e.installment_2_amount)}` : ''}`}
+                          {student.classes_remaining < 0
+                            ? `${Math.abs(student.classes_remaining)} clase${Math.abs(student.classes_remaining) !== 1 ? 's' : ''} en deuda`
+                            : '0 clases restantes'}
                         </TableCell>
                         <TableCell onClick={(ev) => ev.stopPropagation()}>
-                          {e.payment_requested_at ? (
-                            <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 whitespace-nowrap">
-                              ✓ Solicitado
-                            </Badge>
+                          {(student as any).pack_payment_requested_at ? (
+                            <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 whitespace-nowrap">✓ Solicitado</Badge>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-xs h-7 px-2 text-muted-foreground hover:text-blue-600"
-                              disabled={markRequestedMutation.isPending}
-                              onClick={() => markRequestedMutation.mutate(e.id)}
-                            >
+                            <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-muted-foreground hover:text-blue-600"
+                              disabled={markPackRequestedMutation.isPending}
+                              onClick={() => markPackRequestedMutation.mutate(student.id)}>
                               Marcar solicitado
                             </Button>
                           )}
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </Card>
+                    ))}
+                    {(pendingInstallments as any[]).map((e: any) => {
+                      const today = new Date().toISOString().split('T')[0];
+                      const firstPending = !e.installment_1_paid_at;
+                      const secondPending = e.payment_plan === 'installments' && !e.installment_2_due_date?.includes('null') && e.installment_2_due_date;
+                      const isOverdue = secondPending && e.installment_2_due_date < today;
+                      const dueDate = e.installment_2_due_date
+                        ? new Date(e.installment_2_due_date + 'T12:00:00').toLocaleDateString('es-CO')
+                        : null;
+                      const fmt = (n: number) => n.toLocaleString('es-CO');
+                      const label = firstPending
+                        ? (e.payment_plan === 'full' ? 'Pago pendiente' : '1ª cuota pendiente')
+                        : (isOverdue ? '2ª cuota vencida' : '2ª cuota pendiente');
+                      const badgeVariant = (firstPending || isOverdue) ? 'destructive' : 'warning';
+                      return (
+                        <TableRow key={`${e.id}-${firstPending ? '1' : '2'}`} className="cursor-pointer hover:bg-accent/50"
+                          onClick={() => navigate(`/student/${(e.students as any)?.id}`)}>
+                          <TableCell className="font-medium text-primary">{(e.students as any)?.name}</TableCell>
+                          <TableCell>
+                            <Badge variant={badgeVariant} className="whitespace-nowrap">{label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {firstPending
+                              ? `${e.payment_plan === 'full' ? 'Pago completo' : '1ª cuota'}${e.installment_1_amount ? ` · $${fmt(e.installment_1_amount)}` : ''}`
+                              : `Vence ${dueDate}${e.installment_2_amount ? ` · $${fmt(e.installment_2_amount)}` : ''}`}
+                          </TableCell>
+                          <TableCell onClick={(ev) => ev.stopPropagation()}>
+                            {e.payment_requested_at ? (
+                              <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 whitespace-nowrap">✓ Solicitado</Badge>
+                            ) : (
+                              <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-muted-foreground hover:text-blue-600"
+                                disabled={markRequestedMutation.isPending}
+                                onClick={() => markRequestedMutation.mutate(e.id)}>
+                                Marcar solicitado
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* ── Últimas inscripciones ── */}
         <div>
           <h2 className="text-xl font-bold mb-3">Últimas inscripciones</h2>
-          <Card>
-            {(recentStudents as any[]).length === 0 ? (
+          {(recentStudents as any[]).length === 0 ? (
+            <Card>
               <div className="p-6 text-center text-muted-foreground text-sm">
                 No hay alumnos registrados aún
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Alumno</TableHead>
-                    <TableHead>Modalidad</TableHead>
-                    <TableHead>Inscripción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(recentStudents as any[]).map((student: any) => (
-                    <TableRow
-                      key={student.id}
-                      className="cursor-pointer hover:bg-accent/50"
-                      onClick={() => navigate(`/student/${student.id}`)}
-                    >
-                      <TableCell>
-                        <div className="font-medium text-primary">{student.name}</div>
-                        <div className="text-xs text-muted-foreground">{student.parent_name}</div>
-                      </TableCell>
-                      <TableCell className="capitalize text-sm">{student.modality ?? 'presencial'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+            </Card>
+          ) : (
+            <>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {(recentStudents as any[]).map((student: any) => (
+                  <Card key={student.id} className="p-3 cursor-pointer hover:bg-accent/50"
+                    onClick={() => navigate(`/student/${student.id}`)}>
+                    <p className="font-medium text-sm text-primary">{student.name}</p>
+                    <p className="text-xs text-muted-foreground">{student.parent_name}</p>
+                    <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground">
+                      <span className="capitalize">{student.modality ?? 'presencial'}</span>
+                      <span>
                         {student.enrollment_date
                           ? new Date(student.enrollment_date + 'T12:00:00').toLocaleDateString('es-CO')
                           : '—'}
-                      </TableCell>
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <Card className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Alumno</TableHead>
+                      <TableHead>Modalidad</TableHead>
+                      <TableHead>Inscripción</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {(recentStudents as any[]).map((student: any) => (
+                      <TableRow key={student.id} className="cursor-pointer hover:bg-accent/50"
+                        onClick={() => navigate(`/student/${student.id}`)}>
+                        <TableCell>
+                          <div className="font-medium text-primary">{student.name}</div>
+                          <div className="text-xs text-muted-foreground">{student.parent_name}</div>
+                        </TableCell>
+                        <TableCell className="capitalize text-sm">{student.modality ?? 'presencial'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {student.enrollment_date
+                            ? new Date(student.enrollment_date + 'T12:00:00').toLocaleDateString('es-CO')
+                            : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            </>
+          )}
         </div>
 
       </div>
