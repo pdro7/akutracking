@@ -131,16 +131,16 @@ serve(async (req) => {
       if (experience) noteParts.push(`Exp. previa: ${experience}`)
       if (referral) noteParts.push(`Referido: ${referral}`)
 
-      // Parse trial date+time from scheduled_event.start_time (ISO 8601)
+      // Parse trial date+time — convert UTC → Colombia time (UTC-5)
       const startTime: string =
         payload.scheduled_event?.start_time ?? ''
-      const trialDate = startTime
-        ? startTime.split('T')[0]
-        : new Date().toISOString().split('T')[0]
-      // Extract HH:MM in UTC (Calendly sends UTC)
-      const trialTime = startTime
-        ? startTime.split('T')[1]?.slice(0, 5) ?? null
-        : null
+      let trialDate = new Date().toISOString().split('T')[0]
+      let trialTime: string | null = null
+      if (startTime) {
+        const cotDate = new Date(new Date(startTime).getTime() - 5 * 60 * 60 * 1000)
+        trialDate = cotDate.toISOString().split('T')[0]
+        trialTime = cotDate.toISOString().split('T')[1].slice(0, 5)
+      }
 
       const lead = {
         calendly_uri: payload.uri as string,
