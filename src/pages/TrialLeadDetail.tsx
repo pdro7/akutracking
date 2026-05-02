@@ -34,6 +34,7 @@ interface TrialLead {
   trial_class_date: string;
   notes: string | null;
   status: TrialLeadStatus;
+  teacher_id: string | null;
   created_at: string;
 }
 
@@ -58,7 +59,17 @@ export default function TrialLeadDetail() {
   const [trialClassDate, setTrialClassDate] = useState('');
   const [status, setStatus] = useState<TrialLeadStatus>('scheduled');
   const [notes, setNotes] = useState('');
+  const [teacherId, setTeacherId] = useState('');
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+
+  const { data: teachers = [] } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('teachers').select('id, name').eq('is_active', true).order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ['trial-lead', id],
@@ -84,6 +95,7 @@ export default function TrialLeadDetail() {
       setTrialClassDate(lead.trial_class_date);
       setStatus(lead.status);
       setNotes(lead.notes || '');
+      setTeacherId(lead.teacher_id || 'none');
     }
   }, [lead]);
 
@@ -100,6 +112,7 @@ export default function TrialLeadDetail() {
           trial_class_date: trialClassDate,
           status,
           notes: notes || null,
+          teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
         })
         .eq('id', id);
 
@@ -340,6 +353,22 @@ export default function TrialLeadDetail() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Teacher */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Profesor</label>
+              <Select value={teacherId} onValueChange={setTeacherId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sin profesor asignado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin profesor asignado</SelectItem>
+                  {(teachers as any[]).map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Notes */}
