@@ -131,12 +131,16 @@ serve(async (req) => {
       if (experience) noteParts.push(`Exp. previa: ${experience}`)
       if (referral) noteParts.push(`Referido: ${referral}`)
 
-      // Parse trial date from scheduled_event.start_time (ISO 8601)
+      // Parse trial date+time from scheduled_event.start_time (ISO 8601)
       const startTime: string =
         payload.scheduled_event?.start_time ?? ''
       const trialDate = startTime
         ? startTime.split('T')[0]
         : new Date().toISOString().split('T')[0]
+      // Extract HH:MM in UTC (Calendly sends UTC)
+      const trialTime = startTime
+        ? startTime.split('T')[1]?.slice(0, 5) ?? null
+        : null
 
       const lead = {
         calendly_uri: payload.uri as string,
@@ -145,6 +149,7 @@ serve(async (req) => {
         parent_phone: phone,
         child_name: childName || '(por confirmar)',
         trial_class_date: trialDate,
+        trial_class_time: trialTime,
         notes: noteParts.length > 0 ? noteParts.join(' | ') : null,
         status: 'scheduled',
       }

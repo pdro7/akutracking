@@ -32,6 +32,7 @@ interface TrialLead {
   parent_phone: string;
   parent_email: string | null;
   trial_class_date: string;
+  trial_class_time: string | null;
   notes: string | null;
   status: TrialLeadStatus;
   teacher_id: string | null;
@@ -57,6 +58,7 @@ export default function TrialLeadDetail() {
   const [parentPhone, setParentPhone] = useState('');
   const [parentEmail, setParentEmail] = useState('');
   const [trialClassDate, setTrialClassDate] = useState('');
+  const [trialClassTime, setTrialClassTime] = useState('');
   const [status, setStatus] = useState<TrialLeadStatus>('scheduled');
   const [notes, setNotes] = useState('');
   const [teacherId, setTeacherId] = useState('');
@@ -93,6 +95,7 @@ export default function TrialLeadDetail() {
       setParentPhone(lead.parent_phone);
       setParentEmail(lead.parent_email || '');
       setTrialClassDate(lead.trial_class_date);
+      setTrialClassTime(lead.trial_class_time?.slice(0, 5) || '');
       setStatus(lead.status);
       setNotes(lead.notes || '');
       setTeacherId(lead.teacher_id || 'none');
@@ -110,6 +113,7 @@ export default function TrialLeadDetail() {
           parent_phone: parentPhone,
           parent_email: parentEmail || null,
           trial_class_date: trialClassDate,
+          trial_class_time: trialClassTime || null,
           status,
           notes: notes || null,
           teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
@@ -261,7 +265,10 @@ export default function TrialLeadDetail() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>Trial Date: {format(new Date(lead.trial_class_date), 'PPP')}</span>
+              <span>
+                Trial Date: {format(new Date(lead.trial_class_date + 'T12:00:00'), 'PPP')}
+                {lead.trial_class_time && ` · ${lead.trial_class_time.slice(0, 5)}`}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground" />
@@ -337,6 +344,18 @@ export default function TrialLeadDetail() {
                   onChange={(e) => setTrialClassDate(e.target.value)}
                 />
               </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Hora</label>
+                <Input
+                  type="time"
+                  value={trialClassTime}
+                  onChange={(e) => setTrialClassTime(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Status *</label>

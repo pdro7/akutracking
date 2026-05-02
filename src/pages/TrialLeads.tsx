@@ -18,6 +18,7 @@ interface TrialLead {
   parent_phone: string;
   parent_email: string | null;
   trial_class_date: string;
+  trial_class_time: string | null;
   notes: string | null;
   status: TrialLeadStatus;
   created_at: string;
@@ -116,7 +117,10 @@ export default function TrialLeads() {
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>{format(new Date(lead.trial_class_date), 'PPP')}</span>
+                  <span>
+                    {format(new Date(lead.trial_class_date + 'T12:00:00'), 'PPP')}
+                    {lead.trial_class_time && ` · ${lead.trial_class_time.slice(0, 5)}`}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <User className="h-4 w-4 text-muted-foreground" />
