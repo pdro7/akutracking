@@ -296,68 +296,66 @@ export default function TrialLeadDetail() {
             <CardTitle>Trial Lead Information</CardTitle>
           </CardHeader>
           <CardContent className="px-0 space-y-4">
-            {/* Child Information */}
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Child Name *</label>
-              <Input
-                value={childName}
-                onChange={(e) => setChildName(e.target.value)}
-                placeholder="Enter child's name"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Date of Birth</label>
-              <Input
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-              />
-            </div>
-
-            {/* Parent Information */}
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Parent/Guardian Name *</label>
-              <Input
-                value={parentName}
-                onChange={(e) => setParentName(e.target.value)}
-                placeholder="Enter parent's name"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Row 1: Child name + DOB */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium mb-1.5 block">Nombre del niño/a *</label>
+                <Input
+                  value={childName}
+                  onChange={(e) => setChildName(e.target.value)}
+                  placeholder="Nombre del niño/a"
+                />
+              </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Parent Phone *</label>
+                <label className="text-sm font-medium mb-1.5 block">Fecha de nacimiento</label>
+                <Input
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Parent name + phone + email */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Padre/madre *</label>
+                <Input
+                  value={parentName}
+                  onChange={(e) => setParentName(e.target.value)}
+                  placeholder="Nombre del padre/madre"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Celular *</label>
                 <Input
                   type="tel"
                   value={parentPhone}
                   onChange={(e) => setParentPhone(e.target.value)}
-                  placeholder="Enter phone number"
+                  placeholder="Número de celular"
                 />
               </div>
-
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Parent Email</label>
+                <label className="text-sm font-medium mb-1.5 block">Email</label>
                 <Input
                   type="email"
                   value={parentEmail}
                   onChange={(e) => setParentEmail(e.target.value)}
-                  placeholder="Enter email address"
+                  placeholder="Email del padre/madre"
                 />
               </div>
             </div>
 
-            {/* Trial Class Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Row 3: Date + time + status */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Trial Class Date *</label>
+                <label className="text-sm font-medium mb-1.5 block">Fecha de la clase *</label>
                 <Input
                   type="date"
                   value={trialClassDate}
                   onChange={(e) => setTrialClassDate(e.target.value)}
                 />
               </div>
-
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Hora</label>
                 <Input
@@ -366,68 +364,64 @@ export default function TrialLeadDetail() {
                   onChange={(e) => setTrialClassTime(e.target.value)}
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Status *</label>
+                <label className="text-sm font-medium mb-1.5 block">Estado *</label>
                 <Select value={status} onValueChange={(value) => setStatus(value as TrialLeadStatus)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="attended">Attended</SelectItem>
+                    <SelectItem value="scheduled">Agendado</SelectItem>
+                    <SelectItem value="attended">Asistió</SelectItem>
                     <SelectItem value="interested">Interesado</SelectItem>
-                    <SelectItem value="converted">Converted</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="no_show">No Show</SelectItem>
+                    <SelectItem value="converted">Convertido</SelectItem>
+                    <SelectItem value="cancelled">Cancelado</SelectItem>
+                    <SelectItem value="no_show">No asistió</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Course */}
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Curso de inicio</label>
-              <Select value={virtualCourseId} onValueChange={setVirtualCourseId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sin curso asignado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin curso asignado</SelectItem>
-                  {(virtualCourses as any[]).map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Row 4: Course + teacher */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Curso de inicio</label>
+                <Select value={virtualCourseId} onValueChange={setVirtualCourseId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin curso asignado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin curso asignado</SelectItem>
+                    {(virtualCourses as any[]).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Profesor</label>
+                <Select value={teacherId} onValueChange={setTeacherId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin profesor asignado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin profesor asignado</SelectItem>
+                    {(teachers as any[]).map((t: any) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Teacher */}
+            {/* Row 5: Notes */}
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Profesor</label>
-              <Select value={teacherId} onValueChange={setTeacherId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sin profesor asignado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin profesor asignado</SelectItem>
-                  {(teachers as any[]).map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Notes</label>
+              <label className="text-sm font-medium mb-1.5 block">Notas</label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any additional notes about this trial lead..."
-                rows={4}
+                placeholder="Observaciones sobre esta clase de prueba..."
+                rows={3}
               />
             </div>
           </CardContent>
