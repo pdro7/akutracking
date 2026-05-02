@@ -62,6 +62,7 @@ export default function TrialLeadDetail() {
   const [trialClassTime, setTrialClassTime] = useState('');
   const [status, setStatus] = useState<TrialLeadStatus>('scheduled');
   const [notes, setNotes] = useState('');
+  const [objection, setObjection] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [virtualCourseId, setVirtualCourseId] = useState('');
   const [showConvertDialog, setShowConvertDialog] = useState(false);
@@ -109,6 +110,7 @@ export default function TrialLeadDetail() {
       setTrialClassTime(lead.trial_class_time?.slice(0, 5) || '');
       setStatus(lead.status);
       setNotes(lead.notes || '');
+      setObjection((lead as any).objection || '');
       setTeacherId(lead.teacher_id || 'none');
       setVirtualCourseId((lead as any).virtual_course_id || 'none');
     }
@@ -130,6 +132,7 @@ export default function TrialLeadDetail() {
           notes: notes || null,
           teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
           virtual_course_id: virtualCourseId && virtualCourseId !== 'none' ? virtualCourseId : null,
+          objection: objection.trim() || null,
         })
         .eq('id', id);
 
@@ -422,6 +425,17 @@ export default function TrialLeadDetail() {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Observaciones sobre esta clase de prueba..."
                 rows={3}
+              />
+            </div>
+
+            {/* Row 6: Objection */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Objeción</label>
+              <Textarea
+                value={objection}
+                onChange={(e) => setObjection(e.target.value)}
+                placeholder="Ej: el horario no le cuadra, precio, distancia..."
+                rows={2}
               />
             </div>
           </CardContent>
