@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, Phone, Mail, User, GraduationCap } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 
-type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show';
+type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show' | 'interested';
 
 interface TrialLead {
   id: string;
@@ -26,11 +26,12 @@ interface TrialLead {
 }
 
 const statusColors: Record<TrialLeadStatus, string> = {
-  scheduled: 'bg-blue-500/10 text-blue-500',
-  attended: 'bg-green-500/10 text-green-500',
-  converted: 'bg-purple-500/10 text-purple-500',
-  cancelled: 'bg-gray-500/10 text-gray-500',
-  no_show: 'bg-orange-500/10 text-orange-500',
+  scheduled:  'bg-blue-500/10 text-blue-500',
+  attended:   'bg-green-500/10 text-green-500',
+  interested: 'bg-teal-500/10 text-teal-600',
+  converted:  'bg-purple-500/10 text-purple-500',
+  cancelled:  'bg-gray-500/10 text-gray-500',
+  no_show:    'bg-orange-500/10 text-orange-500',
 };
 
 export default function TrialLeads() {
@@ -76,7 +77,7 @@ export default function TrialLeads() {
         >
           All
         </Button>
-        {(['scheduled', 'attended', 'converted', 'cancelled', 'no_show'] as TrialLeadStatus[]).map((status) => (
+        {(['scheduled', 'attended', 'interested', 'converted', 'cancelled', 'no_show'] as TrialLeadStatus[]).map((status) => (
           <Button
             key={status}
             variant={statusFilter === status ? 'default' : 'outline'}

@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show';
+type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show' | 'interested';
 
 interface TrialLead {
   id: string;
@@ -40,11 +40,12 @@ interface TrialLead {
 }
 
 const statusColors: Record<TrialLeadStatus, string> = {
-  scheduled: 'bg-blue-500/10 text-blue-500',
-  attended: 'bg-green-500/10 text-green-500',
-  converted: 'bg-purple-500/10 text-purple-500',
-  cancelled: 'bg-gray-500/10 text-gray-500',
-  no_show: 'bg-orange-500/10 text-orange-500',
+  scheduled:  'bg-blue-500/10 text-blue-500',
+  attended:   'bg-green-500/10 text-green-500',
+  interested: 'bg-teal-500/10 text-teal-600',
+  converted:  'bg-purple-500/10 text-purple-500',
+  cancelled:  'bg-gray-500/10 text-gray-500',
+  no_show:    'bg-orange-500/10 text-orange-500',
 };
 
 export default function TrialLeadDetail() {
@@ -62,7 +63,17 @@ export default function TrialLeadDetail() {
   const [status, setStatus] = useState<TrialLeadStatus>('scheduled');
   const [notes, setNotes] = useState('');
   const [teacherId, setTeacherId] = useState('');
+  const [virtualCourseId, setVirtualCourseId] = useState('');
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+
+  const { data: virtualCourses = [] } = useQuery({
+    queryKey: ['virtual_courses'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('virtual_courses').select('id, code, name').eq('is_active', true).order('code');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: teachers = [] } = useQuery({
     queryKey: ['teachers'],
@@ -83,7 +94,7 @@ export default function TrialLeadDetail() {
         .maybeSingle();
       
       if (error) throw error;
-      return data as TrialLead | null;
+      return data as unknown as TrialLead | null;
     },
   });
 
@@ -99,6 +110,7 @@ export default function TrialLeadDetail() {
       setStatus(lead.status);
       setNotes(lead.notes || '');
       setTeacherId(lead.teacher_id || 'none');
+      setVirtualCourseId((lead as any).virtual_course_id || 'none');
     }
   }, [lead]);
 
@@ -114,9 +126,10 @@ export default function TrialLeadDetail() {
           parent_email: parentEmail || null,
           trial_class_date: trialClassDate,
           trial_class_time: trialClassTime || null,
-          status,
+          status: status as any,
           notes: notes || null,
           teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
+          virtual_course_id: virtualCourseId && virtualCourseId !== 'none' ? virtualCourseId : null,
         })
         .eq('id', id);
 
@@ -366,12 +379,29 @@ export default function TrialLeadDetail() {
                   <SelectContent>
                     <SelectItem value="scheduled">Scheduled</SelectItem>
                     <SelectItem value="attended">Attended</SelectItem>
+                    <SelectItem value="interested">Interesado</SelectItem>
                     <SelectItem value="converted">Converted</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                     <SelectItem value="no_show">No Show</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Course */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Curso de inicio</label>
+              <Select value={virtualCourseId} onValueChange={setVirtualCourseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sin curso asignado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin curso asignado</SelectItem>
+                  {(virtualCourses as any[]).map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Teacher */}
