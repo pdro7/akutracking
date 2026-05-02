@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, Phone, Mail, User } from 'lucide-react';
+import { Plus, Calendar, Phone, Mail, User, GraduationCap } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 
 type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show';
@@ -21,6 +21,7 @@ interface TrialLead {
   notes: string | null;
   status: TrialLeadStatus;
   created_at: string;
+  teachers: { name: string } | null;
 }
 
 const statusColors: Record<TrialLeadStatus, string> = {
@@ -40,7 +41,7 @@ export default function TrialLeads() {
     queryFn: async () => {
       let query = supabase
         .from('trial_leads')
-        .select('*')
+        .select('*, teachers(name)')
         .order('trial_class_date', { ascending: false });
 
       if (statusFilter !== 'all') {
@@ -49,7 +50,7 @@ export default function TrialLeads() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return (data || []) as unknown as TrialLead[];
     },
   });
 
@@ -131,6 +132,10 @@ export default function TrialLeads() {
                     <span className="truncate">{lead.parent_email}</span>
                   </div>
                 )}
+                <div className="flex items-center gap-2 text-sm">
+                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  <span>{lead.teachers?.name ?? <span className="text-muted-foreground italic">Por asignar</span>}</span>
+                </div>
                 {lead.notes && (
                   <div className="pt-2 border-t">
                     <p className="text-sm text-muted-foreground line-clamp-2">{lead.notes}</p>
