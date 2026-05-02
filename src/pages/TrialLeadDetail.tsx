@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Calendar, Phone, Mail, User, Save, UserPlus } from 'lucide-react';
+import { ArrowLeft, Calendar, Phone, Mail, User, Save, UserPlus, ExternalLink, Link } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -63,9 +63,23 @@ export default function TrialLeadDetail() {
   const [status, setStatus] = useState<TrialLeadStatus>('scheduled');
   const [notes, setNotes] = useState('');
   const [objection, setObjection] = useState('');
+  const [leadId, setLeadId] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [virtualCourseId, setVirtualCourseId] = useState('');
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+
+  const { data: leads = [] } = useQuery({
+    queryKey: ['leads_for_link'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, child_name, parent_name, phone')
+        .not('status', 'eq', 'lost')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: virtualCourses = [] } = useQuery({
     queryKey: ['virtual_courses'],
@@ -111,6 +125,7 @@ export default function TrialLeadDetail() {
       setStatus(lead.status);
       setNotes(lead.notes || '');
       setObjection((lead as any).objection || '');
+      setLeadId((lead as any).lead_id || 'none');
       setTeacherId(lead.teacher_id || 'none');
       setVirtualCourseId((lead as any).virtual_course_id || 'none');
     }
@@ -133,6 +148,7 @@ export default function TrialLeadDetail() {
           teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
           virtual_course_id: virtualCourseId && virtualCourseId !== 'none' ? virtualCourseId : null,
           objection: objection.trim() || null,
+          lead_id: leadId && leadId !== 'none' ? leadId : null,
         })
         .eq('id', id);
 
@@ -290,6 +306,15 @@ export default function TrialLeadDetail() {
               <User className="h-4 w-4 text-muted-foreground" />
               <span>Created: {format(new Date(lead.created_at), 'PPP')}</span>
             </div>
+            {leadId && leadId !== 'none' && (
+              <div className="flex items-center gap-2">
+                <Link className="h-4 w-4 text-muted-foreground" />
+                <button className="text-sm text-primary hover:underline"
+                  onClick={() => navigate(`/leads/${leadId}`)}>
+                  Ver lead vinculado
+                </button>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -417,7 +442,33 @@ export default function TrialLeadDetail() {
               </div>
             </div>
 
-            {/* Row 5: Notes */}
+            {/* Row 5: Lead link */}
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-1.5 block">Lead vinculado</label>
+                <Select value={leadId} onValueChange={setLeadId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin lead asociado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin lead asociado</SelectItem>
+                    {(leads as any[]).map((l: any) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.child_name} — {l.parent_name} · {l.phone}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {leadId && leadId !== 'none' && (
+                <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0"
+                  onClick={() => navigate(`/leads/${leadId}`)}>
+                  <ExternalLink size={14} /> Ver lead
+                </Button>
+              )}
+            </div>
+
+            {/* Row 6: Notes */}
             <div>
               <label className="text-sm font-medium mb-1.5 block">Notas</label>
               <Textarea

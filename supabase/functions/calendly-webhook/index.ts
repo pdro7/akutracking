@@ -160,6 +160,25 @@ serve(async (req) => {
 
       if (error) throw error
 
+      // Auto-link to a lead if phone matches
+      if (phone) {
+        const normalized = phone.replace(/\D/g, '').slice(-10)
+        const { data: leads } = await supabase
+          .from('leads')
+          .select('id, phone')
+          .not('status', 'eq', 'lost')
+        const matchingLead = (leads ?? []).find((l: any) => {
+          const n = (l.phone ?? '').replace(/\D/g, '').slice(-10)
+          return n === normalized && normalized.length >= 7
+        })
+        if (matchingLead) {
+          await supabase
+            .from('trial_leads')
+            .update({ lead_id: matchingLead.id })
+            .eq('calendly_uri', payload.uri)
+        }
+      }
+
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })

@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, Phone, Mail, User, GraduationCap } from 'lucide-react';
+import { Plus, Calendar, Phone, Mail, User, GraduationCap, Link } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 
 type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show' | 'interested';
@@ -22,6 +22,7 @@ interface TrialLead {
   notes: string | null;
   status: TrialLeadStatus;
   created_at: string;
+  lead_id: string | null;
   teachers: { name: string } | null;
 }
 
@@ -141,6 +142,12 @@ export default function TrialLeads() {
                   <GraduationCap className="h-4 w-4 text-muted-foreground" />
                   <span>{lead.teachers?.name ?? <span className="text-muted-foreground italic">Por asignar</span>}</span>
                 </div>
+                {lead.lead_id && (
+                  <div className="flex items-center gap-2 text-xs text-primary/70">
+                    <Link className="h-3 w-3" />
+                    <span>Lead vinculado</span>
+                  </div>
+                )}
                 {lead.notes && (
                   <div className="pt-2 border-t">
                     <p className="text-sm text-muted-foreground line-clamp-2">{lead.notes}</p>
