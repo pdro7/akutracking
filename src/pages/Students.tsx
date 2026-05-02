@@ -91,7 +91,8 @@ export default function Students() {
     const term = searchTerm.toLowerCase();
     const matchesSearch = !term ||
       s.name.toLowerCase().includes(term) ||
-      s.parent_name.toLowerCase().includes(term);
+      s.parent_name.toLowerCase().includes(term) ||
+      (s.phone ?? '').includes(term);
     return matchesModality && matchesSearch;
   });
 
@@ -141,7 +142,7 @@ export default function Students() {
       <div className="relative w-full max-w-sm mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
         <Input
-          placeholder="Buscar por alumno o padre..."
+          placeholder="Buscar por alumno, padre o teléfono..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-9"
