@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Settings as SettingsIcon, Save, Plus, X, Pencil, Trash2, BookOpen, Layers, Monitor, GraduationCap, CalendarClock } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Plus, X, Pencil, Trash2, BookOpen, Layers, Monitor, GraduationCap, CalendarClock, Zap, CheckCircle2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -249,6 +249,22 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ['course_slots'] });
       toast.success('Franja eliminada');
       setDeleteSlotId(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const activateSlotMutation = useMutation({
+    mutationFn: async (slot: any) => {
+      const { error } = await supabase.from('virtual_courses').insert({
+        code: slot.course_code,
+        name: slot.course_name,
+        is_active: true,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['virtual_courses'] });
+      toast.success('Curso activado y disponible en Cursos Virtuales');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -847,7 +863,22 @@ export default function Settings() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 items-center">
+                        {(virtualCourses as any[]).some((vc: any) => vc.code === slot.course_code) ? (
+                          <span className="flex items-center gap-1 text-xs text-green-700 px-2">
+                            <CheckCircle2 size={13} /> Activo
+                          </span>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                            disabled={activateSlotMutation.isPending}
+                            onClick={() => activateSlotMutation.mutate(slot)}
+                          >
+                            <Zap size={13} /> Activar
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => {
                           setEditingSlot(slot);
                           setSlotCourseCode(slot.course_code);
