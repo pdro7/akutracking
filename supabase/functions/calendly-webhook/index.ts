@@ -111,7 +111,6 @@ serve(async (req) => {
       const qas: Array<{ question: string; answer: string }> =
         payload.questions_and_answers ?? []
 
-      // Map the 6 custom questions
       const phone =
         getAnswer(qas, 'celular') ||
         payload.text_reminder_number ||
@@ -124,13 +123,6 @@ serve(async (req) => {
       const referral =
         getAnswer(qas, 'conociste') || getAnswer(qas, 'conocido')
 
-      // Build notes from optional fields
-      const noteParts: string[] = []
-      if (age) noteParts.push(`Edad: ${age}`)
-      if (city) noteParts.push(`Ciudad: ${city}`)
-      if (experience) noteParts.push(`Exp. previa: ${experience}`)
-      if (referral) noteParts.push(`Referido: ${referral}`)
-
       // Parse trial date+time — convert UTC → Colombia time (UTC-5)
       const startTime: string =
         payload.scheduled_event?.start_time ?? ''
@@ -142,44 +134,77 @@ serve(async (req) => {
         trialTime = cotDate.toISOString().split('T')[1].slice(0, 5)
       }
 
-      const lead = {
-        calendly_uri: payload.uri as string,
-        parent_name: payload.name ?? '',
-        parent_email: payload.email ?? '',
-        parent_phone: phone,
-        child_name: childName || '(por confirmar)',
+      const calendlyUri = payload.uri as string
+      const trialFields = {
         trial_class_date: trialDate,
         trial_class_time: trialTime,
-        notes: noteParts.length > 0 ? noteParts.join(' | ') : null,
-        status: 'scheduled',
+        status: 'trial_scheduled',
+        calendly_uri: calendlyUri,
+        updated_at: new Date().toISOString(),
       }
 
-      const { error } = await supabase
-        .from('trial_leads')
-        .upsert(lead, { onConflict: 'calendly_uri' })
+      // 1. Check if a lead already exists with this calendly_uri (re-schedule)
+      const { data: byUri } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('calendly_uri', calendlyUri)
+        .maybeSingle()
 
-      if (error) throw error
+      if (byUri) {
+        await supabase.from('leads').update(trialFields).eq('id', byUri.id)
+        return new Response(JSON.stringify({ ok: true, matched: 'uri' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
 
-      // Auto-link to a lead if phone matches
+      // 2. Try to find existing lead by phone
+      let existingLeadId: string | null = null
       if (phone) {
         const normalized = phone.replace(/\D/g, '').slice(-10)
-        const { data: leads } = await supabase
-          .from('leads')
-          .select('id, phone')
-          .not('status', 'eq', 'lost')
-        const matchingLead = (leads ?? []).find((l: any) => {
-          const n = (l.phone ?? '').replace(/\D/g, '').slice(-10)
-          return n === normalized && normalized.length >= 7
-        })
-        if (matchingLead) {
-          await supabase
-            .from('trial_leads')
-            .update({ lead_id: matchingLead.id })
-            .eq('calendly_uri', payload.uri)
+        if (normalized.length >= 7) {
+          const { data: allLeads } = await supabase
+            .from('leads')
+            .select('id, phone')
+            .not('status', 'eq', 'lost')
+          const match = (allLeads ?? []).find((l: any) => {
+            const n = (l.phone ?? '').replace(/\D/g, '').slice(-10)
+            return n === normalized
+          })
+          if (match) existingLeadId = match.id
         }
       }
 
-      return new Response(JSON.stringify({ ok: true }), {
+      if (existingLeadId) {
+        // Update existing lead with trial info
+        await supabase.from('leads').update(trialFields).eq('id', existingLeadId)
+        return new Response(JSON.stringify({ ok: true, matched: 'phone' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // 3. No match — create a new lead
+      const noteParts: string[] = []
+      if (age) noteParts.push(`Edad: ${age}`)
+      if (city) noteParts.push(`Ciudad: ${city}`)
+      if (experience) noteParts.push(`Exp. previa: ${experience}`)
+      if (referral) noteParts.push(`Referido: ${referral}`)
+
+      const { error } = await supabase.from('leads').insert({
+        calendly_uri: calendlyUri,
+        parent_name: payload.name ?? '',
+        email: payload.email ?? null,
+        phone: phone || null,
+        child_name: childName || '(por confirmar)',
+        source: 'calendly',
+        status: 'trial_scheduled',
+        trial_class_date: trialDate,
+        trial_class_time: trialTime,
+        notes: noteParts.length > 0 ? noteParts.join(' | ') : null,
+      } as any)
+
+      if (error) throw error
+
+      return new Response(JSON.stringify({ ok: true, matched: 'none' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -187,8 +212,8 @@ serve(async (req) => {
     // ── invitee.canceled ──────────────────────────────────────────────────────
     if (eventType === 'invitee.canceled') {
       const { error } = await supabase
-        .from('trial_leads')
-        .update({ status: 'cancelled' })
+        .from('leads')
+        .update({ status: 'trial_cancelled', updated_at: new Date().toISOString() })
         .eq('calendly_uri', payload.uri)
 
       if (error) throw error
