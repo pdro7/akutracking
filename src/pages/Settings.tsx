@@ -19,6 +19,17 @@ function generateGroupCode(courseCode: string, startDate: Date): string {
   const day = String(startDate.getDate()).padStart(2, '0');
   return `${courseCode}-${month}${year}-${day}`;
 }
+// Returns the unique code for a slot, appending -A/-B/… when multiple slots
+// share the same course_code + tentative_start_date (sorted by start_time).
+function slotCode(slot: any, allSlots: any[]): string {
+  const base = generateGroupCode(slot.course_code, new Date(slot.tentative_start_date + 'T12:00:00'));
+  const siblings = allSlots
+    .filter((s: any) => s.course_code === slot.course_code && s.tentative_start_date === slot.tentative_start_date)
+    .sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
+  if (siblings.length <= 1) return base;
+  const idx = siblings.findIndex((s: any) => s.id === slot.id);
+  return `${base}-${String.fromCharCode(65 + idx)}`; // -A, -B, -C…
+}
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -275,15 +286,14 @@ export default function Settings() {
       const vc = (virtualCourses as any[]).find((v: any) => v.code === slot.course_code);
       if (!vc) throw new Error(`No existe un curso virtual con código ${slot.course_code}`);
 
-      const startDate = new Date(slot.tentative_start_date + 'T12:00:00');
-      const baseCode = generateGroupCode(slot.course_code, startDate);
+      const code = slotCode(slot, courseSlots as any[]);
 
       const { data: existing } = await supabase
         .from('course_groups')
         .select('code')
-        .eq('code', baseCode)
+        .eq('code', code)
         .maybeSingle();
-      const code = existing ? `${baseCode}-B` : baseCode;
+      if (existing) throw new Error(`El grupo ${code} ya existe`);
 
       const { error } = await supabase.from('course_groups').insert({
         code,
@@ -902,8 +912,8 @@ export default function Settings() {
                               <span className="text-xs text-muted-foreground px-2">Sin fecha</span>
                             );
                           }
-                          const groupCode = generateGroupCode(slot.course_code, new Date(slot.tentative_start_date + 'T12:00:00'));
-                          const alreadyCreated = (courseGroups as any[]).some((g: any) => g.code === groupCode || g.code === `${groupCode}-B`);
+                          const groupCode = slotCode(slot, courseSlots as any[]);
+                          const alreadyCreated = (courseGroups as any[]).some((g: any) => g.code === groupCode);
                           return alreadyCreated ? (
                             <span className="flex items-center gap-1 text-xs text-green-700 px-2 font-mono">
                               <CheckCircle2 size={13} /> {groupCode}
