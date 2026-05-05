@@ -11,6 +11,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+function generateGroupCode(courseCode: string, startDate: Date): string {
+  const month = MONTHS[startDate.getMonth()];
+  const year = String(startDate.getFullYear()).slice(2);
+  const day = String(startDate.getDate()).padStart(2, '0');
+  return `${courseCode}-${month}${year}-${day}`;
+}
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -147,6 +155,15 @@ export default function Settings() {
     },
   });
 
+  const { data: courseGroups = [] } = useQuery({
+    queryKey: ['course_groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('course_groups').select('code, virtual_course_id, start_date');
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const { data: userRole } = useQuery({
     queryKey: ['userRole'],
     queryFn: async () => {
@@ -255,16 +272,31 @@ export default function Settings() {
 
   const activateSlotMutation = useMutation({
     mutationFn: async (slot: any) => {
-      const { error } = await supabase.from('virtual_courses').insert({
-        code: slot.course_code,
-        name: slot.course_name,
-        is_active: true,
+      const vc = (virtualCourses as any[]).find((v: any) => v.code === slot.course_code);
+      if (!vc) throw new Error(`No existe un curso virtual con código ${slot.course_code}`);
+
+      const startDate = new Date(slot.tentative_start_date + 'T12:00:00');
+      const baseCode = generateGroupCode(slot.course_code, startDate);
+
+      const { data: existing } = await supabase
+        .from('course_groups')
+        .select('code')
+        .eq('code', baseCode)
+        .maybeSingle();
+      const code = existing ? `${baseCode}-B` : baseCode;
+
+      const { error } = await supabase.from('course_groups').insert({
+        code,
+        virtual_course_id: vc.id,
+        start_date: slot.tentative_start_date,
+        status: 'forming',
       });
       if (error) throw error;
+      return code;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['virtual_courses'] });
-      toast.success('Curso activado y disponible en Cursos Virtuales');
+    onSuccess: (code) => {
+      queryClient.invalidateQueries({ queryKey: ['course_groups'] });
+      toast.success(`Grupo ${code} creado en Grupos Virtuales`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -864,21 +896,30 @@ export default function Settings() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1 items-center">
-                        {(virtualCourses as any[]).some((vc: any) => vc.code === slot.course_code) ? (
-                          <span className="flex items-center gap-1 text-xs text-green-700 px-2">
-                            <CheckCircle2 size={13} /> Activo
-                          </span>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
-                            disabled={activateSlotMutation.isPending}
-                            onClick={() => activateSlotMutation.mutate(slot)}
-                          >
-                            <Zap size={13} /> Activar
-                          </Button>
-                        )}
+                        {(() => {
+                          if (!slot.tentative_start_date) {
+                            return (
+                              <span className="text-xs text-muted-foreground px-2">Sin fecha</span>
+                            );
+                          }
+                          const groupCode = generateGroupCode(slot.course_code, new Date(slot.tentative_start_date + 'T12:00:00'));
+                          const alreadyCreated = (courseGroups as any[]).some((g: any) => g.code === groupCode || g.code === `${groupCode}-B`);
+                          return alreadyCreated ? (
+                            <span className="flex items-center gap-1 text-xs text-green-700 px-2 font-mono">
+                              <CheckCircle2 size={13} /> {groupCode}
+                            </span>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                              disabled={activateSlotMutation.isPending}
+                              onClick={() => activateSlotMutation.mutate(slot)}
+                            >
+                              <Zap size={13} /> Activar
+                            </Button>
+                          );
+                        })()}
                         <Button variant="ghost" size="sm" onClick={() => {
                           setEditingSlot(slot);
                           setSlotCourseCode(slot.course_code);
