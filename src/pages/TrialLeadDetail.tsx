@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Calendar, Phone, Mail, User, Save, UserPlus, ExternalLink, Link } from 'lucide-react';
+import { ArrowLeft, Calendar, Save, UserPlus } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -22,37 +22,48 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type TrialLeadStatus = 'scheduled' | 'attended' | 'converted' | 'cancelled' | 'no_show' | 'interested';
+type TrialLeadStatus = 'trial_scheduled' | 'trial_attended' | 'enrolled' | 'trial_cancelled' | 'trial_no_show' | 'interested';
 
 interface TrialLead {
   id: string;
   child_name: string;
   date_of_birth: string | null;
   parent_name: string;
-  parent_phone: string;
-  parent_email: string | null;
+  phone: string | null;
+  email: string | null;
   trial_class_date: string;
   trial_class_time: string | null;
   notes: string | null;
+  trial_objection: string | null;
+  trial_teacher_id: string | null;
+  trial_course_id: string | null;
   status: TrialLeadStatus;
-  teacher_id: string | null;
   created_at: string;
 }
 
 const statusColors: Record<TrialLeadStatus, string> = {
-  scheduled:  'bg-blue-500/10 text-blue-500',
-  attended:   'bg-green-500/10 text-green-500',
-  interested: 'bg-teal-500/10 text-teal-600',
-  converted:  'bg-purple-500/10 text-purple-500',
-  cancelled:  'bg-gray-500/10 text-gray-500',
-  no_show:    'bg-orange-500/10 text-orange-500',
+  trial_scheduled: 'bg-blue-500/10 text-blue-500',
+  trial_attended:  'bg-green-500/10 text-green-500',
+  interested:      'bg-teal-500/10 text-teal-600',
+  enrolled:        'bg-purple-500/10 text-purple-500',
+  trial_cancelled: 'bg-gray-500/10 text-gray-500',
+  trial_no_show:   'bg-orange-500/10 text-orange-500',
+};
+
+const statusLabels: Record<TrialLeadStatus, string> = {
+  trial_scheduled: 'Agendado',
+  trial_attended:  'Asistió',
+  interested:      'Interesado',
+  enrolled:        'Inscrito',
+  trial_cancelled: 'Cancelado',
+  trial_no_show:   'No asistió',
 };
 
 export default function TrialLeadDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
+
   const [childName, setChildName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [parentName, setParentName] = useState('');
@@ -60,26 +71,12 @@ export default function TrialLeadDetail() {
   const [parentEmail, setParentEmail] = useState('');
   const [trialClassDate, setTrialClassDate] = useState('');
   const [trialClassTime, setTrialClassTime] = useState('');
-  const [status, setStatus] = useState<TrialLeadStatus>('scheduled');
+  const [status, setStatus] = useState<TrialLeadStatus>('trial_scheduled');
   const [notes, setNotes] = useState('');
   const [objection, setObjection] = useState('');
-  const [leadId, setLeadId] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [virtualCourseId, setVirtualCourseId] = useState('');
   const [showConvertDialog, setShowConvertDialog] = useState(false);
-
-  const { data: leads = [] } = useQuery({
-    queryKey: ['leads_for_link'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('id, child_name, parent_name, phone')
-        .not('status', 'eq', 'lost')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-  });
 
   const { data: virtualCourses = [] } = useQuery({
     queryKey: ['virtual_courses'],
@@ -103,11 +100,10 @@ export default function TrialLeadDetail() {
     queryKey: ['trial-lead', id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('trial_leads')
+        .from('leads')
         .select('*')
         .eq('id', id)
         .maybeSingle();
-      
       if (error) throw error;
       return data as unknown as TrialLead | null;
     },
@@ -118,37 +114,36 @@ export default function TrialLeadDetail() {
       setChildName(lead.child_name);
       setDateOfBirth(lead.date_of_birth || '');
       setParentName(lead.parent_name);
-      setParentPhone(lead.parent_phone);
-      setParentEmail(lead.parent_email || '');
+      setParentPhone(lead.phone || '');
+      setParentEmail(lead.email || '');
       setTrialClassDate(lead.trial_class_date);
       setTrialClassTime(lead.trial_class_time?.slice(0, 5) || '');
       setStatus(lead.status);
       setNotes(lead.notes || '');
-      setObjection((lead as any).objection || '');
-      setLeadId((lead as any).lead_id || 'none');
-      setTeacherId(lead.teacher_id || 'none');
-      setVirtualCourseId((lead as any).virtual_course_id || 'none');
+      setObjection(lead.trial_objection || '');
+      setTeacherId(lead.trial_teacher_id || 'none');
+      setVirtualCourseId(lead.trial_course_id || 'none');
     }
   }, [lead]);
 
   const updateLeadMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from('trial_leads')
+        .from('leads')
         .update({
           child_name: childName,
           date_of_birth: dateOfBirth || null,
           parent_name: parentName,
-          parent_phone: parentPhone,
-          parent_email: parentEmail || null,
+          phone: parentPhone || null,
+          email: parentEmail || null,
           trial_class_date: trialClassDate,
           trial_class_time: trialClassTime || null,
           status: status as any,
           notes: notes || null,
-          teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
-          virtual_course_id: virtualCourseId && virtualCourseId !== 'none' ? virtualCourseId : null,
-          objection: objection.trim() || null,
-          lead_id: leadId && leadId !== 'none' ? leadId : null,
+          trial_teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
+          trial_course_id: virtualCourseId && virtualCourseId !== 'none' ? virtualCourseId : null,
+          trial_objection: objection.trim() || null,
+          updated_at: new Date().toISOString(),
         })
         .eq('id', id);
 
@@ -157,27 +152,21 @@ export default function TrialLeadDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trial-lead', id] });
       queryClient.invalidateQueries({ queryKey: ['trial-leads'] });
-      toast.success('Trial lead updated successfully!');
+      toast.success('Actualizado correctamente');
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const convertToStudentMutation = useMutation({
     mutationFn: async () => {
-      // Get default pack size from settings
       const { data: settings } = await supabase
         .from('settings')
         .select('default_pack_size')
         .maybeSingle();
-      
-      const defaultPackSize = settings?.default_pack_size || 8;
 
-      // Check if email exists, if not use a placeholder
+      const defaultPackSize = settings?.default_pack_size || 8;
       const studentEmail = parentEmail || `${parentPhone}@trial-converted.local`;
 
-      // Create the student
       const { data: newStudent, error: studentError } = await supabase
         .from('students')
         .insert({
@@ -196,10 +185,9 @@ export default function TrialLeadDetail() {
 
       if (studentError) throw studentError;
 
-      // Update trial lead status to converted
       const { error: updateError } = await supabase
-        .from('trial_leads')
-        .update({ status: 'converted' })
+        .from('leads')
+        .update({ status: 'enrolled', updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (updateError) throw updateError;
@@ -210,34 +198,24 @@ export default function TrialLeadDetail() {
       queryClient.invalidateQueries({ queryKey: ['trial-lead', id] });
       queryClient.invalidateQueries({ queryKey: ['trial-leads'] });
       queryClient.invalidateQueries({ queryKey: ['students'] });
-      toast.success('Trial lead converted to student successfully!');
+      toast.success('Lead convertido a alumno correctamente');
       navigate(`/student/${newStudent.id}`);
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const handleSave = () => {
-    if (!childName || !parentName || !parentPhone || !trialClassDate) {
-      toast.error('Please fill in all required fields');
+    if (!childName || !parentName || !trialClassDate) {
+      toast.error('Completa los campos requeridos');
       return;
     }
     updateLeadMutation.mutate();
   };
 
-  const handleConvertToStudent = () => {
-    if (!childName || !parentName || !parentPhone) {
-      toast.error('Please fill in required fields before converting');
-      return;
-    }
-    convertToStudentMutation.mutate();
-  };
-
   if (isLoading) {
     return (
       <div className="container mx-auto p-6">
-        <p className="text-muted-foreground">Loading trial lead...</p>
+        <p className="text-muted-foreground">Cargando...</p>
       </div>
     );
   }
@@ -246,8 +224,8 @@ export default function TrialLeadDetail() {
     return (
       <div className="container mx-auto p-6">
         <Card className="p-12 text-center">
-          <h2 className="text-2xl font-bold mb-4">Trial lead not found</h2>
-          <Button onClick={() => navigate('/trial-leads')}>Back to Trial Leads</Button>
+          <h2 className="text-2xl font-bold mb-4">Lead no encontrado</h2>
+          <Button onClick={() => navigate('/trial-leads')}>Volver</Button>
         </Card>
       </div>
     );
@@ -260,21 +238,21 @@ export default function TrialLeadDetail() {
       <div className="flex items-center justify-between mb-6">
         <Button variant="ghost" onClick={() => navigate('/trial-leads')} className="gap-2">
           <ArrowLeft size={20} />
-          Back to Trial Leads
+          Clases de prueba
         </Button>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => setShowConvertDialog(true)}
-            disabled={status === 'converted' || convertToStudentMutation.isPending}
+            disabled={status === 'enrolled' || convertToStudentMutation.isPending}
             className="gap-2"
           >
             <UserPlus size={20} />
-            Convert to Student
+            Convertir a alumno
           </Button>
           <Button onClick={handleSave} disabled={updateLeadMutation.isPending} className="gap-2">
             <Save size={20} />
-            {updateLeadMutation.isPending ? 'Saving...' : 'Save Changes'}
+            {updateLeadMutation.isPending ? 'Guardando...' : 'Guardar'}
           </Button>
         </div>
       </div>
@@ -285,62 +263,38 @@ export default function TrialLeadDetail() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold mb-2">{lead.child_name}</h1>
-              {age !== null && (
-                <p className="text-muted-foreground">{age} years old</p>
-              )}
+              {age !== null && <p className="text-muted-foreground">{age} años</p>}
             </div>
-            <Badge className={statusColors[status]} variant="secondary">
-              {status === 'no_show' ? 'No Show' : status}
+            <Badge className={statusColors[status] ?? ''} variant="secondary">
+              {statusLabels[status] ?? status}
             </Badge>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span>
-                Trial Date: {format(new Date(lead.trial_class_date + 'T12:00:00'), 'PPP')}
+                {format(new Date(lead.trial_class_date + 'T12:00:00'), 'PPP')}
                 {lead.trial_class_time && ` · ${lead.trial_class_time.slice(0, 5)}`}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span>Created: {format(new Date(lead.created_at), 'PPP')}</span>
-            </div>
-            {leadId && leadId !== 'none' && (
-              <div className="flex items-center gap-2">
-                <Link className="h-4 w-4 text-muted-foreground" />
-                <button className="text-sm text-primary hover:underline"
-                  onClick={() => navigate(`/leads/${leadId}`)}>
-                  Ver lead vinculado
-                </button>
-              </div>
-            )}
           </div>
         </Card>
 
         {/* Edit Form */}
         <Card className="p-6">
           <CardHeader className="px-0 pt-0">
-            <CardTitle>Trial Lead Information</CardTitle>
+            <CardTitle>Información</CardTitle>
           </CardHeader>
           <CardContent className="px-0 space-y-4">
             {/* Row 1: Child name + DOB */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
                 <label className="text-sm font-medium mb-1.5 block">Nombre del niño/a *</label>
-                <Input
-                  value={childName}
-                  onChange={(e) => setChildName(e.target.value)}
-                  placeholder="Nombre del niño/a"
-                />
+                <Input value={childName} onChange={(e) => setChildName(e.target.value)} placeholder="Nombre del niño/a" />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Fecha de nacimiento</label>
-                <Input
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                />
+                <Input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
               </div>
             </div>
 
@@ -348,29 +302,15 @@ export default function TrialLeadDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Padre/madre *</label>
-                <Input
-                  value={parentName}
-                  onChange={(e) => setParentName(e.target.value)}
-                  placeholder="Nombre del padre/madre"
-                />
+                <Input value={parentName} onChange={(e) => setParentName(e.target.value)} placeholder="Nombre del padre/madre" />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Celular *</label>
-                <Input
-                  type="tel"
-                  value={parentPhone}
-                  onChange={(e) => setParentPhone(e.target.value)}
-                  placeholder="Número de celular"
-                />
+                <label className="text-sm font-medium mb-1.5 block">Celular</label>
+                <Input type="tel" value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} placeholder="Número de celular" />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Email</label>
-                <Input
-                  type="email"
-                  value={parentEmail}
-                  onChange={(e) => setParentEmail(e.target.value)}
-                  placeholder="Email del padre/madre"
-                />
+                <Input type="email" value={parentEmail} onChange={(e) => setParentEmail(e.target.value)} placeholder="Email" />
               </div>
             </div>
 
@@ -378,33 +318,23 @@ export default function TrialLeadDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Fecha de la clase *</label>
-                <Input
-                  type="date"
-                  value={trialClassDate}
-                  onChange={(e) => setTrialClassDate(e.target.value)}
-                />
+                <Input type="date" value={trialClassDate} onChange={(e) => setTrialClassDate(e.target.value)} />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Hora</label>
-                <Input
-                  type="time"
-                  value={trialClassTime}
-                  onChange={(e) => setTrialClassTime(e.target.value)}
-                />
+                <Input type="time" value={trialClassTime} onChange={(e) => setTrialClassTime(e.target.value)} />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Estado *</label>
-                <Select value={status} onValueChange={(value) => setStatus(value as TrialLeadStatus)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={status} onValueChange={(v) => setStatus(v as TrialLeadStatus)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="scheduled">Agendado</SelectItem>
-                    <SelectItem value="attended">Asistió</SelectItem>
+                    <SelectItem value="trial_scheduled">Agendado</SelectItem>
+                    <SelectItem value="trial_attended">Asistió</SelectItem>
                     <SelectItem value="interested">Interesado</SelectItem>
-                    <SelectItem value="converted">Convertido</SelectItem>
-                    <SelectItem value="cancelled">Cancelado</SelectItem>
-                    <SelectItem value="no_show">No asistió</SelectItem>
+                    <SelectItem value="enrolled">Inscrito</SelectItem>
+                    <SelectItem value="trial_cancelled">Cancelado</SelectItem>
+                    <SelectItem value="trial_no_show">No asistió</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -415,9 +345,7 @@ export default function TrialLeadDetail() {
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Curso de inicio</label>
                 <Select value={virtualCourseId} onValueChange={setVirtualCourseId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sin curso asignado" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Sin curso asignado" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Sin curso asignado</SelectItem>
                     {(virtualCourses as any[]).map((c: any) => (
@@ -429,9 +357,7 @@ export default function TrialLeadDetail() {
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Profesor</label>
                 <Select value={teacherId} onValueChange={setTeacherId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sin profesor asignado" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Sin profesor asignado" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Sin profesor asignado</SelectItem>
                     {(teachers as any[]).map((t: any) => (
@@ -442,33 +368,7 @@ export default function TrialLeadDetail() {
               </div>
             </div>
 
-            {/* Row 5: Lead link */}
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-1.5 block">Lead vinculado</label>
-                <Select value={leadId} onValueChange={setLeadId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sin lead asociado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin lead asociado</SelectItem>
-                    {(leads as any[]).map((l: any) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.child_name} — {l.parent_name} · {l.phone}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {leadId && leadId !== 'none' && (
-                <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0"
-                  onClick={() => navigate(`/leads/${leadId}`)}>
-                  <ExternalLink size={14} /> Ver lead
-                </Button>
-              )}
-            </div>
-
-            {/* Row 6: Notes */}
+            {/* Notes */}
             <div>
               <label className="text-sm font-medium mb-1.5 block">Notas</label>
               <Textarea
@@ -479,7 +379,7 @@ export default function TrialLeadDetail() {
               />
             </div>
 
-            {/* Row 6: Objection */}
+            {/* Objection */}
             <div>
               <label className="text-sm font-medium mb-1.5 block">Objeción</label>
               <Textarea
@@ -493,19 +393,18 @@ export default function TrialLeadDetail() {
         </Card>
       </div>
 
-      {/* Convert Confirmation Dialog */}
       <AlertDialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Convert to Student?</AlertDialogTitle>
+            <AlertDialogTitle>¿Convertir a alumno?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will create a new student record with the trial lead information and mark this lead as converted. This action cannot be undone.
+              Se creará un nuevo alumno con la información de este lead y el estado se marcará como inscrito.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConvertToStudent}>
-              {convertToStudentMutation.isPending ? 'Converting...' : 'Convert to Student'}
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => convertToStudentMutation.mutate()}>
+              {convertToStudentMutation.isPending ? 'Convirtiendo...' : 'Convertir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -14,14 +14,14 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 
 const trialLeadSchema = z.object({
-  childName: z.string().min(1, 'Child name is required').max(100, 'Child name must be less than 100 characters'),
+  childName: z.string().min(1, 'Nombre requerido').max(100),
   dateOfBirth: z.string().optional(),
-  parentName: z.string().min(1, 'Parent name is required').max(100, 'Parent name must be less than 100 characters'),
-  parentPhone: z.string().min(1, 'Phone is required').max(20, 'Phone must be less than 20 characters'),
-  parentEmail: z.string().email('Invalid email').max(255, 'Email must be less than 255 characters').optional().or(z.literal('')),
-  trialClassDate: z.string().min(1, 'Trial class date is required'),
-  status: z.enum(['scheduled', 'attended', 'converted', 'cancelled', 'no_show']),
-  notes: z.string().max(500, 'Notes must be less than 500 characters').optional(),
+  parentName: z.string().min(1, 'Nombre requerido').max(100),
+  parentPhone: z.string().max(20).optional().or(z.literal('')),
+  parentEmail: z.string().email('Email inválido').max(255).optional().or(z.literal('')),
+  trialClassDate: z.string().min(1, 'Fecha requerida'),
+  status: z.enum(['trial_scheduled', 'trial_attended', 'enrolled', 'trial_cancelled', 'trial_no_show', 'interested']),
+  notes: z.string().max(500).optional(),
 });
 
 type TrialLeadFormValues = z.infer<typeof trialLeadSchema>;
@@ -40,7 +40,7 @@ export default function NewTrialLead() {
       parentPhone: '',
       parentEmail: '',
       trialClassDate: '',
-      status: 'scheduled',
+      status: 'trial_scheduled',
       notes: '',
     },
   });
@@ -50,59 +50,49 @@ export default function NewTrialLead() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase.from('trial_leads').insert({
+      const { data, error } = await supabase.from('leads').insert({
         child_name: values.childName,
         date_of_birth: values.dateOfBirth || null,
         parent_name: values.parentName,
-        parent_phone: values.parentPhone,
-        parent_email: values.parentEmail || null,
+        phone: values.parentPhone || null,
+        email: values.parentEmail || null,
         trial_class_date: values.trialClassDate,
-        status: values.status,
+        status: values.status as any,
         notes: values.notes || null,
+        source: 'other' as any,
         created_by: user.id,
       }).select().single();
 
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['trial-leads'] });
-      toast({
-        title: 'Success',
-        description: 'Trial lead added successfully',
-      });
-      navigate('/trial-leads');
+      toast({ title: 'Clase de prueba agregada' });
+      navigate(`/trial-leads/${data.id}`);
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message,
-      });
+      toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
     },
   });
-
-  const onSubmit = (values: TrialLeadFormValues) => {
-    addTrialLeadMutation.mutate(values);
-  };
 
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
         <Button variant="ghost" onClick={() => navigate('/trial-leads')} className="gap-2 mb-4">
           <ArrowLeft size={18} />
-          Back to Trial Leads
+          Clases de prueba
         </Button>
-        <h1 className="text-3xl font-bold">Add New Trial Lead</h1>
-        <p className="text-muted-foreground">Record a new trial class appointment</p>
+        <h1 className="text-3xl font-bold">Nueva clase de prueba</h1>
+        <p className="text-muted-foreground">Registrar una nueva clase de prueba manualmente</p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit((v) => addTrialLeadMutation.mutate(v))} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Child Information</CardTitle>
-              <CardDescription>Basic details about the child</CardDescription>
+              <CardTitle>Niño/a</CardTitle>
+              <CardDescription>Datos del estudiante</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -110,10 +100,8 @@ export default function NewTrialLead() {
                 name="childName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Child Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter child's name" {...field} />
-                    </FormControl>
+                    <FormLabel>Nombre *</FormLabel>
+                    <FormControl><Input placeholder="Nombre del niño/a" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -123,10 +111,8 @@ export default function NewTrialLead() {
                 name="dateOfBirth"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date of Birth</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <FormLabel>Fecha de nacimiento</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -136,8 +122,8 @@ export default function NewTrialLead() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Parent Information</CardTitle>
-              <CardDescription>Contact details for the parent</CardDescription>
+              <CardTitle>Padre / Madre</CardTitle>
+              <CardDescription>Información de contacto</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -145,10 +131,8 @@ export default function NewTrialLead() {
                 name="parentName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Parent Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter parent's name" {...field} />
-                    </FormControl>
+                    <FormLabel>Nombre *</FormLabel>
+                    <FormControl><Input placeholder="Nombre del padre/madre" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -158,10 +142,8 @@ export default function NewTrialLead() {
                 name="parentPhone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter phone number" {...field} />
-                    </FormControl>
+                    <FormLabel>Celular</FormLabel>
+                    <FormControl><Input placeholder="Número de celular" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -172,9 +154,7 @@ export default function NewTrialLead() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="Enter email address" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="email" placeholder="Email" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -184,8 +164,7 @@ export default function NewTrialLead() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Trial Class Details</CardTitle>
-              <CardDescription>Information about the trial class</CardDescription>
+              <CardTitle>Clase de prueba</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -193,10 +172,8 @@ export default function NewTrialLead() {
                 name="trialClassDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Trial Class Date *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <FormLabel>Fecha *</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -206,19 +183,18 @@ export default function NewTrialLead() {
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status *</FormLabel>
+                    <FormLabel>Estado *</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="scheduled">Scheduled</SelectItem>
-                        <SelectItem value="attended">Attended</SelectItem>
-                        <SelectItem value="converted">Converted</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                        <SelectItem value="no_show">No Show</SelectItem>
+                        <SelectItem value="trial_scheduled">Agendado</SelectItem>
+                        <SelectItem value="trial_attended">Asistió</SelectItem>
+                        <SelectItem value="interested">Interesado</SelectItem>
+                        <SelectItem value="enrolled">Inscrito</SelectItem>
+                        <SelectItem value="trial_cancelled">Cancelado</SelectItem>
+                        <SelectItem value="trial_no_show">No asistió</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -230,10 +206,8 @@ export default function NewTrialLead() {
                 name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Any additional notes..." {...field} />
-                    </FormControl>
+                    <FormLabel>Notas</FormLabel>
+                    <FormControl><Textarea placeholder="Observaciones..." {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -243,10 +217,10 @@ export default function NewTrialLead() {
 
           <div className="flex gap-4 justify-end">
             <Button type="button" variant="outline" onClick={() => navigate('/trial-leads')}>
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit" disabled={addTrialLeadMutation.isPending}>
-              {addTrialLeadMutation.isPending ? 'Adding...' : 'Add Trial Lead'}
+              {addTrialLeadMutation.isPending ? 'Guardando...' : 'Agregar'}
             </Button>
           </div>
         </form>
