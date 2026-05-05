@@ -320,6 +320,167 @@ export type Database = {
           },
         ]
       }
+      course_slots: {
+        Row: {
+          course_code: string
+          course_name: string
+          created_at: string | null
+          day_of_week: string
+          end_time: string
+          id: string
+          is_active: boolean | null
+          start_time: string
+          status: string | null
+          tentative_start_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          course_code: string
+          course_name: string
+          created_at?: string | null
+          day_of_week: string
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          start_time: string
+          status?: string | null
+          tentative_start_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          course_code?: string
+          course_name?: string
+          created_at?: string | null
+          day_of_week?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          start_time?: string
+          status?: string | null
+          tentative_start_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      lead_notes: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          age: string | null
+          calendly_uri: string | null
+          child_name: string
+          city: string | null
+          course_interest: string | null
+          created_at: string
+          created_by: string | null
+          date_of_birth: string | null
+          email: string | null
+          id: string
+          notes: string | null
+          parent_name: string
+          phone: string
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+          trial_class_date: string | null
+          trial_class_time: string | null
+          trial_course_id: string | null
+          trial_objection: string | null
+          trial_teacher_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          age?: string | null
+          calendly_uri?: string | null
+          child_name: string
+          city?: string | null
+          course_interest?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          id?: string
+          notes?: string | null
+          parent_name: string
+          phone: string
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          trial_class_date?: string | null
+          trial_class_time?: string | null
+          trial_course_id?: string | null
+          trial_objection?: string | null
+          trial_teacher_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          age?: string | null
+          calendly_uri?: string | null
+          child_name?: string
+          city?: string | null
+          course_interest?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          id?: string
+          notes?: string | null
+          parent_name?: string
+          phone?: string
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          trial_class_date?: string | null
+          trial_class_time?: string | null
+          trial_course_id?: string | null
+          trial_objection?: string | null
+          trial_teacher_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_trial_course_id_fkey"
+            columns: ["trial_course_id"]
+            isOneToOne: false
+            referencedRelation: "virtual_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_trial_teacher_id_fkey"
+            columns: ["trial_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modules: {
         Row: {
           created_at: string
@@ -577,129 +738,6 @@ export type Database = {
         }
         Relationships: []
       }
-      lead_notes: {
-        Row: {
-          content: string
-          created_at: string
-          created_by: string | null
-          id: string
-          lead_id: string
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          lead_id: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          lead_id?: string
-        }
-        Relationships: []
-      }
-      leads: {
-        Row: {
-          calendly_uri: string | null
-          child_name: string
-          course_interest: string | null
-          created_at: string
-          created_by: string | null
-          date_of_birth: string | null
-          email: string | null
-          id: string
-          parent_name: string
-          phone: string
-          source: Database["public"]["Enums"]["lead_source"]
-          status: Database["public"]["Enums"]["lead_status"]
-          trial_class_date: string | null
-          updated_at: string
-        }
-        Insert: {
-          calendly_uri?: string | null
-          child_name: string
-          course_interest?: string | null
-          created_at?: string
-          created_by?: string | null
-          date_of_birth?: string | null
-          email?: string | null
-          id?: string
-          parent_name: string
-          phone: string
-          source?: Database["public"]["Enums"]["lead_source"]
-          status?: Database["public"]["Enums"]["lead_status"]
-          trial_class_date?: string | null
-          updated_at?: string
-        }
-        Update: {
-          calendly_uri?: string | null
-          child_name?: string
-          course_interest?: string | null
-          created_at?: string
-          created_by?: string | null
-          date_of_birth?: string | null
-          email?: string | null
-          id?: string
-          parent_name?: string
-          phone?: string
-          source?: Database["public"]["Enums"]["lead_source"]
-          status?: Database["public"]["Enums"]["lead_status"]
-          trial_class_date?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      trial_leads: {
-        Row: {
-          calendly_uri: string | null
-          child_name: string
-          created_at: string
-          created_by: string | null
-          date_of_birth: string | null
-          id: string
-          notes: string | null
-          parent_email: string | null
-          parent_name: string
-          parent_phone: string
-          status: Database["public"]["Enums"]["trial_lead_status"]
-          trial_class_date: string
-          updated_at: string
-        }
-        Insert: {
-          calendly_uri?: string | null
-          child_name: string
-          created_at?: string
-          created_by?: string | null
-          date_of_birth?: string | null
-          id?: string
-          notes?: string | null
-          parent_email?: string | null
-          parent_name: string
-          parent_phone: string
-          status?: Database["public"]["Enums"]["trial_lead_status"]
-          trial_class_date: string
-          updated_at?: string
-        }
-        Update: {
-          calendly_uri?: string | null
-          child_name?: string
-          created_at?: string
-          created_by?: string | null
-          date_of_birth?: string | null
-          id?: string
-          notes?: string | null
-          parent_email?: string | null
-          parent_name?: string
-          parent_phone?: string
-          status?: Database["public"]["Enums"]["trial_lead_status"]
-          trial_class_date?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           id: string
@@ -759,6 +797,57 @@ export type Database = {
           },
         ]
       }
+      whatsapp_conversations: {
+        Row: {
+          created_at: string | null
+          escalated: boolean | null
+          id: string
+          lead_id: string | null
+          messages: Json
+          phone: string
+          status: string
+          student_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          escalated?: boolean | null
+          id?: string
+          lead_id?: string | null
+          messages?: Json
+          phone: string
+          status?: string
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          escalated?: boolean | null
+          id?: string
+          lead_id?: string | null
+          messages?: Json
+          phone?: string
+          status?: string
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -774,14 +863,24 @@ export type Database = {
     }
     Enums: {
       app_role: "staff" | "admin" | "teacher"
-      lead_source: "whatsapp" | "google_organic" | "web" | "calendly" | "referral" | "other"
-      lead_status: "new" | "contacted" | "trial_scheduled" | "trial_attended" | "trial_no_show" | "enrolled" | "lost"
-      trial_lead_status:
-        | "scheduled"
-        | "attended"
-        | "converted"
-        | "cancelled"
-        | "no_show"
+      lead_source:
+        | "whatsapp"
+        | "google_organic"
+        | "web"
+        | "calendly"
+        | "referral"
+        | "other"
+        | "reactivation"
+      lead_status:
+        | "new"
+        | "contacted"
+        | "trial_scheduled"
+        | "trial_attended"
+        | "trial_no_show"
+        | "enrolled"
+        | "lost"
+        | "interested"
+        | "trial_cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -910,12 +1009,25 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["staff", "admin", "teacher"],
-      trial_lead_status: [
-        "scheduled",
-        "attended",
-        "converted",
-        "cancelled",
-        "no_show",
+      lead_source: [
+        "whatsapp",
+        "google_organic",
+        "web",
+        "calendly",
+        "referral",
+        "other",
+        "reactivation",
+      ],
+      lead_status: [
+        "new",
+        "contacted",
+        "trial_scheduled",
+        "trial_attended",
+        "trial_no_show",
+        "enrolled",
+        "lost",
+        "interested",
+        "trial_cancelled",
       ],
     },
   },
