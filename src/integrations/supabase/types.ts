@@ -408,7 +408,7 @@ export type Database = {
           id: string
           notes: string | null
           parent_name: string
-          phone: string
+          phone: string | null
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           trial_class_date: string | null
@@ -431,7 +431,7 @@ export type Database = {
           id?: string
           notes?: string | null
           parent_name: string
-          phone: string
+          phone?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           trial_class_date?: string | null
@@ -454,7 +454,7 @@ export type Database = {
           id?: string
           notes?: string | null
           parent_name?: string
-          phone?: string
+          phone?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           trial_class_date?: string | null
