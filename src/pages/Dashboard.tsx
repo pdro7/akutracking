@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Calendar, TrendingUp, Monitor, Video } from 'lucide-react';
+import { Plus, Users, Calendar, TrendingUp, Monitor, Video, FlaskConical } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -106,6 +106,57 @@ export default function Dashboard() {
     },
   });
 
+  // Trial class stats — current week (Mon–Sun)
+  const weekStart = (() => {
+    const d = new Date(); const day = d.getDay();
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    return d.toISOString().split('T')[0];
+  })();
+  const weekEnd = (() => {
+    const d = new Date(weekStart + 'T12:00:00');
+    d.setDate(d.getDate() + 6);
+    return d.toISOString().split('T')[0];
+  })();
+
+  const { data: trialStatsRaw = [] } = useQuery({
+    queryKey: ['trial_stats_week', weekStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('status')
+        .not('trial_class_date', 'is', null)
+        .gte('trial_class_date', weekStart)
+        .lte('trial_class_date', weekEnd);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: upcomingTrials = [] } = useQuery({
+    queryKey: ['upcoming_trials', today],
+    queryFn: async () => {
+      const until = new Date(today + 'T12:00:00');
+      until.setDate(until.getDate() + 7);
+      const { data, error } = await (supabase as any)
+        .from('leads')
+        .select('id, child_name, parent_name, trial_class_date, trial_class_time, trial_teacher:teachers!trial_teacher_id(name)')
+        .eq('status', 'trial_scheduled')
+        .gte('trial_class_date', today)
+        .lte('trial_class_date', until.toISOString().split('T')[0])
+        .order('trial_class_date')
+        .order('trial_class_time');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const trialStats = {
+    scheduled: (trialStatsRaw as any[]).filter(r => r.status === 'trial_scheduled').length,
+    attended:  (trialStatsRaw as any[]).filter(r => r.status === 'trial_attended').length,
+    no_show:   (trialStatsRaw as any[]).filter(r => r.status === 'trial_no_show').length,
+    cancelled: (trialStatsRaw as any[]).filter(r => r.status === 'trial_cancelled').length,
+  };
+
   // Last 7 enrolled students
   const { data: recentStudents = [] } = useQuery({
     queryKey: ['recent_students'],
@@ -206,6 +257,58 @@ export default function Dashboard() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* ── Clases de prueba ── */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+          <FlaskConical size={20} className="text-primary" />
+          Clases de prueba — esta semana
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+          {[
+            { label: 'Agendadas', value: trialStats.scheduled, color: 'text-blue-600' },
+            { label: 'Asistieron', value: trialStats.attended, color: 'text-green-600' },
+            { label: 'No asistió', value: trialStats.no_show, color: 'text-orange-500' },
+            { label: 'Canceladas', value: trialStats.cancelled, color: 'text-gray-400' },
+          ].map(s => (
+            <Card key={s.label} className="p-3 md:p-4">
+              <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
+              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          {(upcomingTrials as any[]).length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground text-sm">
+              No hay clases de prueba agendadas en los próximos 7 días
+            </div>
+          ) : (
+            <div className="divide-y">
+              {(upcomingTrials as any[]).map((lead: any) => (
+                <div
+                  key={lead.id}
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-accent/50"
+                  onClick={() => navigate(`/trial-leads/${lead.id}`)}
+                >
+                  <div>
+                    <p className="font-medium text-sm">{lead.child_name}</p>
+                    <p className="text-xs text-muted-foreground">{lead.parent_name}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">
+                      {new Date(lead.trial_class_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      {lead.trial_class_time && ` · ${lead.trial_class_time.slice(0, 5)}`}
+                    </p>
+                    {lead.trial_teacher?.name && (
+                      <p className="text-xs text-muted-foreground">{lead.trial_teacher.name}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
