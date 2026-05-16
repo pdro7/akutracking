@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -16,7 +18,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, Users, Calendar, Pencil } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, Users, Calendar, Pencil, Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -37,6 +40,7 @@ export default function VirtualGroupDetail() {
   // Enroll dialog
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const [enrollStudentId, setEnrollStudentId] = useState('');
+  const [studentPickerOpen, setStudentPickerOpen] = useState(false);
   const [enrollPaymentPlan, setEnrollPaymentPlan] = useState('full');
   const [enrollInst1Amount, setEnrollInst1Amount] = useState('');
   const [enrollInst1Date, setEnrollInst1Date] = useState('');
@@ -903,16 +907,44 @@ export default function VirtualGroupDetail() {
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-1">
             <div>
               <Label className="mb-2 block">Alumno *</Label>
-              <Select value={enrollStudentId} onValueChange={setEnrollStudentId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un alumno..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableStudents.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={studentPickerOpen} onOpenChange={setStudentPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={studentPickerOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {enrollStudentId
+                      ? (availableStudents as any[]).find((s: any) => s.id === enrollStudentId)?.name
+                      : <span className="text-muted-foreground">Selecciona un alumno...</span>}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar alumno..." />
+                    <CommandList>
+                      <CommandEmpty>No se encontraron alumnos.</CommandEmpty>
+                      <CommandGroup>
+                        {(availableStudents as any[]).map((s: any) => (
+                          <CommandItem
+                            key={s.id}
+                            value={s.name}
+                            onSelect={() => {
+                              setEnrollStudentId(s.id);
+                              setStudentPickerOpen(false);
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', enrollStudentId === s.id ? 'opacity-100' : 'opacity-0')} />
+                            {s.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
