@@ -28,6 +28,7 @@ import VirtualGroups from "./pages/VirtualGroups";
 import VirtualGroupDetail from "./pages/VirtualGroupDetail";
 import Conversations from "./pages/Conversations";
 import InstagramConversations from "./pages/InstagramConversations";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
         <div className="min-h-screen bg-background">
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             {/* Teacher-accessible routes */}
             <Route path="/virtual-groups" element={<ProtectedRoute><Header /><VirtualGroups /></ProtectedRoute>} />
             <Route path="/virtual-groups/:id" element={<ProtectedRoute><Header /><VirtualGroupDetail /></ProtectedRoute>} />
