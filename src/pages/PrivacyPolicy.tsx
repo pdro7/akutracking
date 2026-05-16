@@ -11,7 +11,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-2">1. Responsable del tratamiento</h2>
             <p>
-              <strong>AKUMAYA Educación</strong> ("AKUMAYA", "nosotros") es responsable del tratamiento de los datos personales recopilados a través de AKU Tracker, su sistema interno de gestión académica. Esta política describe qué datos recolectamos, con qué finalidad, con quién los compartimos y los derechos que tienen los titulares conforme a la Ley 1581 de 2012 de Protección de Datos Personales de Colombia.
+              <strong>AKUMAYA Educación</strong> ("AKUMAYA", "nosotros"), identificada con NIT <strong>901.609.937-1</strong>, es responsable del tratamiento de los datos personales recopilados a través de AKU Tracker, su sistema interno de gestión académica. Esta política describe qué datos recolectamos, con qué finalidad, con quién los compartimos y los derechos que tienen los titulares conforme a la Ley 1581 de 2012 de Protección de Datos Personales de Colombia.
             </p>
           </section>
 
@@ -119,8 +119,8 @@ export default function PrivacyPolicy() {
               Para ejercer tus derechos o realizar cualquier consulta sobre el tratamiento de tus datos personales, escríbenos a:
             </p>
             <p className="mt-2">
-              <strong>AKUMAYA Educación</strong><br />
-              Correo electrónico: <a href="mailto:hola@akumaya.com" className="text-primary underline">hola@akumaya.com</a><br />
+              <strong>AKUMAYA Educación</strong> — NIT 901.609.937-1<br />
+              Correo electrónico: <a href="mailto:info@akumaya.co" className="text-primary underline">info@akumaya.co</a><br />
               WhatsApp: a través del canal oficial de la academia
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
