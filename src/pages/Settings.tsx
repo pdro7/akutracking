@@ -11,6 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { generateSessionDates } from '@/lib/holidays';
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 function generateGroupCode(courseCode: string, startDate: Date): string {
@@ -295,18 +296,32 @@ export default function Settings() {
         .maybeSingle();
       if (existing) throw new Error(`El grupo ${code} ya existe`);
 
-      const { error } = await supabase.from('course_groups').insert({
-        code,
-        virtual_course_id: vc.id,
-        start_date: slot.tentative_start_date,
-        status: 'forming',
-      });
+      const { data: group, error } = await supabase
+        .from('course_groups')
+        .insert({
+          code,
+          virtual_course_id: vc.id,
+          start_date: slot.tentative_start_date,
+          status: 'forming',
+        })
+        .select()
+        .single();
       if (error) throw error;
+
+      const dates = generateSessionDates(slot.tentative_start_date, 8, holidays);
+      const sessions = dates.map((date, i) => ({
+        group_id: group.id,
+        session_number: i + 1,
+        scheduled_date: date,
+      }));
+      const { error: sessErr } = await supabase.from('course_sessions').insert(sessions);
+      if (sessErr) throw sessErr;
+
       return code;
     },
     onSuccess: (code) => {
       queryClient.invalidateQueries({ queryKey: ['course_groups'] });
-      toast.success(`Grupo ${code} creado en Grupos Virtuales`);
+      toast.success(`Grupo ${code} creado con 8 sesiones`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
