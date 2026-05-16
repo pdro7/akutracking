@@ -9,8 +9,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import Dashboard from "./pages/Dashboard";
 import StudentDetail from "./pages/StudentDetail";
 import EditStudent from "./pages/EditStudent";
-import Attendance from "./pages/Attendance";
-import AttendanceHistory from "./pages/AttendanceHistory";
 import Students from "./pages/Students";
 import NewStudent from "./pages/NewStudent";
 import TrialLeads from "./pages/TrialLeads";
@@ -58,8 +56,6 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><NoTeacher><Header /><Dashboard /></NoTeacher></ProtectedRoute>} />
             <Route path="/student/:id" element={<ProtectedRoute><NoTeacher><Header /><StudentDetail /></NoTeacher></ProtectedRoute>} />
             <Route path="/student/:id/edit" element={<ProtectedRoute><NoTeacher><Header /><EditStudent /></NoTeacher></ProtectedRoute>} />
-            <Route path="/attendance" element={<ProtectedRoute><NoTeacher><Header /><Attendance /></NoTeacher></ProtectedRoute>} />
-            <Route path="/attendance/history" element={<ProtectedRoute><NoTeacher><Header /><AttendanceHistory /></NoTeacher></ProtectedRoute>} />
             <Route path="/students" element={<ProtectedRoute><NoTeacher><Header /><Students /></NoTeacher></ProtectedRoute>} />
             <Route path="/students/new" element={<ProtectedRoute><NoTeacher><Header /><NewStudent /></NoTeacher></ProtectedRoute>} />
             <Route path="/leads" element={<ProtectedRoute><NoTeacher><Header /><Leads /></NoTeacher></ProtectedRoute>} />

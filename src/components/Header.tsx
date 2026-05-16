@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bot, Home, Users, Settings, Calendar, LogOut, DollarSign, Monitor, Radar, MessageCircle, FlaskConical, Instagram } from 'lucide-react';
+import { Bot, Home, Users, Settings, LogOut, DollarSign, Monitor, Radar, MessageCircle, FlaskConical, Instagram } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -42,7 +42,6 @@ export function Header() {
     ? [{ path: '/virtual-groups', label: 'Mis grupos', icon: Monitor }]
     : [
         { path: '/', label: 'Dashboard', icon: Home },
-        { path: '/attendance', label: 'Attendance', icon: Calendar },
         { path: '/students', label: 'Students', icon: Users },
         { path: '/leads', label: 'Leads', icon: Radar },
         { path: '/trial-leads', label: 'Pruebas', icon: FlaskConical },
