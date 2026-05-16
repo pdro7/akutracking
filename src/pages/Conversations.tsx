@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ExternalLink, Send, Bot, UserCheck, ArrowLeft } from 'lucide-react';
+import { ExternalLink, Send, Bot, UserCheck, ArrowLeft, BarChart3 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -115,9 +115,19 @@ export default function Conversations() {
     <div className="flex h-[calc(100vh-73px)] overflow-hidden">
       {/* Left sidebar — full screen on mobile when mobileView=list */}
       <div className={`flex-shrink-0 border-r flex flex-col bg-card w-full md:w-80 ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
-        <div className="px-4 py-3 border-b">
-          <h2 className="font-semibold text-base">Pablo · Conversaciones</h2>
-          <p className="text-xs text-muted-foreground">{conversations.length} conversaciones</p>
+        <div className="px-4 py-3 border-b flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="font-semibold text-base">Pablo · Conversaciones</h2>
+            <p className="text-xs text-muted-foreground">{conversations.length} conversaciones</p>
+          </div>
+          <button
+            onClick={() => navigate('/pablo-stats')}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent"
+            title="Ver estadísticas"
+          >
+            <BarChart3 size={14} />
+            <span className="hidden sm:inline">Stats</span>
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">

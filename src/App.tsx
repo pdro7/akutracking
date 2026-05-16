@@ -27,6 +27,7 @@ import NotFound from "./pages/NotFound";
 import VirtualGroups from "./pages/VirtualGroups";
 import VirtualGroupDetail from "./pages/VirtualGroupDetail";
 import Conversations from "./pages/Conversations";
+import PabloStats from "./pages/PabloStats";
 import InstagramConversations from "./pages/InstagramConversations";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/trial-leads/:id" element={<ProtectedRoute><NoTeacher><Header /><TrialLeadDetail /></NoTeacher></ProtectedRoute>} />
             <Route path="/payments" element={<ProtectedRoute><NoTeacher><Header /><Payments /></NoTeacher></ProtectedRoute>} />
             <Route path="/conversations" element={<ProtectedRoute><NoTeacher><Header /><Conversations /></NoTeacher></ProtectedRoute>} />
+            <Route path="/pablo-stats" element={<ProtectedRoute><NoTeacher><Header /><PabloStats /></NoTeacher></ProtectedRoute>} />
             <Route path="/instagram" element={<ProtectedRoute><NoTeacher><Header /><InstagramConversations /></NoTeacher></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><NoTeacher><Header /><Settings /></NoTeacher></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
