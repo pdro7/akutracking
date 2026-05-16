@@ -62,7 +62,7 @@ export function Header() {
                 <Bot className="text-primary-foreground" size={24} />
               </div>
               <div>
-                <h1 className="text-xl font-bold">RoboAcademy</h1>
+                <h1 className="text-xl font-bold">AKUMAYA</h1>
                 <p className="text-xs text-muted-foreground">Attendance Tracker</p>
               </div>
             </div>
