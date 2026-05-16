@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
     if (existing) {
       const updatedMessages = [
         ...(Array.isArray(existing.messages) ? existing.messages : []),
-        { role: 'assistant', content: templateText },
+        { role: 'assistant', content: templateText, timestamp: new Date().toISOString() },
       ];
       await supabase
         .from('whatsapp_conversations')
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
     } else {
       await supabase.from('whatsapp_conversations').insert({
         phone: toNumber,
-        messages: [{ role: 'assistant', content: templateText }],
+        messages: [{ role: 'assistant', content: templateText, timestamp: new Date().toISOString() }],
         ...conversationPayload,
       });
     }

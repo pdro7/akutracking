@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     // Append to conversation history as an assistant message
     const updatedMessages = [
       ...(Array.isArray(conv.messages) ? conv.messages : []),
-      { role: 'assistant', content: message.trim() },
+      { role: 'assistant', content: message.trim(), timestamp: new Date().toISOString() },
     ];
 
     await supabase

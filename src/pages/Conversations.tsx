@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-type Message = { role: 'user' | 'assistant'; content: string; image_url?: string };
+type Message = { role: 'user' | 'assistant'; content: string; image_url?: string; timestamp?: string };
 
 type Conversation = {
   id: string;
@@ -29,6 +29,21 @@ function lastMessagePreview(messages: Message[]): string {
   const last = messages[messages.length - 1];
   if (!last?.content || last.content === '[Imagen]') return '📷 Imagen';
   return last.content.length > 50 ? last.content.slice(0, 50) + '…' : last.content;
+}
+
+function formatMessageTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(d, today)) return 'Hoy';
+  if (sameDay(d, yesterday)) return 'Ayer';
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
 }
 
 export default function Conversations() {
@@ -260,27 +275,51 @@ export default function Conversations() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
-              {(Array.isArray(selected.messages) ? selected.messages : []).map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${
-                    msg.role === 'assistant'
-                      ? 'bg-primary text-primary-foreground rounded-br-none'
-                      : 'bg-muted rounded-bl-none'
-                  }`}>
-                    {msg.image_url && (
-                      <img
-                        src={msg.image_url}
-                        alt="Imagen enviada"
-                        className="max-w-full rounded-lg mb-1"
-                      />
-                    )}
-                    {msg.content && msg.content !== '[Imagen]' && msg.content}
-                  </div>
-                </div>
-              ))}
+              {(() => {
+                const msgs = Array.isArray(selected.messages) ? selected.messages : [];
+                let lastDay = '';
+                return msgs.map((msg, i) => {
+                  // Fallback timestamp for historical messages without one
+                  const ts = msg.timestamp || selected.updated_at;
+                  const day = new Date(ts).toDateString();
+                  const showDaySeparator = day !== lastDay;
+                  lastDay = day;
+                  return (
+                    <div key={i}>
+                      {showDaySeparator && (
+                        <div className="flex justify-center my-3">
+                          <span className="text-[11px] text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-full">
+                            {formatDayLabel(ts)}
+                          </span>
+                        </div>
+                      )}
+                      <div className={`flex ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] flex flex-col ${msg.role === 'assistant' ? 'items-end' : 'items-start'}`}>
+                          <div className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${
+                            msg.role === 'assistant'
+                              ? 'bg-primary text-primary-foreground rounded-br-none'
+                              : 'bg-muted rounded-bl-none'
+                          }`}>
+                            {msg.image_url && (
+                              <img
+                                src={msg.image_url}
+                                alt="Imagen enviada"
+                                className="max-w-full rounded-lg mb-1"
+                              />
+                            )}
+                            {msg.content && msg.content !== '[Imagen]' && msg.content}
+                          </div>
+                          {msg.timestamp && (
+                            <span className="text-[10px] text-muted-foreground mt-0.5 px-1">
+                              {formatMessageTime(msg.timestamp)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
               <div ref={messagesEndRef} />
             </div>
 

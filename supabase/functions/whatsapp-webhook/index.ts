@@ -409,8 +409,8 @@ Deno.serve(async (req) => {
 
     // What we store in DB for the current user turn
     const storedUserMessage: StoredMessage = imageData
-      ? { role: 'user', content: body || '[Imagen]', image_url: imageData.permanentUrl }
-      : { role: 'user', content: userContent };
+      ? { role: 'user', content: body || '[Imagen]', image_url: imageData.permanentUrl, timestamp: new Date().toISOString() } as any
+      : { role: 'user', content: userContent, timestamp: new Date().toISOString() } as any;
 
     // If the conversation is escalated, save the message but do NOT call Claude
     if (conversation?.escalated) {
@@ -560,7 +560,7 @@ Deno.serve(async (req) => {
     const updatedMessages = [
       ...existingMessages,
       storedUserMessage,
-      { role: 'assistant', content: assistantText },
+      { role: 'assistant', content: assistantText, timestamp: new Date().toISOString() },
     ].slice(-MAX_HISTORY_MESSAGES);
 
     if (conversationId) {
