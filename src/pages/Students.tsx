@@ -89,10 +89,14 @@ export default function Students() {
   const filteredStudents = students.filter((s) => {
     const matchesModality = modalityFilter === 'all' || s.modality === modalityFilter;
     const term = searchTerm.toLowerCase();
+    const termDigits = term.replace(/\D/g, '');
+    const extraPhones: string[] = Array.isArray((s as any).additional_phones) ? (s as any).additional_phones : [];
     const matchesSearch = !term ||
       s.name.toLowerCase().includes(term) ||
       s.parent_name.toLowerCase().includes(term) ||
-      (s.phone ?? '').includes(term);
+      (s.phone ?? '').includes(term) ||
+      (termDigits.length > 0 && (s.phone ?? '').replace(/\D/g, '').includes(termDigits)) ||
+      extraPhones.some((p) => p.includes(term) || (termDigits.length > 0 && p.replace(/\D/g, '').includes(termDigits)));
     return matchesModality && matchesSearch;
   });
 
