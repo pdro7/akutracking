@@ -51,6 +51,8 @@ export default function LeadDetail() {
   const [editChildName, setEditChildName] = useState('');
   const [editParentName, setEditParentName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editAdditionalPhones, setEditAdditionalPhones] = useState<string[]>([]);
+  const [newAdditionalPhone, setNewAdditionalPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editDateOfBirth, setEditDateOfBirth] = useState('');
   const [editSource, setEditSource] = useState('');
@@ -77,16 +79,34 @@ export default function LeadDetail() {
   });
 
   const { data: conversation } = useQuery({
-    queryKey: ['whatsapp_conversation', id],
+    queryKey: ['whatsapp_conversation', id, lead?.phone, (lead?.additional_phones || []).join(',')],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      // Collect all candidate phones for this lead, formatted as Twilio stores them
+      const phones: string[] = [];
+      if (lead?.phone) phones.push(lead.phone);
+      if (Array.isArray(lead?.additional_phones)) phones.push(...lead.additional_phones);
+      const variants = new Set<string>();
+      phones.filter(Boolean).forEach((raw: string) => {
+        const clean = raw.replace(/\s+/g, '');
+        const withPlus = clean.startsWith('+') ? clean : `+${clean}`;
+        variants.add(`whatsapp:${withPlus}`);
+        variants.add(`whatsapp:${clean}`);
+      });
+
+      // Match by lead_id OR any candidate phone, take most recent
+      let query = (supabase as any)
         .from('whatsapp_conversations')
-        .select('messages, created_at')
-        .eq('lead_id', id!)
-        .maybeSingle();
+        .select('messages, created_at, updated_at');
+      if (variants.size > 0) {
+        const phonesFilter = Array.from(variants).map(p => `phone.eq.${p}`).join(',');
+        query = query.or(`lead_id.eq.${id},${phonesFilter}`);
+      } else {
+        query = query.eq('lead_id', id!);
+      }
+      const { data } = await query.order('updated_at', { ascending: false }).limit(1).maybeSingle();
       return data as { messages: { role: string; content: string; image_url?: string }[]; created_at: string } | null;
     },
-    enabled: !!id,
+    enabled: !!id && !!lead,
   });
 
   const { data: notes = [] } = useQuery({
@@ -154,6 +174,7 @@ export default function LeadDetail() {
         child_name: editChildName.trim(),
         parent_name: editParentName.trim(),
         phone: editPhone.trim() || null,
+        additional_phones: editAdditionalPhones,
         email: editEmail.trim() || null,
         date_of_birth: editDateOfBirth || null,
         source: editSource as any,
@@ -229,6 +250,8 @@ export default function LeadDetail() {
     setEditChildName(lead.child_name);
     setEditParentName(lead.parent_name);
     setEditPhone(lead.phone || '');
+    setEditAdditionalPhones(Array.isArray(lead.additional_phones) ? lead.additional_phones : []);
+    setNewAdditionalPhone('');
     setEditEmail(lead.email || '');
     setEditDateOfBirth(lead.date_of_birth || '');
     setEditSource(lead.source);
@@ -258,6 +281,11 @@ export default function LeadDetail() {
         <div>
           <h1 className="text-2xl font-bold">{lead.child_name}</h1>
           <p className="text-muted-foreground">{lead.parent_name} · {lead.phone}</p>
+          {Array.isArray(lead.additional_phones) && lead.additional_phones.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Otros tel.: {lead.additional_phones.join(' · ')}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {!conversation && lead.status !== 'enrolled' && (
@@ -451,6 +479,47 @@ export default function LeadDetail() {
               <div>
                 <Label className="mb-1 block">Teléfono</Label>
                 <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label className="mb-1 block">Teléfonos adicionales</Label>
+              <p className="text-xs text-muted-foreground mb-2">Otros números desde los que también te contacta este padre/madre.</p>
+              <div className="space-y-1.5">
+                {editAdditionalPhones.map((p, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input value={p} onChange={(e) => {
+                      const next = [...editAdditionalPhones];
+                      next[i] = e.target.value;
+                      setEditAdditionalPhones(next);
+                    }} />
+                    <Button type="button" variant="ghost" size="sm"
+                      onClick={() => setEditAdditionalPhones(editAdditionalPhones.filter((_, j) => j !== i))}>
+                      ✕
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Agregar otro número..."
+                    value={newAdditionalPhone}
+                    onChange={(e) => setNewAdditionalPhone(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newAdditionalPhone.trim()) {
+                        e.preventDefault();
+                        setEditAdditionalPhones([...editAdditionalPhones, newAdditionalPhone.trim()]);
+                        setNewAdditionalPhone('');
+                      }
+                    }}
+                  />
+                  <Button type="button" variant="outline" size="sm"
+                    disabled={!newAdditionalPhone.trim()}
+                    onClick={() => {
+                      setEditAdditionalPhones([...editAdditionalPhones, newAdditionalPhone.trim()]);
+                      setNewAdditionalPhone('');
+                    }}>
+                    Añadir
+                  </Button>
+                </div>
               </div>
             </div>
             <div>

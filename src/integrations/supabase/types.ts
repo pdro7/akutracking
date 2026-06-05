@@ -396,6 +396,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          additional_phones: string[]
           age: string | null
           calendly_uri: string | null
           child_name: string
@@ -419,6 +420,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          additional_phones?: string[]
           age?: string | null
           calendly_uri?: string | null
           child_name: string
@@ -442,6 +444,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          additional_phones?: string[]
           age?: string | null
           calendly_uri?: string | null
           child_name?: string
@@ -605,6 +608,7 @@ export type Database = {
       }
       students: {
         Row: {
+          additional_phones: string[]
           address: string | null
           age_at_enrollment: number | null
           archived: boolean
@@ -640,6 +644,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          additional_phones?: string[]
           address?: string | null
           age_at_enrollment?: number | null
           archived?: boolean
@@ -675,6 +680,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          additional_phones?: string[]
           address?: string | null
           age_at_enrollment?: number | null
           archived?: boolean

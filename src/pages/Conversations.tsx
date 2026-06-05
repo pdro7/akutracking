@@ -20,8 +20,8 @@ type Conversation = {
   lead_id: string | null;
   student_id: string | null;
   updated_at: string;
-  leads: { child_name: string; parent_name: string } | null;
-  students: { name: string; parent_name: string } | null;
+  leads: { child_name: string; parent_name: string; additional_phones: string[] } | null;
+  students: { name: string; parent_name: string; additional_phones: string[] } | null;
 };
 
 function lastMessagePreview(messages: Message[]): string {
@@ -52,6 +52,7 @@ export default function Conversations() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [manualMsg, setManualMsg] = useState('');
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleSelectConversation = (id: string) => {
     setSelectedId(id);
@@ -64,7 +65,7 @@ export default function Conversations() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('whatsapp_conversations')
-        .select('id, phone, messages, escalated, lead_id, student_id, updated_at, leads(child_name, parent_name), students(name, parent_name)')
+        .select('id, phone, messages, escalated, lead_id, student_id, updated_at, leads(child_name, parent_name, additional_phones), students(name, parent_name, additional_phones)')
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data || []) as Conversation[];
@@ -145,13 +146,49 @@ export default function Conversations() {
           </button>
         </div>
 
+        <div className="px-3 py-2 border-b">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nombre o teléfono..."
+            className="w-full px-3 py-1.5 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+
         <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">Cargando...</div>
-          ) : conversations.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">Sin conversaciones aún</div>
-          ) : (
-            conversations.map((conv) => {
+          {(() => {
+            const term = searchTerm.trim().toLowerCase();
+            const filtered = !term ? conversations : conversations.filter((c) => {
+              const haystack: string[] = [
+                c.phone,
+                c.leads?.child_name ?? '',
+                c.leads?.parent_name ?? '',
+                c.students?.name ?? '',
+                c.students?.parent_name ?? '',
+                ...(c.leads?.additional_phones ?? []),
+                ...(c.students?.additional_phones ?? []),
+              ];
+              const termDigits = term.replace(/\D/g, '');
+              return haystack.some((s) => {
+                const sLower = (s ?? '').toLowerCase();
+                if (sLower.includes(term)) return true;
+                if (termDigits && (s ?? '').replace(/\D/g, '').includes(termDigits)) return true;
+                return false;
+              });
+            });
+
+            if (isLoading) {
+              return <div className="p-4 text-center text-sm text-muted-foreground">Cargando...</div>;
+            }
+            if (conversations.length === 0) {
+              return <div className="p-4 text-center text-sm text-muted-foreground">Sin conversaciones aún</div>;
+            }
+            if (filtered.length === 0) {
+              return <div className="p-4 text-center text-sm text-muted-foreground">Sin resultados para "{searchTerm}"</div>;
+            }
+
+            return filtered.map((conv) => {
               const name = conv.leads?.child_name ?? conv.students?.name ?? conv.phone;
               const sub = (conv.leads?.child_name || conv.students?.name) ? conv.phone : null;
               const isActive = conv.id === selectedId;
@@ -187,8 +224,8 @@ export default function Conversations() {
                   </div>
                 </button>
               );
-            })
-          )}
+            });
+          })()}
         </div>
       </div>
 
