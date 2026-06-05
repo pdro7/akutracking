@@ -798,9 +798,16 @@ export default function StudentDetail() {
                 <Mail size={16} className="text-muted-foreground" />
                 <p>{student.email}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone size={16} className="text-muted-foreground" />
-                <p>{student.phone}</p>
+              <div className="flex items-start gap-2">
+                <Phone size={16} className="text-muted-foreground mt-0.5" />
+                <div>
+                  <p>{student.phone}</p>
+                  {Array.isArray((student as any).additional_phones) && (student as any).additional_phones.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Otros: {(student as any).additional_phones.join(' · ')}
+                    </p>
+                  )}
+                </div>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">Enrollment Date</p>

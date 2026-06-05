@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -5,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,6 +49,8 @@ export default function EditStudent() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [additionalPhones, setAdditionalPhones] = useState<string[]>([]);
+  const [newAdditionalPhone, setNewAdditionalPhone] = useState('');
   
   const { data: student, isLoading } = useQuery({
     queryKey: ['student', id],
@@ -61,6 +65,12 @@ export default function EditStudent() {
       return data;
     }
   });
+
+  useEffect(() => {
+    if (student) {
+      setAdditionalPhones(Array.isArray((student as any).additional_phones) ? (student as any).additional_phones : []);
+    }
+  }, [student?.id]);
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema),
@@ -105,6 +115,7 @@ export default function EditStudent() {
           notes: data.notes,
           modality: data.modality,
           pack_size: parseInt(data.packSize),
+          additional_phones: additionalPhones,
         })
         .eq('id', id);
 
@@ -303,6 +314,48 @@ export default function EditStudent() {
                   </FormItem>
                 )}
               />
+
+              <div>
+                <Label className="mb-1.5 block">Teléfonos adicionales</Label>
+                <p className="text-xs text-muted-foreground mb-2">Otros números desde los que también te contacta este padre/madre.</p>
+                <div className="space-y-1.5">
+                  {additionalPhones.map((p, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input value={p} onChange={(e) => {
+                        const next = [...additionalPhones];
+                        next[i] = e.target.value;
+                        setAdditionalPhones(next);
+                      }} />
+                      <Button type="button" variant="ghost" size="sm"
+                        onClick={() => setAdditionalPhones(additionalPhones.filter((_, j) => j !== i))}>
+                        ✕
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Agregar otro número..."
+                      value={newAdditionalPhone}
+                      onChange={(e) => setNewAdditionalPhone(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newAdditionalPhone.trim()) {
+                          e.preventDefault();
+                          setAdditionalPhones([...additionalPhones, newAdditionalPhone.trim()]);
+                          setNewAdditionalPhone('');
+                        }
+                      }}
+                    />
+                    <Button type="button" variant="outline" size="sm"
+                      disabled={!newAdditionalPhone.trim()}
+                      onClick={() => {
+                        setAdditionalPhones([...additionalPhones, newAdditionalPhone.trim()]);
+                        setNewAdditionalPhone('');
+                      }}>
+                      Añadir
+                    </Button>
+                  </div>
+                </div>
+              </div>
 
               <FormField
                 control={form.control}
