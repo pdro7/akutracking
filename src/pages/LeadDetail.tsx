@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import { TimeSlotPicker } from '@/components/TimeSlotPicker';
+import { LEAD_MODALITY_OPTIONS } from '@/lib/subjects';
 
 type LeadStatus = 'new' | 'contacted' | 'trial_scheduled' | 'trial_attended' | 'trial_no_show' | 'trial_cancelled' | 'enrolled' | 'lost' | 'interested';
 type LeadSource = 'whatsapp' | 'google_organic' | 'web' | 'calendly' | 'referral' | 'other' | 'reactivation';
@@ -63,6 +65,10 @@ export default function LeadDetail() {
   const [editTrialTeacherId, setEditTrialTeacherId] = useState('');
   const [editTrialCourseId, setEditTrialCourseId] = useState('');
   const [editTrialObjection, setEditTrialObjection] = useState('');
+  const [editInterestedCourseId, setEditInterestedCourseId] = useState('');
+  const [editPreferredSlots, setEditPreferredSlots] = useState<string[]>([]);
+  const [editPreferredModality, setEditPreferredModality] = useState('');
+  const [editDesiredStartBy, setEditDesiredStartBy] = useState('');
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ['lead', id],
@@ -185,6 +191,10 @@ export default function LeadDetail() {
         trial_teacher_id: editTrialTeacherId && editTrialTeacherId !== 'none' ? editTrialTeacherId : null,
         trial_course_id: editTrialCourseId && editTrialCourseId !== 'none' ? editTrialCourseId : null,
         trial_objection: editTrialObjection.trim() || null,
+        interested_course_id: editInterestedCourseId && editInterestedCourseId !== 'none' ? editInterestedCourseId : null,
+        preferred_slots: editPreferredSlots,
+        preferred_modality: editPreferredModality || null,
+        desired_start_by: editDesiredStartBy || null,
         updated_at: new Date().toISOString(),
       }).eq('id', id!);
       if (error) throw error;
@@ -262,6 +272,10 @@ export default function LeadDetail() {
     setEditTrialTeacherId(lead.trial_teacher_id || 'none');
     setEditTrialCourseId(lead.trial_course_id || 'none');
     setEditTrialObjection(lead.trial_objection || '');
+    setEditInterestedCourseId(lead.interested_course_id || 'none');
+    setEditPreferredSlots(Array.isArray(lead.preferred_slots) ? lead.preferred_slots : []);
+    setEditPreferredModality(lead.preferred_modality || '');
+    setEditDesiredStartBy(lead.desired_start_by || '');
     setEditing(true);
   };
 
@@ -550,6 +564,49 @@ export default function LeadDetail() {
             <div>
               <Label className="mb-1 block">Notas</Label>
               <Textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Notas generales..." />
+            </div>
+
+            {/* Preferencias */}
+            <div className="border-t pt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Preferencias</p>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <Label className="mb-1 block">Curso interesado</Label>
+                  <Select value={editInterestedCourseId} onValueChange={setEditInterestedCourseId}>
+                    <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin asignar</SelectItem>
+                      {(virtualCourses as any[]).map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <Label className="mb-1 block">Modalidad</Label>
+                  <Select value={editPreferredModality} onValueChange={setEditPreferredModality}>
+                    <SelectTrigger><SelectValue placeholder="Sin preferencia" /></SelectTrigger>
+                    <SelectContent>
+                      {LEAD_MODALITY_OPTIONS.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-1 block">Empezar antes de</Label>
+                  <Input type="date" value={editDesiredStartBy} onChange={(e) => setEditDesiredStartBy(e.target.value)} />
+                </div>
+              </div>
+              <div className="mt-4">
+                <TimeSlotPicker
+                  value={editPreferredSlots}
+                  onChange={setEditPreferredSlots}
+                  label="Franjas horarias que le sirven"
+                />
+              </div>
             </div>
 
             {/* Trial section */}

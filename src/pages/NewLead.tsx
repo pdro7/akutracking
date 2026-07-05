@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { TimeSlotPicker } from '@/components/TimeSlotPicker';
+import { LEAD_MODALITY_OPTIONS } from '@/lib/subjects';
 
 export default function NewLead() {
   const navigate = useNavigate();
@@ -20,9 +22,26 @@ export default function NewLead() {
   const [email, setEmail] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [source, setSource] = useState('whatsapp');
+  const [interestedCourseId, setInterestedCourseId] = useState<string>('');
   const [courseInterest, setCourseInterest] = useState('');
+  const [preferredSlots, setPreferredSlots] = useState<string[]>([]);
+  const [preferredModality, setPreferredModality] = useState<string>('');
+  const [desiredStartBy, setDesiredStartBy] = useState('');
   const [trialClassDate, setTrialClassDate] = useState('');
   const [initialNote, setInitialNote] = useState('');
+
+  const { data: courses = [] } = useQuery({
+    queryKey: ['virtual_courses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('virtual_courses')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -40,7 +59,11 @@ export default function NewLead() {
           date_of_birth: dateOfBirth || null,
           source: source as any,
           status: status as any,
+          interested_course_id: interestedCourseId || null,
           course_interest: courseInterest.trim() || null,
+          preferred_slots: preferredSlots,
+          preferred_modality: preferredModality || null,
+          desired_start_by: desiredStartBy || null,
           trial_class_date: trialClassDate || null,
         })
         .select()
@@ -115,9 +138,49 @@ export default function NewLead() {
           </div>
           <div>
             <Label className="mb-2 block">Curso de interés</Label>
-            <Input value={courseInterest} onChange={(e) => setCourseInterest(e.target.value)} placeholder="Ej: Scratch, Robótica..." />
+            <Select value={interestedCourseId} onValueChange={setInterestedCourseId}>
+              <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
+              <SelectContent>
+                {courses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
+
+        <div>
+          <Label className="mb-2 block">Notas de interés</Label>
+          <Input
+            value={courseInterest}
+            onChange={(e) => setCourseInterest(e.target.value)}
+            placeholder="Detalle libre si no está en el catálogo"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="mb-2 block">Modalidad preferida</Label>
+            <Select value={preferredModality} onValueChange={setPreferredModality}>
+              <SelectTrigger><SelectValue placeholder="Sin preferencia" /></SelectTrigger>
+              <SelectContent>
+                {LEAD_MODALITY_OPTIONS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-2 block">Empezar antes de</Label>
+            <Input type="date" value={desiredStartBy} onChange={(e) => setDesiredStartBy(e.target.value)} />
+          </div>
+        </div>
+
+        <TimeSlotPicker
+          value={preferredSlots}
+          onChange={setPreferredSlots}
+          label="Franjas horarias que le sirven al niño"
+        />
 
         <div>
           <Label className="mb-2 block">Fecha clase de prueba (opcional)</Label>

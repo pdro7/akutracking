@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
+import { TimeSlotPicker } from '@/components/TimeSlotPicker';
+import { LEAD_MODALITY_OPTIONS } from '@/lib/subjects';
 
 const trialLeadSchema = z.object({
   childName: z.string().min(1, 'Nombre requerido').max(100),
@@ -22,6 +24,10 @@ const trialLeadSchema = z.object({
   trialClassDate: z.string().min(1, 'Fecha requerida'),
   status: z.enum(['trial_scheduled', 'trial_attended', 'enrolled', 'trial_cancelled', 'trial_no_show', 'interested']),
   notes: z.string().max(500).optional(),
+  interestedCourseId: z.string().optional(),
+  preferredSlots: z.array(z.string()).default([]),
+  preferredModality: z.string().optional(),
+  desiredStartBy: z.string().optional(),
 });
 
 type TrialLeadFormValues = z.infer<typeof trialLeadSchema>;
@@ -42,6 +48,23 @@ export default function NewTrialLead() {
       trialClassDate: '',
       status: 'trial_scheduled',
       notes: '',
+      interestedCourseId: '',
+      preferredSlots: [],
+      preferredModality: '',
+      desiredStartBy: '',
+    },
+  });
+
+  const { data: courses = [] } = useQuery({
+    queryKey: ['virtual_courses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('virtual_courses')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -61,6 +84,10 @@ export default function NewTrialLead() {
         notes: values.notes || null,
         source: 'other' as any,
         created_by: user.id,
+        interested_course_id: values.interestedCourseId || null,
+        preferred_slots: values.preferredSlots,
+        preferred_modality: values.preferredModality || null,
+        desired_start_by: values.desiredStartBy || null,
       }).select().single();
 
       if (error) throw error;
@@ -155,6 +182,82 @@ export default function NewTrialLead() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl><Input type="email" placeholder="Email" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Preferencias</CardTitle>
+              <CardDescription>Ayudan a agrupar al niño con otros interesados</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="interestedCourseId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Curso de interés</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {courses.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="preferredModality"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Modalidad preferida</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="Sin preferencia" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {LEAD_MODALITY_OPTIONS.map((m) => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="desiredStartBy"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Empezar antes de</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="preferredSlots"
+                render={({ field }) => (
+                  <FormItem>
+                    <TimeSlotPicker
+                      value={field.value || []}
+                      onChange={field.onChange}
+                      label="Franjas horarias que le sirven"
+                    />
                     <FormMessage />
                   </FormItem>
                 )}

@@ -362,6 +362,50 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          instagram_user_id: string
+          instagram_username: string | null
+          lead_id: string | null
+          messages: Json
+          status: string
+          unread: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instagram_user_id: string
+          instagram_username?: string | null
+          lead_id?: string | null
+          messages?: Json
+          status?: string
+          unread?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instagram_user_id?: string
+          instagram_username?: string | null
+          lead_id?: string | null
+          messages?: Json
+          status?: string
+          unread?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_notes: {
         Row: {
           content: string
@@ -405,11 +449,15 @@ export type Database = {
           created_at: string
           created_by: string | null
           date_of_birth: string | null
+          desired_start_by: string | null
           email: string | null
           id: string
+          interested_course_id: string | null
           notes: string | null
           parent_name: string
           phone: string | null
+          preferred_modality: string | null
+          preferred_slots: Json
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           trial_class_date: string | null
@@ -429,11 +477,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date_of_birth?: string | null
+          desired_start_by?: string | null
           email?: string | null
           id?: string
+          interested_course_id?: string | null
           notes?: string | null
           parent_name: string
           phone?: string | null
+          preferred_modality?: string | null
+          preferred_slots?: Json
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           trial_class_date?: string | null
@@ -453,11 +505,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date_of_birth?: string | null
+          desired_start_by?: string | null
           email?: string | null
           id?: string
+          interested_course_id?: string | null
           notes?: string | null
           parent_name?: string
           phone?: string | null
+          preferred_modality?: string | null
+          preferred_slots?: Json
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           trial_class_date?: string | null
@@ -468,6 +524,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_interested_course_id_fkey"
+            columns: ["interested_course_id"]
+            isOneToOne: false
+            referencedRelation: "virtual_courses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_trial_course_id_fkey"
             columns: ["trial_course_id"]
@@ -719,27 +782,36 @@ export type Database = {
       }
       teachers: {
         Row: {
+          availability: Json
           created_at: string
           email: string | null
           id: string
           is_active: boolean
+          modalities: string[]
           name: string
+          subjects: string[]
           user_id: string | null
         }
         Insert: {
+          availability?: Json
           created_at?: string
           email?: string | null
           id?: string
           is_active?: boolean
+          modalities?: string[]
           name: string
+          subjects?: string[]
           user_id?: string | null
         }
         Update: {
+          availability?: Json
           created_at?: string
           email?: string | null
           id?: string
           is_active?: boolean
+          modalities?: string[]
           name?: string
+          subjects?: string[]
           user_id?: string | null
         }
         Relationships: []
@@ -769,8 +841,10 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          min_students_to_open: number
           name: string
           next_course_id: string | null
+          subject: string | null
           updated_at: string
         }
         Insert: {
@@ -779,8 +853,10 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          min_students_to_open?: number
           name: string
           next_course_id?: string | null
+          subject?: string | null
           updated_at?: string
         }
         Update: {
@@ -789,8 +865,10 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          min_students_to_open?: number
           name?: string
           next_course_id?: string | null
+          subject?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -877,6 +955,7 @@ export type Database = {
         | "referral"
         | "other"
         | "reactivation"
+        | "instagram"
       lead_status:
         | "new"
         | "contacted"
@@ -1023,6 +1102,7 @@ export const Constants = {
         "referral",
         "other",
         "reactivation",
+        "instagram",
       ],
       lead_status: [
         "new",
