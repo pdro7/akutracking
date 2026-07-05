@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bot, Home, Users, Settings, LogOut, DollarSign, Monitor, Radar, MessageCircle, FlaskConical, Instagram } from 'lucide-react';
+import { Bot, Home, Users, Settings, LogOut, DollarSign, Monitor, Radar, MessageCircle, FlaskConical, Instagram, CalendarClock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -39,7 +39,10 @@ export function Header() {
   const isTeacher = userRole === 'teacher';
 
   const navItems = isTeacher
-    ? [{ path: '/virtual-groups', label: 'Mis grupos', icon: Monitor }]
+    ? [
+        { path: '/virtual-groups', label: 'Mis grupos', icon: Monitor },
+        { path: '/teacher/availability', label: 'Mi disponibilidad', icon: CalendarClock },
+      ]
     : [
         { path: '/', label: 'Dashboard', icon: Home },
         { path: '/students', label: 'Students', icon: Users },
