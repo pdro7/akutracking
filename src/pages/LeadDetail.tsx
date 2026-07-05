@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, UserPlus, MessageCircle } from 'lucide-react';
+import { ArrowLeft, UserPlus, MessageCircle, Link as LinkIcon } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -317,6 +317,26 @@ export default function LeadDetail() {
             <Button variant="outline" className="gap-2" onClick={() => setShowConvertDialog(true)}>
               <UserPlus size={16} />
               Convertir a alumno
+            </Button>
+          )}
+          {lead.form_token && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={async () => {
+                const url = `${window.location.origin}/preferencias/${lead.form_token}`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  toast.success('Link copiado. Pégalo en WhatsApp.');
+                } catch {
+                  toast.error(url);
+                }
+              }}
+              title="Link para que el padre confirme sus preferencias"
+            >
+              <LinkIcon size={14} />
+              Copiar link preferencias
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={openEdit}>Editar</Button>

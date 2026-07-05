@@ -451,6 +451,7 @@ export type Database = {
           date_of_birth: string | null
           desired_start_by: string | null
           email: string | null
+          form_token: string
           id: string
           interested_course_id: string | null
           notes: string | null
@@ -479,6 +480,7 @@ export type Database = {
           date_of_birth?: string | null
           desired_start_by?: string | null
           email?: string | null
+          form_token?: string
           id?: string
           interested_course_id?: string | null
           notes?: string | null
@@ -507,6 +509,7 @@ export type Database = {
           date_of_birth?: string | null
           desired_start_by?: string | null
           email?: string | null
+          form_token?: string
           id?: string
           interested_course_id?: string | null
           notes?: string | null

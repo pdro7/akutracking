@@ -30,6 +30,8 @@ import InstagramConversations from "./pages/InstagramConversations";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TeacherAvailability from "./pages/TeacherAvailability";
 import SetPassword from "./pages/SetPassword";
+import PublicInterest from "./pages/PublicInterest";
+import TokenizedPreferences from "./pages/TokenizedPreferences";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +70,8 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/interes" element={<PublicInterest />} />
+            <Route path="/preferencias/:token" element={<TokenizedPreferences />} />
             {/* Teacher-accessible routes */}
             <Route path="/virtual-groups" element={<ProtectedRoute><Header /><VirtualGroups /></ProtectedRoute>} />
             <Route path="/virtual-groups/:id" element={<ProtectedRoute><Header /><VirtualGroupDetail /></ProtectedRoute>} />
