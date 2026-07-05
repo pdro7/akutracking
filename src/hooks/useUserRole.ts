@@ -1,5 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+// Clear cached role/teacher data whenever the auth session changes so a
+// previous user's cache never leaks into the next session.
+export function useAuthCacheInvalidation() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      queryClient.invalidateQueries({ queryKey: ['userRole'] });
+      queryClient.invalidateQueries({ queryKey: ['teacherRecord'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [queryClient]);
+}
 
 export function useUserRole() {
   return useQuery({
@@ -12,7 +27,8 @@ export function useUserRole() {
         .select('role')
         .eq('user_id', user.id)
         .maybeSingle();
-      return (data?.role as string) || 'staff';
+      // No role assigned = no access. Admin must assign one via user_roles.
+      return (data?.role as string) || 'unassigned';
     },
     staleTime: 60_000,
   });

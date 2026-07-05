@@ -12,6 +12,9 @@ import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { generateSessionDates } from '@/lib/holidays';
+import { Checkbox } from '@/components/ui/checkbox';
+import { TimeSlotPicker } from '@/components/TimeSlotPicker';
+import { SUBJECTS, SUBJECT_LABEL, MODALITIES, MODALITY_LABEL } from '@/lib/subjects';
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 function generateGroupCode(courseCode: string, startDate: Date): string {
@@ -70,6 +73,9 @@ export default function Settings() {
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [teacherName, setTeacherName] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
+  const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
+  const [teacherAvailability, setTeacherAvailability] = useState<string[]>([]);
+  const [teacherModalities, setTeacherModalities] = useState<string[]>([]);
   const [deleteTeacherId, setDeleteTeacherId] = useState<string | null>(null);
 
   // Course slots state
@@ -189,7 +195,13 @@ export default function Settings() {
   const saveTeacherMutation = useMutation({
     mutationFn: async () => {
       if (!teacherName.trim()) throw new Error('El nombre es obligatorio');
-      const payload: any = { name: teacherName.trim(), email: teacherEmail.trim() || null };
+      const payload: any = {
+        name: teacherName.trim(),
+        email: teacherEmail.trim() || null,
+        subjects: teacherSubjects,
+        availability: teacherAvailability,
+        modalities: teacherModalities,
+      };
       if (editingTeacher) {
         const { error } = await supabase.from('teachers').update(payload).eq('id', editingTeacher.id);
         if (error) throw error;
@@ -205,6 +217,9 @@ export default function Settings() {
       setEditingTeacher(null);
       setTeacherName('');
       setTeacherEmail('');
+      setTeacherSubjects([]);
+      setTeacherAvailability([]);
+      setTeacherModalities([]);
     },
     onError: (error: Error) => { toast.error(error.message); }
   });
@@ -213,10 +228,22 @@ export default function Settings() {
     mutationFn: async ({ email, teacher_id }: { email: string; teacher_id: string }) => {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke('invite-teacher', {
-        body: { email, teacher_id },
+        body: { email, teacher_id, redirect_to: `${window.location.origin}/set-password` },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) {
+        // supabase-js swallows the response body on non-2xx. Read it from the
+        // underlying Response so we surface the real message from the function.
+        let detail = res.error.message;
+        try {
+          const ctx = (res.error as any).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            if (body?.error) detail = body.error;
+          }
+        } catch { /* ignore, fall back to generic message */ }
+        throw new Error(detail);
+      }
       if (res.data?.error) throw new Error(res.data.error);
     },
     onSuccess: () => {
@@ -228,8 +255,23 @@ export default function Settings() {
 
   const deleteTeacherMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('teachers').delete().eq('id', id);
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('delete-teacher', {
+        body: { teacher_id: id },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) {
+        let detail = res.error.message;
+        try {
+          const ctx = (res.error as any).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            if (body?.error) detail = body.error;
+          }
+        } catch { /* fall back */ }
+        throw new Error(detail);
+      }
+      if (res.data?.error) throw new Error(res.data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teachers'] });
@@ -738,7 +780,7 @@ export default function Settings() {
                 <p className="text-sm text-muted-foreground">Lista de profesores activos de la academia</p>
               </div>
             </div>
-            <Button onClick={() => { setEditingTeacher(null); setTeacherName(''); setTeacherEmail(''); setShowTeacherDialog(true); }} size="sm" className="gap-2">
+            <Button onClick={() => { setEditingTeacher(null); setTeacherName(''); setTeacherEmail(''); setTeacherSubjects([]); setTeacherAvailability([]); setTeacherModalities([]); setShowTeacherDialog(true); }} size="sm" className="gap-2">
               <Plus size={16} />
               Añadir profesor
             </Button>
@@ -782,7 +824,7 @@ export default function Settings() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setTeacherEmail(teacher.email || ''); setShowTeacherDialog(true); }}>
+                        <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setTeacherEmail(teacher.email || ''); setTeacherSubjects(Array.isArray((teacher as any).subjects) ? (teacher as any).subjects : []); setTeacherAvailability(Array.isArray((teacher as any).availability) ? (teacher as any).availability : []); setTeacherModalities(Array.isArray((teacher as any).modalities) ? (teacher as any).modalities : []); setShowTeacherDialog(true); }}>
                           <Pencil size={14} />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => setDeleteTeacherId(teacher.id)}>
@@ -1110,11 +1152,11 @@ export default function Settings() {
 
       {/* Teacher Dialog */}
       <Dialog open={showTeacherDialog} onOpenChange={(open) => !open && setShowTeacherDialog(false)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingTeacher ? 'Editar profesor' : 'Nuevo profesor'}</DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4">
+          <div className="py-4 space-y-5">
             <div>
               <Label className="mb-2 block">Nombre *</Label>
               <Input
@@ -1133,6 +1175,51 @@ export default function Settings() {
               />
               <p className="text-xs text-muted-foreground mt-1">Email con el que iniciará sesión. Si se asigna, tendrá acceso solo a sus grupos.</p>
             </div>
+            <div>
+              <Label className="mb-2 block">Materias</Label>
+              <div className="flex flex-wrap gap-3">
+                {SUBJECTS.map((s) => (
+                  <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={teacherSubjects.includes(s)}
+                      onCheckedChange={() =>
+                        setTeacherSubjects(
+                          teacherSubjects.includes(s)
+                            ? teacherSubjects.filter((v) => v !== s)
+                            : [...teacherSubjects, s],
+                        )
+                      }
+                    />
+                    {SUBJECT_LABEL[s]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Modalidades</Label>
+              <div className="flex flex-wrap gap-3">
+                {MODALITIES.map((m) => (
+                  <label key={m} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={teacherModalities.includes(m)}
+                      onCheckedChange={() =>
+                        setTeacherModalities(
+                          teacherModalities.includes(m)
+                            ? teacherModalities.filter((v) => v !== m)
+                            : [...teacherModalities, m],
+                        )
+                      }
+                    />
+                    {MODALITY_LABEL[m]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <TimeSlotPicker
+              value={teacherAvailability}
+              onChange={setTeacherAvailability}
+              label="Disponibilidad horaria"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTeacherDialog(false)}>Cancelar</Button>
@@ -1147,7 +1234,9 @@ export default function Settings() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar profesor?</AlertDialogTitle>
-            <AlertDialogDescription>Los grupos asignados a este profesor quedarán sin profesor asignado.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Se eliminarán el registro del profesor, su cuenta de acceso y su rol. Los grupos asignados quedarán sin profesor. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

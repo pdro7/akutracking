@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useUserRole, useAuthCacheInvalidation } from "@/hooks/useUserRole";
 import Dashboard from "./pages/Dashboard";
 import StudentDetail from "./pages/StudentDetail";
 import EditStudent from "./pages/EditStudent";
@@ -28,15 +28,33 @@ import Conversations from "./pages/Conversations";
 import PabloStats from "./pages/PabloStats";
 import InstagramConversations from "./pages/InstagramConversations";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TeacherAvailability from "./pages/TeacherAvailability";
+import SetPassword from "./pages/SetPassword";
 
 const queryClient = new QueryClient();
 
-// Redirects teachers to /virtual-groups; passes others through
+// Routes staff/admin through; teachers land on /virtual-groups; anyone else
+// (no role assigned) sees a "no access" screen instead of default staff privileges.
 function NoTeacher({ children }: { children: React.ReactNode }) {
   const { data: role, isLoading } = useUserRole();
   if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (role === 'teacher') return <Navigate to="/virtual-groups" replace />;
-  return <>{children}</>;
+  if (role === 'admin' || role === 'staff') return <>{children}</>;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="max-w-md text-center space-y-4">
+        <h1 className="text-2xl font-bold">Sin acceso</h1>
+        <p className="text-muted-foreground">
+          Tu cuenta no tiene rol asignado. Contacta con un administrador.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
+  useAuthCacheInvalidation();
+  return <div className="min-h-screen bg-background">{children}</div>;
 }
 
 const App = () => (
@@ -45,13 +63,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <div className="min-h-screen bg-background">
+        <AppShell>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/set-password" element={<SetPassword />} />
             {/* Teacher-accessible routes */}
             <Route path="/virtual-groups" element={<ProtectedRoute><Header /><VirtualGroups /></ProtectedRoute>} />
             <Route path="/virtual-groups/:id" element={<ProtectedRoute><Header /><VirtualGroupDetail /></ProtectedRoute>} />
+            <Route path="/teacher/availability" element={<ProtectedRoute><Header /><TeacherAvailability /></ProtectedRoute>} />
             {/* Admin/staff-only routes */}
             <Route path="/" element={<ProtectedRoute><NoTeacher><Header /><Dashboard /></NoTeacher></ProtectedRoute>} />
             <Route path="/student/:id" element={<ProtectedRoute><NoTeacher><Header /><StudentDetail /></NoTeacher></ProtectedRoute>} />
@@ -72,7 +92,7 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute><NoTeacher><Header /><Settings /></NoTeacher></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </div>
+        </AppShell>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
