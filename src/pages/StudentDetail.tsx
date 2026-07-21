@@ -345,14 +345,12 @@ export default function StudentDetail() {
       };
 
       if (editingPayment) {
+        // Editing an existing payment only updates the historical record.
+        // classes_remaining is NOT touched here — the pack was already added
+        // when the payment was first created. Re-adding it on every edit
+        // caused N×pack_size classes to accumulate on every save.
         const { error } = await supabase.from('payments').update(paymentData).eq('id', editingPayment.id);
         if (error) throw error;
-        const { data: currentStudent, error: fetchError } = await supabase.from('students').select('classes_remaining').eq('id', id).single();
-        if (fetchError) throw fetchError;
-        const { error: updateError } = await supabase.from('students')
-          .update({ pack_size: paymentPackSize, classes_remaining: (currentStudent?.classes_remaining ?? 0) + paymentPackSize })
-          .eq('id', id);
-        if (updateError) throw updateError;
       } else {
         const { error } = await supabase.from('payments').insert(paymentData);
         if (error) throw error;
