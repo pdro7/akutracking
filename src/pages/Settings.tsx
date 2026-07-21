@@ -1178,7 +1178,7 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground mt-1">Email con el que iniciará sesión. Si se asigna, tendrá acceso solo a sus grupos.</p>
             </div>
             <div>
-              <Label className="mb-2 block">Materias</Label>
+              <Label className="mb-2 block">Herramientas / temas</Label>
               <div className="flex flex-wrap gap-3">
                 {SUBJECTS.map((s) => (
                   <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">

@@ -92,7 +92,7 @@ export default function TeacherAvailability() {
 
       <Card className="p-6 space-y-6">
         <div>
-          <Label className="mb-2 block">Materias que puedo dictar</Label>
+          <Label className="mb-2 block">Herramientas / temas que puedo enseñar</Label>
           <div className="flex flex-wrap gap-3">
             {SUBJECTS.map((s) => (
               <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">

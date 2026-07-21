@@ -1,23 +1,35 @@
 export const SUBJECTS = [
-  'robotica',
+  'scratch',
+  'arduino',
+  'tinkercad',
+  'video-edicion',
   'python',
-  'minecraft',
+  'minecraft-edu',
   'roblox',
+  'ml4k',
+  'ia-gen',
   'unity',
-  'youtube',
-  'ia',
+  'javascript',
+  'godot',
+  'vibecoding',
 ] as const;
 
 export type Subject = (typeof SUBJECTS)[number];
 
 export const SUBJECT_LABEL: Record<Subject, string> = {
-  robotica: 'Robótica',
+  scratch: 'Scratch',
+  arduino: 'Arduino',
+  tinkercad: 'Tinkercad',
+  'video-edicion': 'Edición de Video',
   python: 'Python',
-  minecraft: 'Minecraft',
+  'minecraft-edu': 'Minecraft Education',
   roblox: 'Roblox',
+  ml4k: 'ML4K (IA)',
+  'ia-gen': 'IA Gen',
   unity: 'Unity',
-  youtube: 'YouTube Creator',
-  ia: 'IA',
+  javascript: 'JavaScript',
+  godot: 'Godot',
+  vibecoding: 'Vibecoding',
 };
 
 export const MODALITIES = ['virtual', 'presencial'] as const;
