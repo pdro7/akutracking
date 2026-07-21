@@ -29,16 +29,6 @@ Ideas pendientes de evaluar e implementar, organizadas por área.
 - [ ] Exportar listados a Excel/CSV
 - [ ] App móvil / PWA para marcar asistencia desde el teléfono
 
-## Base de conocimiento de cursos
-- [ ] Añadir campos `curriculum` (resumen corto) y `program_url` (PDF) a `virtual_courses`
-- [ ] Inyectar descripción + curriculum en el prompt de Pablo dinámicamente
-- [ ] Pablo comparte el link al PDF cuando un padre pide el temario detallado
+## Pablo (asistente WhatsApp)
 
-## Pablo — mejoras pendientes
-- [ ] Seguimiento automático de conversaciones sin respuesta: job programado que detecta leads/ex-alumnos sin respuesta en X días y Pablo les envía un mensaje de seguimiento automáticamente
-- [ ] Plantillas adicionales de WhatsApp: follow-up para leads fríos, recordatorio de clase de prueba, post-prueba
-- [ ] Actualizar Google Apps Script de Calendly para insertar en `leads` en lugar de `trial_leads`
-
-## Reactivación de ex-alumnos
-- [ ] Flujo de reactivación desde `students` activos que llevan tiempo sin renovar pack (no solo ex-alumnos importados)
-- [ ] Mensaje de plantilla específico para reactivación (diferente al de captación de leads nuevos)
+Todas las mejoras específicas de Pablo — incluyendo base de conocimiento de cursos que se inyecta al prompt, reactivación de ex-alumnos vía Pablo, plantillas de WhatsApp adicionales y seguimiento automático — viven en [`pablo.md`](./pablo.md) §14. Ese es el documento único de trabajo para Pablo.
