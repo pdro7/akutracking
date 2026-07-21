@@ -233,10 +233,12 @@ export type Database = {
           code: string
           created_at: string
           end_date: string | null
+          end_time: string | null
           id: string
           min_students: number | null
           notes: string | null
           start_date: string
+          start_time: string | null
           status: string
           teacher_id: string | null
           updated_at: string
@@ -246,10 +248,12 @@ export type Database = {
           code: string
           created_at?: string
           end_date?: string | null
+          end_time?: string | null
           id?: string
           min_students?: number | null
           notes?: string | null
           start_date: string
+          start_time?: string | null
           status?: string
           teacher_id?: string | null
           updated_at?: string
@@ -259,10 +263,12 @@ export type Database = {
           code?: string
           created_at?: string
           end_date?: string | null
+          end_time?: string | null
           id?: string
           min_students?: number | null
           notes?: string | null
           start_date?: string
+          start_time?: string | null
           status?: string
           teacher_id?: string | null
           updated_at?: string

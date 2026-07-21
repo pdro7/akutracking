@@ -48,6 +48,8 @@ export default function VirtualGroups() {
   const [courseId, setCourseId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [groupStatus, setGroupStatus] = useState('forming');
   const [notes, setNotes] = useState('');
   const [teacherId, setTeacherId] = useState('');
@@ -137,6 +139,8 @@ export default function VirtualGroups() {
           virtual_course_id: courseId,
           start_date: startDate,
           end_date: endDate || null,
+          start_time: startTime || null,
+          end_time: endTime || null,
           status: groupStatus,
           teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
           notes: notes.trim() || null,
@@ -203,6 +207,8 @@ export default function VirtualGroups() {
     setCourseId('');
     setStartDate('');
     setEndDate('');
+    setStartTime('');
+    setEndTime('');
     setGroupStatus('forming');
     setTeacherId('none');
     setNotes('');
@@ -406,6 +412,25 @@ export default function VirtualGroups() {
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block">Hora inicio</Label>
+                <Input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Hora fin</Label>
+                <Input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
+              </div>
             </div>
 
             {previewCode && (

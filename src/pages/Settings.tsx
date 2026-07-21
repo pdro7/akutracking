@@ -344,6 +344,8 @@ export default function Settings() {
           code,
           virtual_course_id: vc.id,
           start_date: slot.tentative_start_date,
+          start_time: slot.start_time || null,
+          end_time: slot.end_time || null,
           status: 'forming',
         })
         .select()

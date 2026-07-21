@@ -65,6 +65,8 @@ export default function VirtualGroupDetail() {
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [editGroupStartDate, setEditGroupStartDate] = useState('');
   const [editGroupEndDate, setEditGroupEndDate] = useState('');
+  const [editGroupStartTime, setEditGroupStartTime] = useState('');
+  const [editGroupEndTime, setEditGroupEndTime] = useState('');
   const [editGroupNotes, setEditGroupNotes] = useState('');
   const [editGroupTeacherId, setEditGroupTeacherId] = useState('none');
 
@@ -210,6 +212,8 @@ export default function VirtualGroupDetail() {
         .update({
           start_date: editGroupStartDate,
           end_date: editGroupEndDate || null,
+          start_time: editGroupStartTime || null,
+          end_time: editGroupEndTime || null,
           teacher_id: editGroupTeacherId && editGroupTeacherId !== 'none' ? editGroupTeacherId : null,
           notes: editGroupNotes.trim() || null,
         })
@@ -577,6 +581,7 @@ export default function VirtualGroupDetail() {
             <p className="text-sm text-muted-foreground mt-1">
               Inicio: {new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}
               {group.end_date && ` · Fin: ${new Date(group.end_date + 'T12:00:00').toLocaleDateString('es-CO')}`}
+              {(group as any).start_time && ` · Horario: ${(group as any).start_time.slice(0, 5)}${(group as any).end_time ? '–' + (group as any).end_time.slice(0, 5) : ''}`}
               {(group as any).teachers?.name && ` · Profesor: ${(group as any).teachers.name}`}
             </p>
           </div>
@@ -588,6 +593,8 @@ export default function VirtualGroupDetail() {
               onClick={() => {
                 setEditGroupStartDate(group.start_date ?? '');
                 setEditGroupEndDate(group.end_date ?? '');
+                setEditGroupStartTime(((group as any).start_time ?? '').slice(0, 5));
+                setEditGroupEndTime(((group as any).end_time ?? '').slice(0, 5));
                 setEditGroupNotes(group.notes ?? '');
                 setEditGroupTeacherId((group as any).teacher_id ?? 'none');
                 setShowEditGroup(true);
@@ -850,6 +857,24 @@ export default function VirtualGroupDetail() {
                 value={editGroupStartDate}
                 onChange={(e) => setEditGroupStartDate(e.target.value)}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block">Hora inicio</Label>
+                <Input
+                  type="time"
+                  value={editGroupStartTime}
+                  onChange={(e) => setEditGroupStartTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Hora fin</Label>
+                <Input
+                  type="time"
+                  value={editGroupEndTime}
+                  onChange={(e) => setEditGroupEndTime(e.target.value)}
+                />
+              </div>
             </div>
             <div>
               <Label className="mb-2 block">Fecha de fin (opcional)</Label>
