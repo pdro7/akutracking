@@ -9,17 +9,20 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TimeSlotPicker } from '@/components/TimeSlotPicker';
-import { LEAD_MODALITY_OPTIONS } from '@/lib/subjects';
+
+// Sentinel value used in the course select to represent "I haven't decided yet".
+// The client resolves this to interested_course_id=null and course_interest="No decidido aún"
+// before calling the edge function.
+export const UNDECIDED_COURSE = 'undecided';
 
 export type InterestFormValues = {
   child_name: string;
   parent_name: string;
   phone: string;
   email: string;
+  date_of_birth: string;
   interested_course_id: string;
   preferred_slots: string[];
-  preferred_modality: string;
-  desired_start_by: string;
   notes: string;
 };
 
@@ -31,6 +34,7 @@ type Props = {
   showNotes?: boolean;
   onSubmit: (values: InterestFormValues) => Promise<void>;
   successMessage?: string;
+  modalityLabel?: string;
 };
 
 const empty: InterestFormValues = {
@@ -38,14 +42,13 @@ const empty: InterestFormValues = {
   parent_name: '',
   phone: '',
   email: '',
+  date_of_birth: '',
   interested_course_id: '',
   preferred_slots: [],
-  preferred_modality: '',
-  desired_start_by: '',
   notes: '',
 };
 
-export function InterestForm({ title, description, submitLabel, initial, showNotes = true, onSubmit, successMessage }: Props) {
+export function InterestForm({ title, description, submitLabel, initial, showNotes = true, onSubmit, successMessage, modalityLabel = 'Virtual' }: Props) {
   const [values, setValues] = useState<InterestFormValues>({ ...empty, ...initial });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -104,73 +107,82 @@ export function InterestForm({ title, description, submitLabel, initial, showNot
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="max-w-lg mx-auto py-8">
+      <div className="max-w-3xl mx-auto py-8">
         <Card>
           <CardHeader>
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
+            <div className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                Modalidad: {modalityLabel}
+              </span>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <Label className="mb-1 block">Nombre del niño/a *</Label>
-                <Input value={values.child_name} onChange={(e) => set('child_name', e.target.value)} required />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-1 block">Nombre del niño/a *</Label>
+                  <Input value={values.child_name} onChange={(e) => set('child_name', e.target.value)} required />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Fecha de nacimiento del niño/a</Label>
+                  <Input
+                    type="date"
+                    value={values.date_of_birth}
+                    onChange={(e) => set('date_of_birth', e.target.value)}
+                  />
+                </div>
               </div>
-              <div>
-                <Label className="mb-1 block">Tu nombre (padre/madre) *</Label>
-                <Input value={values.parent_name} onChange={(e) => set('parent_name', e.target.value)} required />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-1 block">Tu nombre (padre/madre) *</Label>
+                  <Input value={values.parent_name} onChange={(e) => set('parent_name', e.target.value)} required />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Teléfono / WhatsApp *</Label>
+                  <Input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="+57 300 000 0000"
+                    value={values.phone}
+                    onChange={(e) => set('phone', e.target.value)}
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label className="mb-1 block">Teléfono / WhatsApp *</Label>
-                <Input
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="+57 300 000 0000"
-                  value={values.phone}
-                  onChange={(e) => set('phone', e.target.value)}
-                  required
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-1 block">Email (opcional)</Label>
+                  <Input
+                    type="email"
+                    inputMode="email"
+                    value={values.email}
+                    onChange={(e) => set('email', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Curso de interés</Label>
+                  <Select value={values.interested_course_id} onValueChange={(v) => set('interested_course_id', v)}>
+                    <SelectTrigger><SelectValue placeholder="Elige un curso" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNDECIDED_COURSE}>No lo he decidido / no lo sé</SelectItem>
+                      {courses.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label className="mb-1 block">Email (opcional)</Label>
-                <Input
-                  type="email"
-                  inputMode="email"
-                  value={values.email}
-                  onChange={(e) => set('email', e.target.value)}
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">Curso de interés</Label>
-                <Select value={values.interested_course_id} onValueChange={(v) => set('interested_course_id', v)}>
-                  <SelectTrigger><SelectValue placeholder="Elige un curso" /></SelectTrigger>
-                  <SelectContent>
-                    {courses.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="mb-1 block">Modalidad</Label>
-                <Select value={values.preferred_modality} onValueChange={(v) => set('preferred_modality', v)}>
-                  <SelectTrigger><SelectValue placeholder="Sin preferencia" /></SelectTrigger>
-                  <SelectContent>
-                    {LEAD_MODALITY_OPTIONS.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+
               <TimeSlotPicker
                 value={values.preferred_slots}
                 onChange={(v) => set('preferred_slots', v)}
                 label="Franjas horarias que te sirven"
               />
-              <div>
-                <Label className="mb-1 block">Nos gustaría empezar antes de</Label>
-                <Input type="date" value={values.desired_start_by} onChange={(e) => set('desired_start_by', e.target.value)} />
-              </div>
+
               {showNotes && (
                 <div>
                   <Label className="mb-1 block">Cuéntanos algo más (opcional)</Label>
@@ -182,9 +194,12 @@ export function InterestForm({ title, description, submitLabel, initial, showNot
                   />
                 </div>
               )}
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? 'Enviando...' : submitLabel}
-              </Button>
+
+              <div className="flex justify-end">
+                <Button type="submit" disabled={submitting} className="w-full md:w-auto md:min-w-[180px]">
+                  {submitting ? 'Enviando...' : submitLabel}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>

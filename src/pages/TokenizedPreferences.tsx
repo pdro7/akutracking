@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { InterestForm, type InterestFormValues } from '@/components/InterestForm';
+import { InterestForm, UNDECIDED_COURSE, type InterestFormValues } from '@/components/InterestForm';
 
 async function parseErrorMessage(error: any): Promise<string> {
   let detail = error?.message ?? 'Error';
@@ -42,10 +42,9 @@ export default function TokenizedPreferences() {
           parent_name: data.lead.parent_name || '',
           phone: data.lead.phone || '',
           email: data.lead.email || '',
+          date_of_birth: data.lead.date_of_birth || '',
           interested_course_id: data.lead.interested_course_id || '',
           preferred_slots: Array.isArray(data.lead.preferred_slots) ? data.lead.preferred_slots : [],
-          preferred_modality: data.lead.preferred_modality || '',
-          desired_start_by: data.lead.desired_start_by || '',
         });
       }
       setLoading(false);
@@ -76,8 +75,10 @@ export default function TokenizedPreferences() {
       submitLabel="Guardar preferencias"
       initial={initial ?? undefined}
       showNotes={false}
+      modalityLabel="Virtual"
       successMessage="Guardamos tus preferencias. Te contactamos apenas tengamos grupo."
       onSubmit={async (values: InterestFormValues) => {
+        const undecided = values.interested_course_id === UNDECIDED_COURSE;
         const { data, error } = await supabase.functions.invoke('lead-preferences', {
           body: {
             action: 'write',
@@ -86,10 +87,10 @@ export default function TokenizedPreferences() {
             parent_name: values.parent_name,
             phone: values.phone,
             email: values.email || null,
-            interested_course_id: values.interested_course_id || null,
+            date_of_birth: values.date_of_birth || null,
+            interested_course_id: undecided ? null : (values.interested_course_id || null),
             preferred_slots: values.preferred_slots,
-            preferred_modality: values.preferred_modality || null,
-            desired_start_by: values.desired_start_by || null,
+            preferred_modality: 'virtual',
           },
         });
         if (error) throw new Error(await parseErrorMessage(error));
