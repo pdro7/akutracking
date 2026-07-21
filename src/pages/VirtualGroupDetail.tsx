@@ -25,10 +25,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { generateSessionDates } from '@/lib/holidays';
 
-const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' }> = {
-  forming:   { label: 'Formando',   variant: 'secondary' },
+const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'info' | 'destructive' | 'outline' }> = {
+  forming:   { label: 'Formando',   variant: 'warning' },
   active:    { label: 'Activo',     variant: 'success' },
-  completed: { label: 'Completado', variant: 'outline' },
+  completed: { label: 'Finalizado', variant: 'info' },
   cancelled: { label: 'Cancelado',  variant: 'destructive' },
 };
 
@@ -611,7 +611,7 @@ export default function VirtualGroupDetail() {
               <SelectContent>
                 <SelectItem value="forming">Formando</SelectItem>
                 <SelectItem value="active">Activo</SelectItem>
-                <SelectItem value="completed">Completado</SelectItem>
+                <SelectItem value="completed">Finalizado</SelectItem>
                 <SelectItem value="cancelled">Cancelado</SelectItem>
               </SelectContent>
             </Select>
