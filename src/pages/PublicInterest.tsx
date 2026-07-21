@@ -4,8 +4,8 @@ import { InterestForm, UNDECIDED_COURSE, type InterestFormValues } from '@/compo
 export default function PublicInterest() {
   return (
     <InterestForm
-      title="Cuéntanos sobre ti"
-      description="Nos ayuda a agruparte con otros niños que buscan lo mismo. Te contactamos cuando tengamos un grupo listo."
+      title="Cuéntanos sobre tu hijo(a)"
+      description="Sus preferencias y disponibilidad horaria nos ayudan a organizar los grupos más rápido y a que encajen con tu agenda."
       submitLabel="Enviar"
       modalityLabel="Virtual"
       onSubmit={async (values: InterestFormValues) => {
