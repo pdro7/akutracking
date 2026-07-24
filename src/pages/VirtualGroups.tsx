@@ -11,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Monitor } from 'lucide-react';
+import { Plus, Monitor, UserPlus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { generateSessionDates } from '@/lib/holidays';
 import { useUserRole, useTeacherRecord } from '@/hooks/useUserRole';
+import { useEligibleStudents } from '@/hooks/useEligibleStudents';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'info' | 'destructive' | 'outline' }> = {
   forming:   { label: 'Formando',   variant: 'warning' },
@@ -220,6 +221,13 @@ export default function VirtualGroups() {
     ? generateGroupCode(selectedCourse.code, new Date(startDate + 'T12:00:00'))
     : '';
 
+  // Eligible candidates for the selected course (terminados + por terminar
+  // in the prerequisite). Shows a discreet link inside the dialog.
+  const { data: eligible } = useEligibleStudents(courseId || null);
+  const eligibleCount = eligible
+    ? eligible.terminados.length + eligible.porTerminar.length
+    : 0;
+
   const { data: resolvedCode } = useQuery({
     queryKey: ['group_code_check', baseCode],
     enabled: !!baseCode,
@@ -403,6 +411,17 @@ export default function VirtualGroups() {
                   ))}
                 </SelectContent>
               </Select>
+              {courseId && eligible && eligible.prerequisites.length > 0 && (
+                <a
+                  href={`/candidatos?course=${courseId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-2"
+                >
+                  <UserPlus size={12} />
+                  Ver {eligibleCount} candidato{eligibleCount === 1 ? '' : 's'} elegible{eligibleCount === 1 ? '' : 's'} para este curso →
+                </a>
+              )}
             </div>
 
             <div>

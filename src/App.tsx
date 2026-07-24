@@ -33,6 +33,7 @@ import SetPassword from "./pages/SetPassword";
 import PublicInterest from "./pages/PublicInterest";
 import TokenizedPreferences from "./pages/TokenizedPreferences";
 import Schedule from "./pages/Schedule";
+import EligibleStudents from "./pages/EligibleStudents";
 
 const queryClient = new QueryClient();
 
@@ -95,6 +96,7 @@ const App = () => (
             <Route path="/conversations" element={<ProtectedRoute><NoTeacher><Header /><Conversations /></NoTeacher></ProtectedRoute>} />
             <Route path="/pablo-stats" element={<ProtectedRoute><NoTeacher><Header /><PabloStats /></NoTeacher></ProtectedRoute>} />
             <Route path="/instagram" element={<ProtectedRoute><NoTeacher><Header /><InstagramConversations /></NoTeacher></ProtectedRoute>} />
+            <Route path="/candidatos" element={<ProtectedRoute><NoTeacher><Header /><EligibleStudents /></NoTeacher></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><NoTeacher><Header /><Settings /></NoTeacher></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
