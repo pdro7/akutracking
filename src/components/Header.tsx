@@ -50,7 +50,6 @@ export function Header() {
         { path: '/leads', label: 'Leads', icon: Radar },
         { path: '/trial-leads', label: 'Pruebas', icon: FlaskConical },
         { path: '/conversations', label: 'Pablo', icon: MessageCircle },
-        { path: '/instagram', label: 'Instagram', icon: Instagram },
         { path: '/virtual-groups', label: 'Virtual', icon: Monitor },
         { path: '/candidatos', label: 'Candidatos', icon: UserPlus },
         { path: '/calendario', label: 'Calendario', icon: CalendarDays },
