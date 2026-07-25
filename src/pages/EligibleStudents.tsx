@@ -151,6 +151,7 @@ export default function EligibleStudents() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Alumno</TableHead>
+                    <TableHead>Edad</TableHead>
                     <TableHead>Padre / madre</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Prerequisito · grupo</TableHead>
@@ -171,6 +172,9 @@ export default function EligibleStudents() {
                           >
                             {c.student_name}
                           </button>
+                        </TableCell>
+                        <TableCell className="text-sm font-mono">
+                          {c.age_label ?? <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell className="text-sm">
                           <div>{c.parent_name}</div>
