@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { GraduationCap, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { GraduationCap, MessageCircle, UserPlus } from 'lucide-react';
 import {
   useEligibleStudents,
   buildWhatsAppLink,
@@ -20,8 +23,13 @@ import {
 
 export default function EligibleStudents() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const targetCourseId = params.get('course') || '';
+
+  // Enroll dialog state
+  const [enrolling, setEnrolling] = useState<Candidate | null>(null);
+  const [enrollGroupId, setEnrollGroupId] = useState<string>('');
 
   const { data: courses = [] } = useQuery({
     queryKey: ['virtual_courses_all_active'],
@@ -37,6 +45,22 @@ export default function EligibleStudents() {
   });
 
   const { data, isLoading } = useEligibleStudents(targetCourseId || null);
+
+  // Groups of the target course that can receive new enrollments.
+  const { data: targetGroups = [] } = useQuery({
+    queryKey: ['target_course_groups', targetCourseId],
+    enabled: !!targetCourseId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('course_groups')
+        .select('id, code, start_date, start_time, status')
+        .eq('virtual_course_id', targetCourseId)
+        .in('status', ['forming', 'active'])
+        .order('start_date', { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const setCourse = (id: string) => {
     const next = new URLSearchParams(params);
@@ -54,22 +78,55 @@ export default function EligibleStudents() {
 
   const targetName = data?.targetCourseName ?? '';
 
-  const handleCopyLink = async (c: Candidate) => {
-    if (!targetName) return;
-    const link = buildWhatsAppLink(c.phone, defaultOfferMessage(c, targetName));
-    try {
-      await navigator.clipboard.writeText(link);
-      toast.success(`Link para ${c.student_name} copiado`);
-    } catch {
-      window.open(link, '_blank');
-    }
-  };
-
   const handleOpenWA = (c: Candidate) => {
     if (!targetName) return;
     const link = buildWhatsAppLink(c.phone, defaultOfferMessage(c, targetName));
     window.open(link, '_blank');
   };
+
+  const openEnroll = (c: Candidate) => {
+    setEnrolling(c);
+    setEnrollGroupId(targetGroups[0]?.id ?? '');
+  };
+
+  const enrollMutation = useMutation({
+    mutationFn: async () => {
+      if (!enrolling) throw new Error('Sin candidato');
+      if (!enrollGroupId) throw new Error('Selecciona un grupo');
+      // Reactivate a withdrawn enrollment if it exists, otherwise insert new.
+      const { data: existing } = await supabase
+        .from('course_enrollments')
+        .select('id, status')
+        .eq('student_id', enrolling.student_id)
+        .eq('group_id', enrollGroupId)
+        .maybeSingle();
+      if (existing) {
+        if (existing.status === 'active') throw new Error('Este alumno ya está activo en ese grupo');
+        const { error } = await supabase
+          .from('course_enrollments')
+          .update({ status: 'active' })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('course_enrollments').insert({
+          student_id: enrolling.student_id,
+          group_id: enrollGroupId,
+          status: 'active',
+          payment_plan: 'full',
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['eligible_students'] });
+      queryClient.invalidateQueries({ queryKey: ['course_enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollment_counts'] });
+      toast.success(`${enrolling?.student_name} inscrito. Configura el pago desde el detalle del grupo.`);
+      setEnrolling(null);
+      setEnrollGroupId('');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
@@ -204,21 +261,22 @@ export default function EligibleStudents() {
                               variant="outline"
                               size="sm"
                               className="gap-1"
-                              onClick={() => handleCopyLink(c)}
-                              title="Copiar link de WhatsApp con mensaje pre-armado"
+                              onClick={() => handleOpenWA(c)}
+                              title="Abrir WhatsApp con el mensaje pre-armado"
                             >
-                              <LinkIcon size={14} />
-                              Copiar
+                              <MessageCircle size={14} />
+                              WhatsApp
                             </Button>
                             <Button
-                              variant="outline"
+                              variant="default"
                               size="sm"
                               className="gap-1"
-                              onClick={() => handleOpenWA(c)}
-                              title="Abrir WhatsApp Web con el mensaje"
+                              onClick={() => openEnroll(c)}
+                              disabled={already}
+                              title={already ? 'Ya inscrito en el curso destino' : 'Inscribir a un grupo'}
                             >
-                              <ExternalLink size={14} />
-                              WA
+                              <UserPlus size={14} />
+                              Inscribir
                             </Button>
                           </div>
                         </TableCell>
@@ -231,6 +289,51 @@ export default function EligibleStudents() {
           )}
         </>
       )}
+
+      {/* Enroll dialog */}
+      <Dialog open={!!enrolling} onOpenChange={(o) => !o && setEnrolling(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Inscribir a {enrolling?.student_name}</DialogTitle>
+            <DialogDescription>
+              A un grupo de <b>{data?.targetCourseCode} — {data?.targetCourseName}</b>. Después de inscribir, configura el plan de pago desde el detalle del grupo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            {targetGroups.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No hay grupos abiertos de este curso todavía. Crea uno desde{' '}
+                <Link to="/virtual-groups" className="underline">Virtual</Link> y vuelve aquí.
+              </p>
+            ) : (
+              <div>
+                <label className="text-xs font-medium block mb-1">Grupo destino</label>
+                <Select value={enrollGroupId} onValueChange={setEnrollGroupId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Elige un grupo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {targetGroups.map((g: any) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.code} · {g.start_date}{g.start_time ? ` · ${g.start_time.slice(0, 5)}` : ''} · {g.status === 'forming' ? 'Formando' : 'Activo'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnrolling(null)}>Cancelar</Button>
+            <Button
+              onClick={() => enrollMutation.mutate()}
+              disabled={enrollMutation.isPending || !enrollGroupId || targetGroups.length === 0}
+            >
+              {enrollMutation.isPending ? 'Inscribiendo...' : 'Inscribir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
