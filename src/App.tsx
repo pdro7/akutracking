@@ -34,6 +34,7 @@ import PublicInterest from "./pages/PublicInterest";
 import TokenizedPreferences from "./pages/TokenizedPreferences";
 import Schedule from "./pages/Schedule";
 import EligibleStudents from "./pages/EligibleStudents";
+import TeacherTrials from "./pages/TeacherTrials";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,7 @@ const App = () => (
             <Route path="/virtual-groups" element={<ProtectedRoute><Header /><VirtualGroups /></ProtectedRoute>} />
             <Route path="/virtual-groups/:id" element={<ProtectedRoute><Header /><VirtualGroupDetail /></ProtectedRoute>} />
             <Route path="/teacher/availability" element={<ProtectedRoute><Header /><TeacherAvailability /></ProtectedRoute>} />
+            <Route path="/teacher/trials" element={<ProtectedRoute><Header /><TeacherTrials /></ProtectedRoute>} />
             <Route path="/calendario" element={<ProtectedRoute><Header /><Schedule /></ProtectedRoute>} />
             {/* Admin/staff-only routes */}
             <Route path="/" element={<ProtectedRoute><NoTeacher><Header /><Dashboard /></NoTeacher></ProtectedRoute>} />
