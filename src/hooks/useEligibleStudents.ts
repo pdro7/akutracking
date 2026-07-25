@@ -92,18 +92,21 @@ export function useEligibleStudents(targetCourseId: string | null | undefined) {
       }
 
       // Fetch every enrollment on any prerequisite group, joined to student + group + course.
+      // Archived students are excluded — they left the academy so offering them
+      // the next level makes no sense.
       const { data: enrollments, error: enrErr } = await supabase
         .from('course_enrollments')
         .select(`
           status,
           created_at,
-          students!inner(id, name, parent_name, phone, additional_phones, classes_remaining, date_of_birth, age_at_enrollment),
+          students!inner(id, name, parent_name, phone, additional_phones, classes_remaining, date_of_birth, age_at_enrollment, archived),
           course_groups!inner(
             id, code, status, end_date, virtual_course_id,
             virtual_courses!inner(id, code, name)
           )
         `)
-        .in('course_groups.virtual_course_id', prereqIds);
+        .in('course_groups.virtual_course_id', prereqIds)
+        .eq('students.archived', false);
       if (enrErr) throw enrErr;
 
       // Enrollments in the target course (any status) so we can flag "ya inscrito".
