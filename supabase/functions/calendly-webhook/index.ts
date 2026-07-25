@@ -157,26 +157,38 @@ serve(async (req) => {
         })
       }
 
-      // 2. Try to find existing lead by phone
+      // 2. Match by phone ONLY when the child_name also matches (or the
+      //    existing lead has no child_name yet). Two siblings share a phone
+      //    but should live as two distinct leads — the previous behavior
+      //    silently overwrote the first sibling with the second.
       let existingLeadId: string | null = null
       if (phone) {
         const normalized = phone.replace(/\D/g, '').slice(-10)
         if (normalized.length >= 7) {
           const { data: allLeads } = await supabase
             .from('leads')
-            .select('id, phone')
+            .select('id, phone, child_name')
             .not('status', 'eq', 'lost')
+          const newChild = (childName ?? '').trim().toLowerCase()
           const match = (allLeads ?? []).find((l: any) => {
             const n = (l.phone ?? '').replace(/\D/g, '').slice(-10)
-            return n === normalized
+            if (n !== normalized) return false
+            const existingChild = (l.child_name ?? '').trim().toLowerCase()
+            // Only reuse if names match, or the existing lead was a stub
+            // without a real child_name yet.
+            if (!existingChild || existingChild === '(por confirmar)') return true
+            if (!newChild) return true
+            return existingChild === newChild
           })
           if (match) existingLeadId = match.id
         }
       }
 
       if (existingLeadId) {
-        // Update existing lead with trial info
-        await supabase.from('leads').update(trialFields).eq('id', existingLeadId)
+        // Also fill child_name if it was a stub.
+        const patch: Record<string, unknown> = { ...trialFields }
+        if (childName) (patch as any).child_name = childName
+        await supabase.from('leads').update(patch).eq('id', existingLeadId)
         return new Response(JSON.stringify({ ok: true, matched: 'phone' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
