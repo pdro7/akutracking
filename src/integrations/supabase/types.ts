@@ -890,6 +890,50 @@ export type Database = {
           },
         ]
       }
+      trial_reschedules: {
+        Row: {
+          id: string
+          lead_id: string
+          previous_date: string | null
+          previous_time: string | null
+          new_date: string
+          new_time: string | null
+          reason: string | null
+          rescheduled_at: string
+          rescheduled_by: string | null
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          previous_date?: string | null
+          previous_time?: string | null
+          new_date: string
+          new_time?: string | null
+          reason?: string | null
+          rescheduled_at?: string
+          rescheduled_by?: string | null
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          previous_date?: string | null
+          previous_time?: string | null
+          new_date?: string
+          new_time?: string | null
+          reason?: string | null
+          rescheduled_at?: string
+          rescheduled_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trial_reschedules_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversations: {
         Row: {
           created_at: string | null

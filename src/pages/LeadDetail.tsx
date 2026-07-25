@@ -186,8 +186,8 @@ export default function LeadDetail() {
         source: editSource as any,
         course_interest: editCourseInterest.trim() || null,
         notes: editNotes.trim() || null,
-        trial_class_date: editTrialClassDate || null,
-        trial_class_time: editTrialClassTime || null,
+        // trial_class_date / trial_class_time deliberately omitted here —
+        // changes flow through rescheduleMutation so the history is tracked.
         trial_teacher_id: editTrialTeacherId && editTrialTeacherId !== 'none' ? editTrialTeacherId : null,
         trial_course_id: editTrialCourseId && editTrialCourseId !== 'none' ? editTrialCourseId : null,
         trial_objection: editTrialObjection.trim() || null,
@@ -426,6 +426,10 @@ export default function LeadDetail() {
               </div>
             )}
           </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Para reagendar o cambiar detalles del trial, ve a la vista de{' '}
+            <a href={`/trial-leads/${lead.id}`} className="text-primary hover:underline">Clases de prueba</a>.
+          </p>
         </Card>
       )}
 
@@ -635,13 +639,16 @@ export default function LeadDetail() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="mb-1 block">Fecha</Label>
-                  <Input type="date" value={editTrialClassDate} onChange={(e) => setEditTrialClassDate(e.target.value)} />
+                  <Input type="date" value={editTrialClassDate} disabled readOnly />
                 </div>
                 <div>
                   <Label className="mb-1 block">Hora</Label>
-                  <Input type="time" value={editTrialClassTime} onChange={(e) => setEditTrialClassTime(e.target.value)} />
+                  <Input type="time" value={editTrialClassTime} disabled readOnly />
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Para cambiar fecha/hora ve a la vista de <b>Clases de prueba</b>. Cada reagenda queda registrada en el historial.
+              </p>
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div>
                   <Label className="mb-1 block">Profesor</Label>

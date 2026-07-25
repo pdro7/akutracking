@@ -21,6 +21,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 type TrialLeadStatus = 'trial_scheduled' | 'trial_attended' | 'enrolled' | 'trial_cancelled' | 'trial_no_show' | 'interested';
 
@@ -71,6 +75,11 @@ export default function TrialLeadDetail() {
   const [parentEmail, setParentEmail] = useState('');
   const [trialClassDate, setTrialClassDate] = useState('');
   const [trialClassTime, setTrialClassTime] = useState('');
+  // Reschedule dialog
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
   const [status, setStatus] = useState<TrialLeadStatus>('trial_scheduled');
   const [notes, setNotes] = useState('');
   const [objection, setObjection] = useState('');
@@ -136,8 +145,8 @@ export default function TrialLeadDetail() {
           parent_name: parentName,
           phone: parentPhone || null,
           email: parentEmail || null,
-          trial_class_date: trialClassDate,
-          trial_class_time: trialClassTime || null,
+          // trial_class_date / trial_class_time deliberately omitted here —
+          // changes flow through rescheduleMutation so the history is tracked.
           status: status as any,
           notes: notes || null,
           trial_teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
@@ -156,6 +165,64 @@ export default function TrialLeadDetail() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  const { data: reschedules = [] } = useQuery({
+    queryKey: ['trial_reschedules', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trial_reschedules')
+        .select('id, previous_date, previous_time, new_date, new_time, reason, rescheduled_at')
+        .eq('lead_id', id!)
+        .order('rescheduled_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!id,
+  });
+
+  const rescheduleMutation = useMutation({
+    mutationFn: async () => {
+      if (!lead) throw new Error('Lead no encontrado');
+      if (!rescheduleDate) throw new Error('La nueva fecha es obligatoria');
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: insErr } = await supabase.from('trial_reschedules').insert({
+        lead_id: id!,
+        previous_date: lead.trial_class_date ?? null,
+        previous_time: lead.trial_class_time ?? null,
+        new_date: rescheduleDate,
+        new_time: rescheduleTime || null,
+        reason: rescheduleReason.trim() || null,
+        rescheduled_by: user?.id ?? null,
+      });
+      if (insErr) throw insErr;
+      const { error: updErr } = await supabase.from('leads').update({
+        trial_class_date: rescheduleDate,
+        trial_class_time: rescheduleTime || null,
+        status: 'trial_scheduled' as any,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id!);
+      if (updErr) throw updErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trial-lead', id] });
+      queryClient.invalidateQueries({ queryKey: ['trial-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['trial_reschedules', id] });
+      setShowRescheduleDialog(false);
+      setRescheduleDate('');
+      setRescheduleTime('');
+      setRescheduleReason('');
+      toast.success('Clase de prueba reagendada');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const openReschedule = () => {
+    if (!lead) return;
+    setRescheduleDate(lead.trial_class_date || '');
+    setRescheduleTime(lead.trial_class_time?.slice(0, 5) || '');
+    setRescheduleReason('');
+    setShowRescheduleDialog(true);
+  };
 
   const convertToStudentMutation = useMutation({
     mutationFn: async () => {
@@ -315,14 +382,25 @@ export default function TrialLeadDetail() {
             </div>
 
             {/* Row 3: Date + time + status */}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-muted-foreground">Programación de la clase</p>
+              <Button type="button" variant="outline" size="sm" onClick={openReschedule}>
+                Reagendar
+                {reschedules.length > 0 && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">
+                    ({reschedules.length}× reagendada)
+                  </span>
+                )}
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Fecha de la clase *</label>
-                <Input type="date" value={trialClassDate} onChange={(e) => setTrialClassDate(e.target.value)} />
+                <Input type="date" value={trialClassDate} disabled readOnly />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Hora</label>
-                <Input type="time" value={trialClassTime} onChange={(e) => setTrialClassTime(e.target.value)} />
+                <Input type="time" value={trialClassTime} disabled readOnly />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Estado *</label>
@@ -339,6 +417,30 @@ export default function TrialLeadDetail() {
                 </Select>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              La fecha y hora se cambian con el botón <b>Reagendar</b> arriba para dejar registro del histórico.
+            </p>
+
+            {reschedules.length > 0 && (
+              <div className="rounded-md border p-3 bg-muted/30">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Historial de reagendas</p>
+                <ul className="space-y-1.5 text-xs">
+                  {reschedules.map((r: any) => {
+                    const prev = r.previous_date
+                      ? `${new Date(r.previous_date + 'T12:00:00').toLocaleDateString('es-CO')}${r.previous_time ? ' ' + r.previous_time.slice(0, 5) : ''}`
+                      : '(sin fecha previa)';
+                    const next = `${new Date(r.new_date + 'T12:00:00').toLocaleDateString('es-CO')}${r.new_time ? ' ' + r.new_time.slice(0, 5) : ''}`;
+                    const when = new Date(r.rescheduled_at).toLocaleDateString('es-CO');
+                    return (
+                      <li key={r.id} className="text-muted-foreground">
+                        <span className="font-mono">{when}</span> · {prev} → <span className="font-medium text-foreground">{next}</span>
+                        {r.reason && <span className="italic"> · «{r.reason}»</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
 
             {/* Row 4: Course + teacher */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -392,6 +494,48 @@ export default function TrialLeadDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reschedule dialog */}
+      <Dialog open={showRescheduleDialog} onOpenChange={(o) => !o && setShowRescheduleDialog(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reagendar clase de prueba</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {lead?.trial_class_date && (
+              <p className="text-xs text-muted-foreground">
+                Actual: {new Date(lead.trial_class_date + 'T12:00:00').toLocaleDateString('es-CO')}
+                {lead.trial_class_time && ` · ${lead.trial_class_time.slice(0, 5)}`}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="mb-1 block">Nueva fecha *</Label>
+                <Input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+              </div>
+              <div>
+                <Label className="mb-1 block">Nueva hora</Label>
+                <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label className="mb-1 block">Motivo (opcional)</Label>
+              <Textarea
+                rows={2}
+                value={rescheduleReason}
+                onChange={(e) => setRescheduleReason(e.target.value)}
+                placeholder="Ej: compromiso familiar, enfermedad..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRescheduleDialog(false)}>Cancelar</Button>
+            <Button onClick={() => rescheduleMutation.mutate()} disabled={rescheduleMutation.isPending || !rescheduleDate}>
+              {rescheduleMutation.isPending ? 'Guardando...' : 'Reagendar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
         <AlertDialogContent>
