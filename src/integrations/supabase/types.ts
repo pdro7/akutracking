@@ -684,6 +684,9 @@ export type Database = {
           address: string | null
           age_at_enrollment: number | null
           archived: boolean
+          archived_at: string | null
+          archived_by: string | null
+          archived_reason: string | null
           city: string | null
           classes_attended: number
           classes_remaining: number
@@ -720,6 +723,9 @@ export type Database = {
           address?: string | null
           age_at_enrollment?: number | null
           archived?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          archived_reason?: string | null
           city?: string | null
           classes_attended?: number
           classes_remaining?: number
@@ -756,6 +762,9 @@ export type Database = {
           address?: string | null
           age_at_enrollment?: number | null
           archived?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          archived_reason?: string | null
           city?: string | null
           classes_attended?: number
           classes_remaining?: number

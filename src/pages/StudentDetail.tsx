@@ -93,6 +93,8 @@ export default function StudentDetail() {
 
   // Archive state
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [archiveReason, setArchiveReason] = useState('');
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
 
   // Virtual enroll dialog
   const [showVirtualEnrollDialog, setShowVirtualEnrollDialog] = useState(false);
@@ -596,12 +598,40 @@ export default function StudentDetail() {
   // ── Archive mutation ─────────────────────────────────────────
   const archiveMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('students').update({ archived: true }).eq('id', id);
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from('students').update({
+        archived: true,
+        archived_reason: archiveReason.trim() || null,
+        archived_at: new Date().toISOString(),
+        archived_by: user?.id ?? null,
+      }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Alumno archivado');
+      setArchiveReason('');
+      setShowArchiveDialog(false);
       navigate('/students');
+    },
+    onError: (error: Error) => { toast.error(error.message); }
+  });
+
+  // ── Restore mutation ─────────────────────────────────────────
+  const restoreMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('students').update({
+        archived: false,
+        archived_reason: null,
+        archived_at: null,
+        archived_by: null,
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student', id] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      setShowRestoreDialog(false);
+      toast.success('Alumno restaurado');
     },
     onError: (error: Error) => { toast.error(error.message); }
   });
@@ -763,8 +793,28 @@ export default function StudentDetail() {
       </div>
 
       {student.archived && (
-        <div className="mb-4 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
-          Este alumno está archivado y no aparece en las listas activas.
+        <div className="mb-4 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm flex items-start justify-between gap-4">
+          <div>
+            <div className="font-medium">Este alumno está archivado y no aparece en las listas activas.</div>
+            {(student as any).archived_reason && (
+              <div className="text-xs mt-1 text-yellow-900/80">
+                Motivo: <em>«{(student as any).archived_reason}»</em>
+              </div>
+            )}
+            {(student as any).archived_at && (
+              <div className="text-xs text-yellow-900/60">
+                Archivado el {new Date((student as any).archived_at).toLocaleDateString('es-CO')}
+              </div>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-yellow-400 text-yellow-900 hover:bg-yellow-100 shrink-0"
+            onClick={() => setShowRestoreDialog(true)}
+          >
+            Restaurar
+          </Button>
         </div>
       )}
 
@@ -1483,18 +1533,47 @@ export default function StudentDetail() {
       </AlertDialog>
 
       {/* ── Archive Dialog ────────────────────────────────────── */}
-      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+      <Dialog open={showArchiveDialog} onOpenChange={(o) => { if (!o) { setShowArchiveDialog(false); setArchiveReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿Archivar a {student.name}?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p className="text-muted-foreground">
+              El alumno seguirá en el historial pero no aparecerá en las listas activas. Puedes verlo en Students → Ver archivados y restaurarlo cuando quieras.
+            </p>
+            <div>
+              <label className="text-xs font-medium block mb-1">Motivo (opcional)</label>
+              <Textarea
+                rows={2}
+                value={archiveReason}
+                onChange={(e) => setArchiveReason(e.target.value)}
+                placeholder="Ej: terminó ciclo, se mudó, duplicado..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowArchiveDialog(false); setArchiveReason(''); }}>Cancelar</Button>
+            <Button onClick={() => archiveMutation.mutate()} disabled={archiveMutation.isPending}>
+              {archiveMutation.isPending ? 'Archivando...' : 'Archivar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Restore Dialog ────────────────────────────────────── */}
+      <AlertDialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Archivar a {student.name}?</AlertDialogTitle>
+            <AlertDialogTitle>¿Restaurar a {student.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              El alumno seguirá en el historial pero no aparecerá en las listas activas. Puedes verlo en Students → Ver archivados.
+              El alumno volverá a aparecer en las listas activas. Se limpia el registro del archivado (motivo, fecha, quién lo archivó).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => archiveMutation.mutate()}>
-              Archivar
+            <AlertDialogAction onClick={() => restoreMutation.mutate()}>
+              Restaurar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
