@@ -368,6 +368,120 @@ export type Database = {
         }
         Relationships: []
       }
+      individual_schedules: {
+        Row: {
+          id: string
+          student_id: string
+          teacher_id: string
+          current_topic: string | null
+          weekly_pattern: Json
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          teacher_id: string
+          current_topic?: string | null
+          weekly_pattern?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          teacher_id?: string
+          current_topic?: string | null
+          weekly_pattern?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "individual_schedules_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "individual_schedules_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      individual_sessions: {
+        Row: {
+          id: string
+          student_id: string
+          teacher_id: string
+          scheduled_date: string
+          scheduled_start_time: string
+          scheduled_end_time: string | null
+          status: string
+          notes: string | null
+          original_date: string | null
+          original_time: string | null
+          reschedule_reason: string | null
+          cancel_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          teacher_id: string
+          scheduled_date: string
+          scheduled_start_time: string
+          scheduled_end_time?: string | null
+          status?: string
+          notes?: string | null
+          original_date?: string | null
+          original_time?: string | null
+          reschedule_reason?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          teacher_id?: string
+          scheduled_date?: string
+          scheduled_start_time?: string
+          scheduled_end_time?: string | null
+          status?: string
+          notes?: string | null
+          original_date?: string | null
+          original_time?: string | null
+          reschedule_reason?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "individual_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "individual_sessions_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instagram_conversations: {
         Row: {
           created_at: string

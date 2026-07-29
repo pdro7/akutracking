@@ -35,6 +35,8 @@ import TokenizedPreferences from "./pages/TokenizedPreferences";
 import Schedule from "./pages/Schedule";
 import EligibleStudents from "./pages/EligibleStudents";
 import TeacherTrials from "./pages/TeacherTrials";
+import IndividualStudents from "./pages/IndividualStudents";
+import IndividualStudentDetail from "./pages/IndividualStudentDetail";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +101,8 @@ const App = () => (
             <Route path="/pablo-stats" element={<ProtectedRoute><NoTeacher><Header /><PabloStats /></NoTeacher></ProtectedRoute>} />
             <Route path="/instagram" element={<ProtectedRoute><NoTeacher><Header /><InstagramConversations /></NoTeacher></ProtectedRoute>} />
             <Route path="/candidatos" element={<ProtectedRoute><NoTeacher><Header /><EligibleStudents /></NoTeacher></ProtectedRoute>} />
+            <Route path="/individuales" element={<ProtectedRoute><NoTeacher><Header /><IndividualStudents /></NoTeacher></ProtectedRoute>} />
+            <Route path="/individuales/:studentId" element={<ProtectedRoute><NoTeacher><Header /><IndividualStudentDetail /></NoTeacher></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><NoTeacher><Header /><Settings /></NoTeacher></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
