@@ -77,6 +77,7 @@ export default function Settings() {
   const [teacherAvailability, setTeacherAvailability] = useState<string[]>([]);
   const [teacherModalities, setTeacherModalities] = useState<string[]>([]);
   const [deleteTeacherId, setDeleteTeacherId] = useState<string | null>(null);
+  const [reinviteTeacher, setReinviteTeacher] = useState<{ id: string; email: string; name: string } | null>(null);
 
   // Course slots state
   const [showSlotDialog, setShowSlotDialog] = useState(false);
@@ -804,10 +805,22 @@ export default function Settings() {
                     <TableCell className="font-medium">{teacher.name}</TableCell>
                     <TableCell>
                       {teacher.email ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm text-muted-foreground">{teacher.email}</span>
                           {teacher.user_id ? (
-                            <span className="text-xs text-green-600 border border-green-300 rounded px-1.5 py-0.5">✓ Activo</span>
+                            <>
+                              <span className="text-xs text-green-600 border border-green-300 rounded px-1.5 py-0.5">✓ Activo</span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs gap-1"
+                                disabled={inviteTeacherMutation.isPending}
+                                onClick={() => setReinviteTeacher({ id: teacher.id, email: teacher.email, name: teacher.name })}
+                                title="Útil si te equivocaste al escribir el email y ya corregiste"
+                              >
+                                Reenviar
+                              </Button>
+                            </>
                           ) : (
                             <Button
                               size="sm"
@@ -1231,6 +1244,29 @@ export default function Settings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!reinviteTeacher} onOpenChange={(open) => !open && setReinviteTeacher(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reenviar invitación a {reinviteTeacher?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se enviará una invitación nueva a <b>{reinviteTeacher?.email}</b>. La cuenta de acceso anterior se elimina y el profesor deberá aceptar la nueva invitación y crear contraseña otra vez. Útil cuando el email se envió a la dirección equivocada y ya lo corregiste.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!reinviteTeacher) return;
+                inviteTeacherMutation.mutate({ email: reinviteTeacher.email, teacher_id: reinviteTeacher.id });
+                setReinviteTeacher(null);
+              }}
+            >
+              Reenviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteTeacherId} onOpenChange={(open) => !open && setDeleteTeacherId(null)}>
         <AlertDialogContent>
