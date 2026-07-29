@@ -14,7 +14,10 @@ import { toast } from 'sonner';
 import { ArrowLeft, CheckCircle2, XCircle, CalendarClock, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { formatWeeklyPattern, type WeeklySlot } from '@/lib/individualSchedule';
+import { formatWeeklyPattern, generateIndividualSessions, WEEKDAYS, WEEKDAY_LABEL, type WeeklySlot, type WeekDay } from '@/lib/individualSchedule';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2, Pencil, RefreshCw } from 'lucide-react';
+import { useUserRole, useTeacherRecord } from '@/hooks/useUserRole';
 
 type Session = {
   id: string;
@@ -40,6 +43,9 @@ export default function IndividualStudentDetail() {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: role } = useUserRole();
+  const { data: teacherRecord } = useTeacherRecord();
+  const isTeacher = role === 'teacher';
 
   const [attendSession, setAttendSession] = useState<Session | null>(null);
   const [attendNotes, setAttendNotes] = useState('');
@@ -51,6 +57,17 @@ export default function IndividualStudentDetail() {
 
   const [cancelSession, setCancelSession] = useState<Session | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+
+  // Renew pack dialog
+  const [showRenewDialog, setShowRenewDialog] = useState(false);
+  const [renewPackSize, setRenewPackSize] = useState<number>(8);
+  const [renewStartDate, setRenewStartDate] = useState('');
+
+  // Edit schedule dialog
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editTeacherId, setEditTeacherId] = useState('');
+  const [editTopic, setEditTopic] = useState('');
+  const [editPattern, setEditPattern] = useState<WeeklySlot[]>([]);
 
   const { data: schedule, isLoading: loadingSch } = useQuery({
     queryKey: ['individual_schedule', studentId],
@@ -196,6 +213,92 @@ export default function IndividualStudentDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Teachers (for the edit dialog picker) — admin only editing.
+  const { data: teachersList = [] } = useQuery({
+    queryKey: ['teachers_active_individual_edit'],
+    enabled: showEditDialog && !isTeacher,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('teachers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Renew pack: generate N sessions from the given start date using the current
+  // pattern, reset classes_remaining and pack_size on the student.
+  const renewMutation = useMutation({
+    mutationFn: async () => {
+      if (!schedule || !renewStartDate || renewPackSize <= 0) throw new Error('Datos incompletos');
+      const pattern = Array.isArray(schedule.weekly_pattern) ? (schedule.weekly_pattern as unknown as WeeklySlot[]) : [];
+      const generated = generateIndividualSessions(renewStartDate, pattern, renewPackSize);
+      if (generated.length === 0) throw new Error('No se pudieron generar sesiones con el patrón actual');
+      const rows = generated.map((g) => ({
+        student_id: studentId!,
+        teacher_id: schedule.teacher_id,
+        scheduled_date: g.scheduled_date,
+        scheduled_start_time: g.scheduled_start_time,
+        scheduled_end_time: g.scheduled_end_time,
+      }));
+      const { error: sesErr } = await supabase.from('individual_sessions').insert(rows);
+      if (sesErr) throw sesErr;
+      const { error: stErr } = await supabase.from('students').update({
+        pack_size: renewPackSize,
+        classes_remaining: renewPackSize,
+      }).eq('id', studentId!);
+      if (stErr) throw stErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['individual_sessions', studentId] });
+      queryClient.invalidateQueries({ queryKey: ['individual_schedule', studentId] });
+      queryClient.invalidateQueries({ queryKey: ['individual_schedules'] });
+      setShowRenewDialog(false);
+      toast.success('Nuevo pack registrado');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Edit schedule (teacher, topic, weekly pattern).
+  const editScheduleMutation = useMutation({
+    mutationFn: async () => {
+      if (!editPattern.length) throw new Error('El patrón semanal no puede estar vacío');
+      const patch: any = {
+        current_topic: editTopic.trim() || null,
+        weekly_pattern: editPattern as any,
+        updated_at: new Date().toISOString(),
+      };
+      // Admin can also change teacher.
+      if (!isTeacher && editTeacherId) patch.teacher_id = editTeacherId;
+      const { error } = await supabase.from('individual_schedules').update(patch).eq('student_id', studentId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['individual_schedule', studentId] });
+      queryClient.invalidateQueries({ queryKey: ['individual_schedules'] });
+      setShowEditDialog(false);
+      toast.success('Configuración actualizada. Las sesiones ya generadas no cambian de fecha.');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const openEditSchedule = () => {
+    if (!schedule) return;
+    setEditTeacherId(schedule.teacher_id);
+    setEditTopic(schedule.current_topic ?? '');
+    const pattern = Array.isArray(schedule.weekly_pattern) ? (schedule.weekly_pattern as unknown as WeeklySlot[]) : [];
+    setEditPattern(pattern.length ? pattern : [{ day: 'mon', start_time: '16:00', end_time: '17:00' }]);
+    setShowEditDialog(true);
+  };
+
+  const openRenewPack = () => {
+    setRenewPackSize(schedule?.student?.pack_size ?? 8);
+    setRenewStartDate(new Date().toISOString().slice(0, 10));
+    setShowRenewDialog(true);
+  };
+
   if (loadingSch) {
     return <div className="p-8 text-center text-muted-foreground">Cargando…</div>;
   }
@@ -204,7 +307,18 @@ export default function IndividualStudentDetail() {
       <div className="p-8 text-center text-muted-foreground">
         Este alumno no está configurado como individual.
         <div className="mt-3">
-          <Button variant="outline" size="sm" onClick={() => navigate('/individuales')}>Volver</Button>
+          <Button variant="outline" size="sm" onClick={() => navigate(isTeacher ? '/teacher/individuales' : '/individuales')}>Volver</Button>
+        </div>
+      </div>
+    );
+  }
+  // Teacher can only see their own individual student.
+  if (isTeacher && teacherRecord?.id && schedule.teacher_id !== teacherRecord.id) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        Este alumno no está asignado a ti.
+        <div className="mt-3">
+          <Button variant="outline" size="sm" onClick={() => navigate('/teacher/individuales')}>Volver</Button>
         </div>
       </div>
     );
@@ -215,7 +329,7 @@ export default function IndividualStudentDetail() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/individuales')} className="gap-2 mb-4">
+      <Button variant="ghost" size="sm" onClick={() => navigate(isTeacher ? '/teacher/individuales' : '/individuales')} className="gap-2 mb-4">
         <ArrowLeft size={14} /> Volver a individuales
       </Button>
 
@@ -239,16 +353,31 @@ export default function IndividualStudentDetail() {
               </div>
             )}
           </div>
-          <div className="text-right shrink-0">
+          <div className="text-right shrink-0 flex flex-col items-end gap-1">
             <div className="text-xs text-muted-foreground">Pack</div>
             <div className="text-2xl font-bold">
               {student?.classes_remaining ?? 0}
               <span className="text-sm font-normal text-muted-foreground"> / {student?.pack_size ?? 0}</span>
             </div>
-            <div className="text-xs text-muted-foreground mt-1">clases restantes</div>
-            <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate(`/student/${studentId}`)}>
-              Ver ficha completa
-            </Button>
+            <div className="text-xs text-muted-foreground">clases restantes</div>
+            {!isTeacher && (
+              <div className="flex flex-col gap-1 mt-2 w-full max-w-[180px]">
+                <Button variant="outline" size="sm" className="gap-1" onClick={openEditSchedule}>
+                  <Pencil size={12} /> Editar
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1" onClick={openRenewPack}>
+                  <RefreshCw size={12} /> Nuevo pack
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(`/student/${studentId}`)}>
+                  Ver ficha completa
+                </Button>
+              </div>
+            )}
+            {isTeacher && (
+              <Button variant="outline" size="sm" className="mt-2 gap-1" onClick={openEditSchedule}>
+                <Pencil size={12} /> Editar tema/horario
+              </Button>
+            )}
           </div>
         </div>
       </Card>
@@ -368,6 +497,128 @@ export default function IndividualStudentDetail() {
             <Button variant="outline" onClick={() => setCancelSession(null)}>Cerrar</Button>
             <Button onClick={() => cancelMutation.mutate()} disabled={cancelMutation.isPending}>
               {cancelMutation.isPending ? 'Guardando...' : 'Cancelar sesión'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Renew pack dialog */}
+      <Dialog open={showRenewDialog} onOpenChange={(o) => !o && setShowRenewDialog(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nuevo pack para {student?.name}</DialogTitle>
+            <DialogDescription>
+              Se generan las sesiones del pack desde la fecha indicada usando el patrón semanal actual. El contador de clases restantes se resetea al tamaño del pack nuevo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium block mb-1">Pack *</label>
+                <Select value={String(renewPackSize)} onValueChange={(v) => setRenewPackSize(parseInt(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="4">4 clases</SelectItem>
+                    <SelectItem value="8">8 clases</SelectItem>
+                    <SelectItem value="10">10 clases</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Desde *</label>
+                <Input type="date" value={renewStartDate} onChange={(e) => setRenewStartDate(e.target.value)} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Patrón actual: <span className="font-medium">{formatWeeklyPattern(pattern)}</span>
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRenewDialog(false)}>Cancelar</Button>
+            <Button onClick={() => renewMutation.mutate()} disabled={renewMutation.isPending || !renewStartDate || !renewPackSize}>
+              {renewMutation.isPending ? 'Generando...' : `Generar ${renewPackSize} sesiones`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit schedule dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(o) => !o && setShowEditDialog(false)}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar configuración</DialogTitle>
+            <DialogDescription>
+              Cambios en el patrón semanal solo afectan a las sesiones que se generen después. Las ya programadas no cambian de fecha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {!isTeacher && (
+              <div>
+                <label className="text-xs font-medium block mb-1">Profesor</label>
+                <Select value={editTeacherId} onValueChange={setEditTeacherId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(teachersList as any[]).map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-medium block mb-1">Tema actual</label>
+              <Input value={editTopic} onChange={(e) => setEditTopic(e.target.value)} placeholder="Ej: Python básico, Scratch avanzado..." />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium">Patrón semanal</label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditPattern([...editPattern, { day: 'mon', start_time: '16:00', end_time: '17:00' }])}
+                >
+                  <Plus size={12} /> Añadir día
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {editPattern.map((slot, i) => (
+                  <div key={i} className="grid grid-cols-[80px_1fr_1fr_auto] gap-2 items-center">
+                    <Select value={slot.day} onValueChange={(v) => {
+                      const next = [...editPattern]; next[i] = { ...slot, day: v as WeekDay }; setEditPattern(next);
+                    }}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {WEEKDAYS.map((d) => (
+                          <SelectItem key={d} value={d}>{WEEKDAY_LABEL[d]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input type="time" value={slot.start_time} onChange={(e) => {
+                      const next = [...editPattern]; next[i] = { ...slot, start_time: e.target.value }; setEditPattern(next);
+                    }} />
+                    <Input type="time" value={slot.end_time ?? ''} onChange={(e) => {
+                      const next = [...editPattern]; next[i] = { ...slot, end_time: e.target.value || null }; setEditPattern(next);
+                    }} placeholder="Fin (opcional)" />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditPattern(editPattern.filter((_, j) => j !== i))}
+                      disabled={editPattern.length === 1}
+                      className="h-9 w-9"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancelar</Button>
+            <Button onClick={() => editScheduleMutation.mutate()} disabled={editScheduleMutation.isPending || editPattern.length === 0}>
+              {editScheduleMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
             </Button>
           </DialogFooter>
         </DialogContent>

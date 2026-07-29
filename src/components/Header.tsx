@@ -41,6 +41,7 @@ export function Header() {
   const navItems = isTeacher
     ? [
         { path: '/virtual-groups', label: 'Mis grupos', icon: Monitor },
+        { path: '/teacher/individuales', label: 'Mis individuales', icon: User },
         { path: '/teacher/trials', label: 'Mis pruebas', icon: FlaskConical },
         { path: '/calendario', label: 'Calendario', icon: CalendarDays },
         { path: '/teacher/availability', label: 'Mi disponibilidad', icon: CalendarClock },

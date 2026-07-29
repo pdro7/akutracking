@@ -9,7 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, CalendarClock, GraduationCap, FlaskConical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarClock, GraduationCap, FlaskConical, User } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths,
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
@@ -18,7 +18,7 @@ import { es } from 'date-fns/locale';
 import { useUserRole, useTeacherRecord } from '@/hooks/useUserRole';
 
 type CalendarItem = {
-  kind: 'session' | 'trial';
+  kind: 'session' | 'trial' | 'individual';
   id: string;
   date: string;      // YYYY-MM-DD
   time: string | null;
@@ -28,7 +28,7 @@ type CalendarItem = {
   teacherName: string | null;
   teacherId: string | null;
   href: string | null;
-  extra?: string;    // child name for trials
+  extra?: string;    // child name for trials / student name for individuals
 };
 
 function timeKey(t: string | null): number {
@@ -147,18 +147,60 @@ export default function Schedule() {
     },
   });
 
+  // Individual sessions — 1-on-1 students. Same rendering rules as group
+  // sessions except we distinguish them visually and the link goes to the
+  // /individuales detail page.
+  const { data: individuals = [] } = useQuery({
+    queryKey: ['schedule_individuals', rangeStartStr, rangeEndStr, isTeacher, teacherRecord?.id, teacherFilter],
+    queryFn: async () => {
+      let query = supabase
+        .from('individual_sessions')
+        .select(`
+          id, student_id, teacher_id, scheduled_date, scheduled_start_time, scheduled_end_time, status,
+          student:students!individual_sessions_student_id_fkey(name),
+          teacher:teachers!individual_sessions_teacher_id_fkey(id, name)
+        `)
+        .eq('status', 'scheduled')
+        .gte('scheduled_date', rangeStartStr)
+        .lte('scheduled_date', rangeEndStr)
+        .order('scheduled_date');
+
+      if (isTeacher && teacherRecord?.id) {
+        query = query.eq('teacher_id', teacherRecord.id);
+      } else if (teacherFilter !== 'all') {
+        query = query.eq('teacher_id', teacherFilter);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []).map((s: any): CalendarItem => ({
+        kind: 'individual',
+        id: s.id,
+        date: s.scheduled_date,
+        time: s.scheduled_start_time?.slice(0, 5) ?? null,
+        endTime: s.scheduled_end_time?.slice(0, 5) ?? null,
+        code: '1a1',
+        courseName: 'Clase individual',
+        teacherName: s.teacher?.name ?? null,
+        teacherId: s.teacher_id ?? null,
+        href: `/individuales/${s.student_id}`,
+        extra: s.student?.name,
+      }));
+    },
+  });
+
   const days = useMemo(() => eachDayOfInterval({ start: rangeStart, end: rangeEnd }), [rangeStart, rangeEnd]);
 
   const itemsByDate = useMemo(() => {
     const bag: Record<string, CalendarItem[]> = {};
-    for (const it of [...sessions, ...trials]) {
+    for (const it of [...sessions, ...trials, ...individuals]) {
       (bag[it.date] ||= []).push(it);
     }
     for (const key of Object.keys(bag)) {
       bag[key].sort((a, b) => timeKey(a.time) - timeKey(b.time));
     }
     return bag;
-  }, [sessions, trials]);
+  }, [sessions, trials, individuals]);
 
   const detailDateStr = dayDetail ? format(dayDetail, 'yyyy-MM-dd') : '';
   const detailItems = detailDateStr ? (itemsByDate[detailDateStr] || []) : [];
@@ -215,6 +257,10 @@ export default function Schedule() {
           Clase de prueba
         </span>
         <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+          Clase individual (1-a-1)
+        </span>
+        <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded inline-block" style={{ background: 'hsl(0 80% 90%)' }} />
           Feriado
         </span>
@@ -263,12 +309,14 @@ export default function Schedule() {
                       key={`${it.kind}-${it.id}`}
                       className={[
                         'text-[11px] px-1 py-0.5 rounded truncate flex items-center gap-1',
-                        it.kind === 'session' ? 'bg-primary/10 text-primary' : 'bg-orange-100 text-orange-900',
+                        it.kind === 'session' ? 'bg-primary/10 text-primary'
+                          : it.kind === 'trial' ? 'bg-orange-100 text-orange-900'
+                          : 'bg-emerald-100 text-emerald-900',
                       ].join(' ')}
                       title={`${it.time ?? ''} ${it.code} — ${it.courseName}${it.extra ? ' (' + it.extra + ')' : ''}`}
                     >
                       <span className="font-mono">{it.time ?? '—'}</span>
-                      <span className="truncate">{it.code}</span>
+                      <span className="truncate">{it.kind === 'individual' && it.extra ? it.extra.split(' ')[0] : it.code}</span>
                     </div>
                   ))}
                   {items.length > 3 && (
@@ -311,10 +359,15 @@ export default function Schedule() {
                     <div className="flex items-center gap-2">
                       {it.kind === 'session'
                         ? <GraduationCap size={16} className="text-primary" />
-                        : <FlaskConical size={16} className="text-orange-600" />}
+                        : it.kind === 'trial'
+                          ? <FlaskConical size={16} className="text-orange-600" />
+                          : <User size={16} className="text-emerald-700" />}
                       <span className="font-mono font-semibold">{it.code}</span>
-                      <Badge variant={it.kind === 'session' ? 'default' : 'warning'} className="text-[10px]">
-                        {it.kind === 'session' ? 'Grupo' : 'Prueba'}
+                      <Badge
+                        variant={it.kind === 'session' ? 'default' : it.kind === 'trial' ? 'warning' : 'success'}
+                        className="text-[10px]"
+                      >
+                        {it.kind === 'session' ? 'Grupo' : it.kind === 'trial' ? 'Prueba' : 'Individual'}
                       </Badge>
                     </div>
                     <span className="text-sm font-mono">
