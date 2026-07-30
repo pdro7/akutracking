@@ -320,6 +320,12 @@ export default function VirtualGroups() {
                         {new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })}
                       </span>
                     )}
+                    {group.start_time && (
+                      <span>
+                        {group.start_time.slice(0, 5)}
+                        {group.end_time ? '–' + group.end_time.slice(0, 5) : ''}
+                      </span>
+                    )}
                     <span>{new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO')}</span>
                     {lastDate && <span>→ {new Date(lastDate + 'T12:00:00').toLocaleDateString('es-CO')}</span>}
                     <span className="ml-auto">{(enrollmentCounts as any)[group.id] ?? 0} alumnos</span>
@@ -336,6 +342,7 @@ export default function VirtualGroups() {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Día</TableHead>
+                  <TableHead>Hora</TableHead>
                   <TableHead>Curso</TableHead>
                   <TableHead>Inicio</TableHead>
                   <TableHead>Fin</TableHead>
@@ -364,6 +371,11 @@ export default function VirtualGroups() {
                             <TableCell className="text-sm text-muted-foreground capitalize">
                               {group.start_date
                                 ? new Date(group.start_date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })
+                                : '—'}
+                            </TableCell>
+                            <TableCell>
+                              {group.start_time
+                                ? `${group.start_time.slice(0, 5)}${group.end_time ? '–' + group.end_time.slice(0, 5) : ''}`
                                 : '—'}
                             </TableCell>
                             <TableCell>{group.virtual_courses?.name ?? '—'}</TableCell>
