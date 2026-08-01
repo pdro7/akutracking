@@ -95,15 +95,37 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('course_sessions')
-        .select('id, session_number, group_id, course_groups(id, code, status, virtual_courses(name), teachers(name))')
+        .select('id, session_number, group_id, course_groups(id, code, status, start_time, end_time, virtual_courses(name), teachers(name))')
         .eq('scheduled_date', today)
         .order('session_number');
       if (error) throw error;
       // Only show groups that are active or forming (not completed/cancelled)
-      return (data || []).filter((s: any) =>
+      const sessions = (data || []).filter((s: any) =>
         s.course_groups && !['completed', 'cancelled'].includes(s.course_groups.status)
       );
+      // Enrollment counts per group so we can show "N alumnos" next to each session.
+      const groupIds = sessions.map((s: any) => s.course_groups?.id).filter(Boolean);
+      const counts: Record<string, number> = {};
+      if (groupIds.length) {
+        const { data: enrollments } = await supabase
+          .from('course_enrollments')
+          .select('group_id')
+          .eq('status', 'active')
+          .in('group_id', groupIds);
+        for (const e of enrollments ?? []) {
+          counts[(e as any).group_id] = (counts[(e as any).group_id] || 0) + 1;
+        }
+      }
+      return sessions.map((s: any) => ({ ...s, _student_count: counts[s.course_groups?.id] ?? 0 }));
     },
+  });
+
+  // Sort sessions of the day by their group's start_time so early classes come first.
+  // Groups without start_time (pre-2026-07-21) fall to the bottom.
+  const todaySessionsSorted = [...(todaySessions as any[])].sort((a, b) => {
+    const at = a.course_groups?.start_time ?? '99:99';
+    const bt = b.course_groups?.start_time ?? '99:99';
+    return at.localeCompare(bt);
   });
 
   // Trial class stats — current week (Mon–Sun)
@@ -225,14 +247,18 @@ export default function Dashboard() {
           Clases de hoy — {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
         </h2>
         <Card>
-          {(todaySessions as any[]).length === 0 ? (
+          {todaySessionsSorted.length === 0 ? (
             <div className="p-6 text-center text-muted-foreground text-sm">
               No hay clases programadas para hoy
             </div>
           ) : (
             <div className="divide-y">
-              {(todaySessions as any[]).map((session: any) => {
+              {todaySessionsSorted.map((session: any) => {
                 const group = session.course_groups;
+                const studentCount = session._student_count as number;
+                const timeStr = group?.start_time
+                  ? `${group.start_time.slice(0, 5)}${group.end_time ? '–' + group.end_time.slice(0, 5) : ''}`
+                  : null;
                 return (
                   <div
                     key={session.id}
@@ -245,7 +271,12 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p className="font-medium">{group?.virtual_courses?.name}</p>
-                        <p className="text-xs text-muted-foreground">{group?.code}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {group?.code}
+                          {timeStr && ` · ${timeStr}`}
+                          {' · '}
+                          {studentCount} alumno{studentCount === 1 ? '' : 's'}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
