@@ -69,10 +69,13 @@ export default function EligibleStudents() {
   };
 
   const hasPrereqs = (data?.prerequisites?.length ?? 0) > 0;
-  const total = (data?.terminados.length ?? 0) + (data?.porTerminar.length ?? 0);
 
   const combined = useMemo<Candidate[]>(
-    () => data ? [...data.terminados, ...data.porTerminar] : [],
+    () => data
+      ? [...data.terminados, ...data.porTerminar].filter(
+          (c) => !data.alreadyEnrolled.has(c.student_id),
+        )
+      : [],
     [data],
   );
 
@@ -191,14 +194,11 @@ export default function EligibleStudents() {
               <div className="flex gap-2 ml-auto">
                 <Badge variant="success">{data.terminados.length} terminados</Badge>
                 <Badge variant="warning">{data.porTerminar.length} por terminar</Badge>
-                {data.alreadyEnrolled.size > 0 && (
-                  <Badge variant="info">{data.alreadyEnrolled.size} ya inscritos</Badge>
-                )}
               </div>
             </div>
           </Card>
 
-          {total === 0 ? (
+          {combined.length === 0 ? (
             <Card className="p-8 text-center text-muted-foreground">
               Ningún alumno cumple los criterios hoy.
             </Card>
@@ -212,14 +212,11 @@ export default function EligibleStudents() {
                     <TableHead>Padre / madre</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Prerequisito · grupo</TableHead>
-                    <TableHead>Ya inscrito</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {combined.map((c) => {
-                    const already = data.alreadyEnrolled.has(c.student_id);
-                    return (
+                  {combined.map((c) => (
                       <TableRow key={`${c.status}-${c.student_id}`}>
                         <TableCell>
                           <button
@@ -252,9 +249,6 @@ export default function EligibleStudents() {
                           <div className="font-mono">{c.group_code}</div>
                           <div className="text-xs text-muted-foreground">{c.prerequisite_course_code}</div>
                         </TableCell>
-                        <TableCell>
-                          {already && <Badge variant="info">Sí</Badge>}
-                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-1 justify-end">
                             <Button
@@ -272,8 +266,7 @@ export default function EligibleStudents() {
                               size="sm"
                               className="gap-1"
                               onClick={() => openEnroll(c)}
-                              disabled={already}
-                              title={already ? 'Ya inscrito en el curso destino' : 'Inscribir a un grupo'}
+                              title="Inscribir a un grupo"
                             >
                               <UserPlus size={14} />
                               Inscribir
@@ -281,8 +274,7 @@ export default function EligibleStudents() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
+                  ))}
                 </TableBody>
               </Table>
             </Card>
