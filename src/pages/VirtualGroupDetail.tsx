@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, Users, Calendar, Pencil, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { computeAgeLabel } from '@/lib/age';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -118,7 +119,7 @@ export default function VirtualGroupDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('course_enrollments')
-        .select('*, students(id, name, email)')
+        .select('*, students(id, name, email, date_of_birth, age_at_enrollment)')
         .eq('group_id', id)
         .order('created_at');
       if (error) throw error;
@@ -666,6 +667,7 @@ export default function VirtualGroupDetail() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Alumno</TableHead>
+                    <TableHead>Edad</TableHead>
                     <TableHead>Plan de pago</TableHead>
                     <TableHead>1ª cuota</TableHead>
                     <TableHead>2ª cuota vence</TableHead>
@@ -687,6 +689,9 @@ export default function VirtualGroupDetail() {
                           onClick={() => navigate(`/student/${enrollment.student_id}`)}
                         >
                           {enrollment.students?.name ?? '—'}
+                        </TableCell>
+                        <TableCell className="text-sm font-mono">
+                          {computeAgeLabel(enrollment.students?.date_of_birth, enrollment.students?.age_at_enrollment) ?? <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell>
                           <Badge variant={enrollment.payment_plan === 'full' ? 'success' : 'warning'}>
