@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Archive, Search, MessageCircle, AlertCircle } from 'lucide-react';
+import { Plus, Users, Archive, Search, MessageCircle, AlertCircle, UserCheck } from 'lucide-react';
 import { getPaymentStatus } from '@/types/student';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,6 +70,21 @@ export default function Students() {
       setArchiveStudentId(null);
     },
     onError: (error: Error) => toast.error(error.message),
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: async (studentId: string) => {
+      const { error } = await supabase
+        .from('students')
+        .update({ is_active: true })
+        .eq('id', studentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Alumno reactivado');
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const startConversationMutation = useMutation({
@@ -301,16 +316,29 @@ export default function Students() {
                   )}
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {viewMode === 'inactive' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50"
-                        disabled={startConversationMutation.isPending}
-                        onClick={() => startConversationMutation.mutate(student.id)}
-                      >
-                        <MessageCircle size={14} />
-                        Reactivar con Pablo
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          disabled={reactivateMutation.isPending}
+                          onClick={() => reactivateMutation.mutate(student.id)}
+                          title="Marcar como activo sin enviar mensaje"
+                        >
+                          <UserCheck size={14} />
+                          Reactivar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50"
+                          disabled={startConversationMutation.isPending}
+                          onClick={() => startConversationMutation.mutate(student.id)}
+                        >
+                          <MessageCircle size={14} />
+                          Reactivar con Pablo
+                        </Button>
+                      </div>
                     )}
                     {viewMode === 'active' && (
                       <Button
