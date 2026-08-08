@@ -70,14 +70,20 @@ export default function IndividualStudentDetail() {
   const [editPattern, setEditPattern] = useState<WeeklySlot[]>([]);
 
   const { data: schedule, isLoading: loadingSch } = useQuery({
-    queryKey: ['individual_schedule', studentId],
+    // Include isTeacher in the key so the payload can't leak parent PII
+    // if the user role changes mid-session.
+    queryKey: ['individual_schedule', studentId, isTeacher],
     enabled: !!studentId,
     queryFn: async () => {
+      // Teachers never see parent contact info.
+      const studentFields = isTeacher
+        ? 'id, name, pack_size, classes_remaining'
+        : 'id, name, pack_size, classes_remaining, phone, parent_name';
       const { data, error } = await supabase
         .from('individual_schedules')
         .select(`
           id, teacher_id, current_topic, weekly_pattern, is_active,
-          student:students!individual_schedules_student_id_fkey(id, name, pack_size, classes_remaining, phone, parent_name),
+          student:students!individual_schedules_student_id_fkey(${studentFields}),
           teacher:teachers!individual_schedules_teacher_id_fkey(id, name)
         `)
         .eq('student_id', studentId!)
@@ -347,7 +353,7 @@ export default function IndividualStudentDetail() {
               <span className="text-muted-foreground">Horario semanal: </span>
               <span className="font-medium">{formatWeeklyPattern(pattern)}</span>
             </div>
-            {student?.parent_name && (
+            {!isTeacher && student?.parent_name && (
               <div className="text-xs text-muted-foreground mt-1">
                 Padre/madre: {student.parent_name}{student.phone && ` · ${student.phone}`}
               </div>

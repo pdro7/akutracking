@@ -21,7 +21,7 @@ export default function TeacherIndividuals() {
         .from('individual_schedules')
         .select(`
           id, student_id, current_topic, weekly_pattern, is_active,
-          student:students!individual_schedules_student_id_fkey(id, name, pack_size, classes_remaining, archived, parent_name, phone)
+          student:students!individual_schedules_student_id_fkey(id, name, pack_size, classes_remaining, archived)
         `)
         .eq('teacher_id', teacher!.id)
         .eq('is_active', true);
@@ -108,11 +108,6 @@ export default function TeacherIndividuals() {
                     <div className="text-xs text-muted-foreground mt-1">
                       Próxima: {new Date(r.next_session.scheduled_date + 'T12:00:00').toLocaleDateString('es-CO')}
                       {' · '}{r.next_session.scheduled_start_time.slice(0, 5)}
-                    </div>
-                  )}
-                  {r.student.parent_name && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Padre/madre: {r.student.parent_name}
                     </div>
                   )}
                 </div>

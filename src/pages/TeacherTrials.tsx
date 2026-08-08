@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FlaskConical, Phone, Mail, Calendar as CalendarIcon } from 'lucide-react';
+import { FlaskConical, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTeacherRecord } from '@/hooks/useUserRole';
@@ -23,10 +23,6 @@ const STATUS_LABEL: Record<string, { label: string; variant: 'default' | 'second
   lost:            { label: 'Perdido',   variant: 'destructive' },
 };
 
-function digitsOnly(p: string): string {
-  return p.replace(/\D/g, '');
-}
-
 export default function TeacherTrials() {
   const { data: teacher, isLoading: loadingTeacher } = useTeacherRecord();
   const [filter, setFilter] = useState<FilterKey>('upcoming');
@@ -37,8 +33,11 @@ export default function TeacherTrials() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
+        // Do NOT fetch parent_name / phone / email — teachers must not see
+        // parent PII. The child's name, timing and course are enough for
+        // them to prepare and show up.
         .select(`
-          id, child_name, parent_name, phone, email,
+          id, child_name,
           trial_class_date, trial_class_time, status,
           notes, trial_objection,
           trial_course:virtual_courses!leads_trial_course_id_fkey(code, name)
@@ -92,7 +91,7 @@ export default function TeacherTrials() {
             Mis clases de prueba
           </h1>
           <p className="text-sm text-muted-foreground">
-            Trials que tienes asignadas. Contacta al padre para confirmar antes de la clase.
+            Trials que tienes asignadas.
           </p>
         </div>
         <div className="flex gap-2">
@@ -142,9 +141,6 @@ export default function TeacherTrials() {
                     </div>
 
                     <div className="text-lg font-semibold">{t.child_name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Padre/madre: {t.parent_name}
-                    </div>
 
                     {course && (
                       <div className="text-sm mt-1">
@@ -167,30 +163,6 @@ export default function TeacherTrials() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-1.5 md:min-w-[180px]">
-                    {t.phone && (
-                      <a
-                        href={`https://wa.me/${digitsOnly(t.phone)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                        title="Abrir WhatsApp"
-                      >
-                        <Phone size={14} />
-                        {t.phone}
-                      </a>
-                    )}
-                    {t.email && (
-                      <a
-                        href={`mailto:${t.email}`}
-                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline truncate"
-                        title={t.email}
-                      >
-                        <Mail size={14} />
-                        <span className="truncate">{t.email}</span>
-                      </a>
-                    )}
-                  </div>
                 </div>
               </Card>
             );
