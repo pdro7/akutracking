@@ -85,6 +85,7 @@ export default function Schedule() {
       let query = supabase
         .from('course_sessions')
         .select('id, scheduled_date, group_id, course_groups!inner(id, code, start_time, end_time, teacher_id, virtual_courses(name), teachers(id, name))')
+        .neq('status', 'cancelled')
         .gte('scheduled_date', rangeStartStr)
         .lte('scheduled_date', rangeEndStr)
         .order('scheduled_date');

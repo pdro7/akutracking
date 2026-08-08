@@ -97,6 +97,7 @@ export default function Dashboard() {
         .from('course_sessions')
         .select('id, session_number, group_id, course_groups(id, code, status, start_time, end_time, virtual_courses(name), teachers(name))')
         .eq('scheduled_date', today)
+        .neq('status', 'cancelled')
         .order('session_number');
       if (error) throw error;
       // Only show groups that are active or forming (not completed/cancelled)

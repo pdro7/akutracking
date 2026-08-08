@@ -79,6 +79,9 @@ export default function VirtualGroupDetail() {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingSessionDate, setEditingSessionDate] = useState('');
 
+  const [cancelSession, setCancelSession] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+
   const { data: group, isLoading } = useQuery({
     queryKey: ['course_group', id],
     queryFn: async () => {
@@ -246,6 +249,65 @@ export default function VirtualGroupDetail() {
       queryClient.invalidateQueries({ queryKey: ['course_groups'] });
       toast.success('Grupo actualizado');
       setShowEditGroup(false);
+    },
+    onError: (error: Error) => { toast.error(error.message); },
+  });
+
+  const cancelSessionMutation = useMutation({
+    mutationFn: async ({ sessionId, reason }: { sessionId: string; reason: string }) => {
+      // Refuse if attendance was already registered — cancelling then would
+      // require unwinding classes_attended/remaining; punt on that edge for
+      // now and force the user to reset attendance manually first.
+      const { count, error: attErr } = await supabase
+        .from('attendance')
+        .select('id', { count: 'exact', head: true })
+        .eq('course_session_id', sessionId);
+      if (attErr) throw attErr;
+      if ((count ?? 0) > 0) {
+        throw new Error('Esta sesión ya tiene asistencia registrada. Bórrala primero desde "Marcar asistencia" si aún quieres cancelarla.');
+      }
+
+      const { error: cancelErr } = await supabase
+        .from('course_sessions')
+        .update({
+          status: 'cancelled',
+          cancelled_reason: reason.trim() || null,
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq('id', sessionId);
+      if (cancelErr) throw cancelErr;
+
+      // Append a replacement session at the end of the course. Uses
+      // last session_number + 1 and last scheduled_date + 7 days
+      // (weekly cadence). Considers ALL sessions of the group so
+      // repeated cancellations keep pushing the end back one week
+      // each time.
+      const { data: last, error: lastErr } = await supabase
+        .from('course_sessions')
+        .select('session_number, scheduled_date')
+        .eq('group_id', id)
+        .order('session_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastErr) throw lastErr;
+
+      const nextNumber = (last?.session_number ?? 0) + 1;
+      const baseDate = new Date((last?.scheduled_date ?? new Date().toISOString().slice(0, 10)) + 'T12:00:00');
+      baseDate.setDate(baseDate.getDate() + 7);
+      const nextDate = baseDate.toISOString().slice(0, 10);
+
+      const { error: insErr } = await supabase.from('course_sessions').insert({
+        group_id: id,
+        session_number: nextNumber,
+        scheduled_date: nextDate,
+      });
+      if (insErr) throw insErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course_sessions', id] });
+      setCancelSession(null);
+      setCancelReason('');
+      toast.success('Clase cancelada y sesión de reemplazo añadida al final');
     },
     onError: (error: Error) => { toast.error(error.message); },
   });
@@ -779,9 +841,13 @@ export default function VirtualGroupDetail() {
                   {(sessions as any[]).map((session: any) => {
                     const counts = (sessionAttendanceCounts as any)[session.id];
                     const isEditing = editingSessionId === session.id;
+                    const isCancelled = session.status === 'cancelled';
                     return (
-                      <TableRow key={session.id}>
-                        <TableCell className="font-medium">Sesión {session.session_number}</TableCell>
+                      <TableRow key={session.id} className={isCancelled ? 'opacity-60' : ''}>
+                        <TableCell className="font-medium">
+                          Sesión {session.session_number}
+                          {isCancelled && <Badge variant="destructive" className="ml-2">Cancelada</Badge>}
+                        </TableCell>
                         <TableCell>
                           {isEditing ? (
                             <div className="flex items-center gap-2">
@@ -821,21 +887,35 @@ export default function VirtualGroupDetail() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {counts
+                          {isCancelled ? (
+                            <span className="text-sm text-muted-foreground italic">
+                              {session.cancelled_reason || 'Sin motivo'}
+                            </span>
+                          ) : counts
                             ? `${counts.present}/${counts.total} presentes`
                             : <span className="text-muted-foreground text-sm">Sin registrar</span>}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // Load attendance before opening
-                              handleOpenAttendance(session);
-                            }}
-                          >
-                            Marcar asistencia
-                          </Button>
+                          {!isCancelled && (
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenAttendance(session)}
+                              >
+                                Marcar asistencia
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => { setCancelSession(session); setCancelReason(''); }}
+                                title="Cancelar esta clase y añadir una de reemplazo al final"
+                              >
+                                <XCircle size={16} />
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -1208,6 +1288,39 @@ export default function VirtualGroupDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Cancel Session Dialog ─────────────────────────────── */}
+      <Dialog open={!!cancelSession} onOpenChange={(open) => { if (!open) { setCancelSession(null); setCancelReason(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancelar sesión {cancelSession?.session_number}</DialogTitle>
+            <DialogDescription>
+              La sesión quedará marcada como cancelada y se añadirá una sesión de reemplazo al final del curso (7 días después de la última).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Motivo (opcional)</Label>
+            <Textarea
+              placeholder="Ej: profesor enfermo, feriado no marcado, etc."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setCancelSession(null); setCancelReason(''); }}>
+              Volver
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelSessionMutation.isPending}
+              onClick={() => cancelSessionMutation.mutate({ sessionId: cancelSession.id, reason: cancelReason })}
+            >
+              {cancelSessionMutation.isPending ? 'Cancelando…' : 'Cancelar clase'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Session Attendance Dialog ─────────────────────────── */}
       <Dialog
