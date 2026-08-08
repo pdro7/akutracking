@@ -354,7 +354,7 @@ export default function StudentDetail() {
         const { error } = await supabase.from('payments').update(paymentData).eq('id', editingPayment.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('payments').insert(paymentData);
+        const { error } = await supabase.from('payments').insert({ ...paymentData, pack_size: paymentPackSize });
         if (error) throw error;
         const { data: currentStudent, error: fetchError } = await supabase.from('students').select('classes_remaining').eq('id', id).single();
         if (fetchError) throw fetchError;
@@ -387,11 +387,35 @@ export default function StudentDetail() {
 
   const deletePaymentMutation = useMutation({
     mutationFn: async (paymentId: string) => {
+      // Refund the pack this payment credited (if any) before deleting.
+      // Legacy payments without pack_size (created before the column existed)
+      // are deleted without touching classes_remaining — we only refund
+      // what we can prove we added.
+      const { data: payRow, error: fetchErr } = await supabase
+        .from('payments')
+        .select('pack_size')
+        .eq('id', paymentId)
+        .single();
+      if (fetchErr) throw fetchErr;
+      const refund = payRow?.pack_size ?? 0;
+      if (refund > 0) {
+        const { data: stu, error: stuErr } = await supabase
+          .from('students')
+          .select('classes_remaining')
+          .eq('id', id)
+          .single();
+        if (stuErr) throw stuErr;
+        const { error: updErr } = await supabase.from('students')
+          .update({ classes_remaining: (stu?.classes_remaining ?? 0) - refund })
+          .eq('id', id);
+        if (updErr) throw updErr;
+      }
       const { error } = await supabase.from('payments').delete().eq('id', paymentId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      await queryClient.refetchQueries({ queryKey: ['student', id] });
       toast.success('Payment deleted');
       if (isMounted.current) setDeletePaymentId(null);
     },
