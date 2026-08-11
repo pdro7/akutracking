@@ -93,9 +93,12 @@ export default function Settings() {
 
   // Virtual course edit state
   const [editingVirtualCourse, setEditingVirtualCourse] = useState<any>(null);
+  const [vcCode, setVcCode] = useState('');
   const [vcName, setVcName] = useState('');
   const [vcDescription, setVcDescription] = useState('');
   const [vcNextCourseId, setVcNextCourseId] = useState('');
+  const [vcSubject, setVcSubject] = useState<string>('none');
+  const [vcMinStudents, setVcMinStudents] = useState<number>(4);
   const [showVcDialog, setShowVcDialog] = useState(false);
 
   // Module state
@@ -367,6 +370,32 @@ export default function Settings() {
     onSuccess: (code) => {
       queryClient.invalidateQueries({ queryKey: ['course_groups'] });
       toast.success(`Grupo ${code} creado con 8 sesiones`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const createVirtualCourseMutation = useMutation({
+    mutationFn: async () => {
+      const codeTrimmed = vcCode.trim().toUpperCase();
+      if (!codeTrimmed) throw new Error('El código es obligatorio (ej. RC1, PG2)');
+      if (!vcName.trim()) throw new Error('El nombre es obligatorio');
+      const clash = (virtualCourses as any[]).find((c: any) => c.code === codeTrimmed);
+      if (clash) throw new Error(`Ya existe un curso con código ${codeTrimmed}`);
+      const { error } = await supabase.from('virtual_courses').insert({
+        code: codeTrimmed,
+        name: vcName.trim(),
+        description: vcDescription.trim() || null,
+        next_course_id: vcNextCourseId && vcNextCourseId !== 'none' ? vcNextCourseId : null,
+        subject: vcSubject && vcSubject !== 'none' ? vcSubject : null,
+        min_students_to_open: Math.max(1, vcMinStudents || 4),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['virtual_courses'] });
+      toast.success('Curso creado');
+      setShowVcDialog(false);
+      setEditingVirtualCourse(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -857,14 +886,33 @@ export default function Settings() {
         {/* Virtual Courses — admin only */}
         {userRole === 'admin' && (
           <Card className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Monitor className="text-primary-foreground" size={24} />
+            <div className="flex items-center justify-between mb-6 gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center">
+                  <Monitor className="text-primary-foreground" size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Cursos Virtuales</h2>
+                  <p className="text-sm text-muted-foreground">Catálogo de cursos virtuales. Añade nuevos o edita los existentes.</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold">Cursos Virtuales</h2>
-                <p className="text-sm text-muted-foreground">Catálogo de cursos (sólo editar nombre, descripción y siguiente curso)</p>
-              </div>
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  setEditingVirtualCourse(null);
+                  setVcCode('');
+                  setVcName('');
+                  setVcDescription('');
+                  setVcNextCourseId('none');
+                  setVcSubject('none');
+                  setVcMinStudents(4);
+                  setShowVcDialog(true);
+                }}
+              >
+                <Plus size={16} />
+                Nuevo curso
+              </Button>
             </div>
             {(virtualCourses as any[]).length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No hay cursos. Ejecuta virtual_setup.sql en Supabase.</p>
@@ -1123,14 +1171,34 @@ export default function Settings() {
         </DialogContent>
       </Dialog>
 
-      {/* Virtual Course Edit Dialog */}
+      {/* Virtual Course Create / Edit Dialog */}
       <Dialog open={showVcDialog} onOpenChange={(open) => !open && setShowVcDialog(false)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar curso virtual — {editingVirtualCourse?.code}</DialogTitle>
-            <DialogDescription>Actualiza nombre, descripción o siguiente curso en la ruta</DialogDescription>
+            <DialogTitle>
+              {editingVirtualCourse
+                ? `Editar curso virtual — ${editingVirtualCourse.code}`
+                : 'Nuevo curso virtual'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingVirtualCourse
+                ? 'Actualiza nombre, descripción o siguiente curso en la ruta.'
+                : 'Añade un nuevo curso al catálogo. El código no se puede cambiar después.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {!editingVirtualCourse && (
+              <div>
+                <Label className="mb-2 block">Código *</Label>
+                <Input
+                  value={vcCode}
+                  onChange={(e) => setVcCode(e.target.value.toUpperCase())}
+                  placeholder="Ej. RC1, PG2, YT1"
+                  className="font-mono uppercase"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Corto y único. Se usa en códigos de grupo (RC1-AUG26-01).</p>
+              </div>
+            )}
             <div>
               <Label className="mb-2 block">Nombre *</Label>
               <Input value={vcName} onChange={(e) => setVcName(e.target.value)} placeholder="Nombre del curso" />
@@ -1139,6 +1207,33 @@ export default function Settings() {
               <Label className="mb-2 block">Descripción (opcional)</Label>
               <Textarea value={vcDescription} onChange={(e) => setVcDescription(e.target.value)} rows={3} placeholder="Descripción del curso..." />
             </div>
+            {!editingVirtualCourse && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-2 block">Tema / herramienta</Label>
+                  <Select value={vcSubject} onValueChange={setVcSubject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin tema" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin tema</SelectItem>
+                      {SUBJECTS.map((s) => (
+                        <SelectItem key={s} value={s}>{SUBJECT_LABEL[s]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-2 block">Mínimo para abrir</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={vcMinStudents}
+                    onChange={(e) => setVcMinStudents(parseInt(e.target.value, 10) || 4)}
+                  />
+                </div>
+              </div>
+            )}
             <div>
               <Label className="mb-2 block">Siguiente curso en la ruta (opcional)</Label>
               <Select value={vcNextCourseId} onValueChange={setVcNextCourseId}>
@@ -1158,9 +1253,18 @@ export default function Settings() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowVcDialog(false)}>Cancelar</Button>
-            <Button onClick={() => updateVirtualCourseMutation.mutate()} disabled={!vcName.trim()}>
-              Guardar cambios
-            </Button>
+            {editingVirtualCourse ? (
+              <Button onClick={() => updateVirtualCourseMutation.mutate()} disabled={!vcName.trim()}>
+                Guardar cambios
+              </Button>
+            ) : (
+              <Button
+                onClick={() => createVirtualCourseMutation.mutate()}
+                disabled={!vcCode.trim() || !vcName.trim() || createVirtualCourseMutation.isPending}
+              >
+                {createVirtualCourseMutation.isPending ? 'Creando…' : 'Crear curso'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
