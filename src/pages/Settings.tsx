@@ -15,6 +15,7 @@ import { generateSessionDates } from '@/lib/holidays';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TimeSlotPicker } from '@/components/TimeSlotPicker';
 import { SUBJECTS, SUBJECT_LABEL, MODALITIES, MODALITY_LABEL } from '@/lib/subjects';
+import { TIME_SLOTS, type SlotDay } from '@/lib/timeSlots';
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 function generateGroupCode(courseCode: string, startDate: Date): string {
@@ -92,6 +93,9 @@ export default function Settings() {
   const [deleteSlotId, setDeleteSlotId] = useState<string | null>(null);
 
   // Virtual course edit state
+  const [viewAvailabilityTeacher, setViewAvailabilityTeacher] = useState<any | null>(null);
+  const [showAllAvailability, setShowAllAvailability] = useState(false);
+
   const [editingVirtualCourse, setEditingVirtualCourse] = useState<any>(null);
   const [vcCode, setVcCode] = useState('');
   const [vcName, setVcName] = useState('');
@@ -812,10 +816,22 @@ export default function Settings() {
                 <p className="text-sm text-muted-foreground">Lista de profesores activos de la academia</p>
               </div>
             </div>
-            <Button onClick={() => { setEditingTeacher(null); setTeacherName(''); setTeacherEmail(''); setTeacherSubjects([]); setTeacherAvailability([]); setTeacherModalities([]); setShowTeacherDialog(true); }} size="sm" className="gap-2">
-              <Plus size={16} />
-              Añadir profesor
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowAllAvailability(true)}
+                title="Ver la disponibilidad de todos los profesores en un solo calendario"
+              >
+                <CalendarClock size={16} />
+                Ver disponibilidad global
+              </Button>
+              <Button onClick={() => { setEditingTeacher(null); setTeacherName(''); setTeacherEmail(''); setTeacherSubjects([]); setTeacherAvailability([]); setTeacherModalities([]); setShowTeacherDialog(true); }} size="sm" className="gap-2">
+                <Plus size={16} />
+                Añadir profesor
+              </Button>
+            </div>
           </div>
           {(teachers as any[]).length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No hay profesores registrados.</p>
@@ -868,6 +884,14 @@ export default function Settings() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Ver disponibilidad en calendario"
+                          onClick={() => setViewAvailabilityTeacher(teacher)}
+                        >
+                          <CalendarClock size={14} />
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setTeacherEmail(teacher.email || ''); setTeacherSubjects(Array.isArray((teacher as any).subjects) ? (teacher as any).subjects : []); setTeacherAvailability(Array.isArray((teacher as any).availability) ? (teacher as any).availability : []); setTeacherModalities(Array.isArray((teacher as any).modalities) ? (teacher as any).modalities : []); setShowTeacherDialog(true); }}>
                           <Pencil size={14} />
                         </Button>
@@ -1371,6 +1395,179 @@ export default function Settings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Teacher availability calendar */}
+      <Dialog open={!!viewAvailabilityTeacher} onOpenChange={(open) => !open && setViewAvailabilityTeacher(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Disponibilidad — {viewAvailabilityTeacher?.name}</DialogTitle>
+            <DialogDescription>
+              Franjas horarias marcadas como disponibles por el profesor. Se edita desde su portal en <code>/teacher/availability</code>.
+            </DialogDescription>
+          </DialogHeader>
+          {(() => {
+            const availSet = new Set<string>(
+              Array.isArray(viewAvailabilityTeacher?.availability) ? viewAvailabilityTeacher.availability : []
+            );
+            const DAYS: SlotDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            const DAY_LABEL: Record<SlotDay, string> = { mon: 'Lun', tue: 'Mar', wed: 'Mié', thu: 'Jue', fri: 'Vie', sat: 'Sáb' };
+            const bands = Array.from(
+              new Map(
+                TIME_SLOTS.map((s) => [`${s.from}-${s.to}`, { from: s.from, to: s.to }])
+              ).values()
+            ).sort((a, b) => a.from.localeCompare(b.from));
+            const slotFor = (day: SlotDay, from: string, to: string) =>
+              TIME_SLOTS.find((s) => s.day === day && s.from === from && s.to === to);
+            const total = availSet.size;
+            return (
+              <div className="py-2">
+                {total === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Este profesor todavía no ha definido su disponibilidad.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-2">{total} franja{total === 1 ? '' : 's'} disponible{total === 1 ? '' : 's'}.</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr>
+                            <th className="text-left font-normal text-xs text-muted-foreground p-2 w-24">Franja</th>
+                            {DAYS.map((d) => (
+                              <th key={d} className="font-medium text-xs text-muted-foreground p-2 text-center">{DAY_LABEL[d]}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bands.map(({ from, to }) => (
+                            <tr key={`${from}-${to}`} className="border-t">
+                              <td className="text-xs font-mono text-muted-foreground p-2 whitespace-nowrap">{from}–{to}</td>
+                              {DAYS.map((d) => {
+                                const slot = slotFor(d, from, to);
+                                if (!slot) {
+                                  return <td key={d} className="p-2"><div className="h-8 rounded bg-muted/30" /></td>;
+                                }
+                                const on = availSet.has(slot.id);
+                                return (
+                                  <td key={d} className="p-2">
+                                    <div className={`h-8 rounded flex items-center justify-center text-xs ${on ? 'bg-green-500/20 text-green-700 border border-green-500/40 font-semibold' : 'bg-muted/30 text-muted-foreground'}`}>
+                                      {on ? '✓' : ''}
+                                    </div>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewAvailabilityTeacher(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Global availability calendar — all teachers */}
+      <Dialog open={showAllAvailability} onOpenChange={(open) => !open && setShowAllAvailability(false)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Disponibilidad global de profesores</DialogTitle>
+            <DialogDescription>
+              Cada celda lista los profesores disponibles en esa franja. Las celdas vacías son huecos de cobertura.
+            </DialogDescription>
+          </DialogHeader>
+          {(() => {
+            const DAYS: SlotDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            const DAY_LABEL: Record<SlotDay, string> = { mon: 'Lun', tue: 'Mar', wed: 'Mié', thu: 'Jue', fri: 'Vie', sat: 'Sáb' };
+            const bands = Array.from(
+              new Map(
+                TIME_SLOTS.map((s) => [`${s.from}-${s.to}`, { from: s.from, to: s.to }])
+              ).values()
+            ).sort((a, b) => a.from.localeCompare(b.from));
+            const slotFor = (day: SlotDay, from: string, to: string) =>
+              TIME_SLOTS.find((s) => s.day === day && s.from === from && s.to === to);
+            const teachersWithSlots = (teachers as any[]).filter((t: any) =>
+              Array.isArray(t.availability) && t.availability.length > 0
+            );
+            const teachersBySlot = new Map<string, string[]>();
+            for (const t of teachersWithSlots) {
+              for (const slotId of t.availability as string[]) {
+                const list = teachersBySlot.get(slotId) ?? [];
+                list.push(t.name);
+                teachersBySlot.set(slotId, list);
+              }
+            }
+            return (
+              <div className="py-2">
+                {teachersWithSlots.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Ningún profesor ha definido disponibilidad todavía.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {teachersWithSlots.length} de {(teachers as any[]).length} profesor{(teachers as any[]).length === 1 ? '' : 'es'} con disponibilidad definida.
+                    </p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr>
+                            <th className="text-left font-normal text-xs text-muted-foreground p-2 w-24">Franja</th>
+                            {DAYS.map((d) => (
+                              <th key={d} className="font-medium text-xs text-muted-foreground p-2 text-center">{DAY_LABEL[d]}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bands.map(({ from, to }) => (
+                            <tr key={`${from}-${to}`} className="border-t align-top">
+                              <td className="text-xs font-mono text-muted-foreground p-2 whitespace-nowrap">{from}–{to}</td>
+                              {DAYS.map((d) => {
+                                const slot = slotFor(d, from, to);
+                                if (!slot) {
+                                  return <td key={d} className="p-2"><div className="min-h-[2rem] rounded bg-muted/20" /></td>;
+                                }
+                                const names = teachersBySlot.get(slot.id) ?? [];
+                                return (
+                                  <td key={d} className="p-2">
+                                    {names.length === 0 ? (
+                                      <div className="min-h-[2rem] rounded bg-muted/20" />
+                                    ) : (
+                                      <div className="flex flex-wrap gap-1 min-h-[2rem]">
+                                        {names.map((n) => (
+                                          <span
+                                            key={n}
+                                            className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-700 border border-green-500/40 font-medium whitespace-nowrap"
+                                            title={n}
+                                          >
+                                            {n}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAllAvailability(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteTeacherId} onOpenChange={(open) => !open && setDeleteTeacherId(null)}>
         <AlertDialogContent>
