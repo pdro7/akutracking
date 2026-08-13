@@ -423,7 +423,23 @@ export default function IndividualStudentDetail() {
           ) : (
             <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
               {history.map((s) => (
-                <SessionRow key={s.id} session={s} readOnly onAttend={() => {}} onReschedule={() => {}} onCancel={() => {}} onNoShow={() => {}} />
+                <SessionRow
+                  key={s.id}
+                  session={s}
+                  // Past sessions that never got marked stay actionable — the
+                  // profe (or admin) still needs to be able to close them
+                  // out. Only truly terminal states are read-only.
+                  readOnly={s.status !== 'scheduled'}
+                  onAttend={() => { setAttendSession(s); setAttendNotes(s.notes ?? ''); }}
+                  onReschedule={() => {
+                    setRescheduleSession(s);
+                    setRescheduleDate(s.scheduled_date);
+                    setRescheduleTime(s.scheduled_start_time.slice(0, 5));
+                    setRescheduleReason('');
+                  }}
+                  onCancel={() => { setCancelSession(s); setCancelReason(''); }}
+                  onNoShow={() => noShowMutation.mutate(s)}
+                />
               ))}
             </div>
           )}
