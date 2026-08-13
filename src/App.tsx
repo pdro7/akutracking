@@ -31,9 +31,11 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TeacherAvailability from "./pages/TeacherAvailability";
 import SetPassword from "./pages/SetPassword";
 import PublicInterest from "./pages/PublicInterest";
+import PublicReferralLanding from "./pages/PublicReferralLanding";
 import TokenizedPreferences from "./pages/TokenizedPreferences";
 import Schedule from "./pages/Schedule";
 import EligibleStudents from "./pages/EligibleStudents";
+import Referrals from "./pages/Referrals";
 import TeacherTrials from "./pages/TeacherTrials";
 import IndividualStudents from "./pages/IndividualStudents";
 import IndividualStudentDetail from "./pages/IndividualStudentDetail";
@@ -77,6 +79,7 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/interes" element={<PublicInterest />} />
+            <Route path="/r/:code" element={<PublicReferralLanding />} />
             <Route path="/preferencias/:token" element={<TokenizedPreferences />} />
             {/* Teacher-accessible routes */}
             <Route path="/virtual-groups" element={<ProtectedRoute><Header /><VirtualGroups /></ProtectedRoute>} />
@@ -102,6 +105,7 @@ const App = () => (
             <Route path="/pablo-stats" element={<ProtectedRoute><NoTeacher><Header /><PabloStats /></NoTeacher></ProtectedRoute>} />
             <Route path="/instagram" element={<ProtectedRoute><NoTeacher><Header /><InstagramConversations /></NoTeacher></ProtectedRoute>} />
             <Route path="/candidatos" element={<ProtectedRoute><NoTeacher><Header /><EligibleStudents /></NoTeacher></ProtectedRoute>} />
+            <Route path="/referidos" element={<ProtectedRoute><NoTeacher><Header /><Referrals /></NoTeacher></ProtectedRoute>} />
             <Route path="/individuales" element={<ProtectedRoute><NoTeacher><Header /><IndividualStudents /></NoTeacher></ProtectedRoute>} />
             <Route path="/individuales/:studentId" element={<ProtectedRoute><Header /><IndividualStudentDetail /></ProtectedRoute>} />
             <Route path="/teacher/individuales" element={<ProtectedRoute><Header /><TeacherIndividuals /></ProtectedRoute>} />

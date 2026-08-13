@@ -35,6 +35,7 @@ type Props = {
   onSubmit: (values: InterestFormValues) => Promise<void>;
   successMessage?: string;
   modalityLabel?: string;
+  referralCode?: string;
 };
 
 const empty: InterestFormValues = {
@@ -48,7 +49,7 @@ const empty: InterestFormValues = {
   notes: '',
 };
 
-export function InterestForm({ title, description, submitLabel, initial, showNotes = true, onSubmit, successMessage, modalityLabel = 'Virtual' }: Props) {
+export function InterestForm({ title, description, submitLabel, initial, showNotes = true, onSubmit, successMessage, modalityLabel = 'Virtual', referralCode }: Props) {
   const [values, setValues] = useState<InterestFormValues>({ ...empty, ...initial });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -112,10 +113,15 @@ export function InterestForm({ title, description, submitLabel, initial, showNot
           <CardHeader>
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
-            <div className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                 Modalidad: {modalityLabel}
               </span>
+              {referralCode && (
+                <span className="px-2 py-0.5 rounded-full bg-green-500/15 text-green-700 border border-green-500/30 font-medium">
+                  ✨ Te han recomendado con el código {referralCode.toUpperCase()}
+                </span>
+              )}
             </div>
           </CardHeader>
           <CardContent>

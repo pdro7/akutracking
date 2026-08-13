@@ -2,12 +2,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { InterestForm, UNDECIDED_COURSE, type InterestFormValues } from '@/components/InterestForm';
 
 export default function PublicInterest() {
+  const referralCode = typeof window !== 'undefined'
+    ? window.localStorage.getItem('aku_referral_code') || undefined
+    : undefined;
+
   return (
     <InterestForm
       title="Cuéntanos sobre tu hijo(a)"
       description="Sus preferencias y disponibilidad horaria nos ayudan a organizar los grupos más rápido y a que encajen con tu agenda."
       submitLabel="Enviar"
       modalityLabel="Virtual"
+      referralCode={referralCode}
       onSubmit={async (values: InterestFormValues) => {
         const undecided = values.interested_course_id === UNDECIDED_COURSE;
         const notes = [
@@ -25,8 +30,12 @@ export default function PublicInterest() {
             preferred_slots: values.preferred_slots,
             preferred_modality: 'virtual',
             notes,
+            referral_code: referralCode,
           },
         });
+        if (!error && !data?.error && referralCode && typeof window !== 'undefined') {
+          window.localStorage.removeItem('aku_referral_code');
+        }
         if (error) {
           let detail = error.message;
           try {

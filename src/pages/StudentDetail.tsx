@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCOP } from '@/lib/currency';
+import { ReferralCard } from '@/components/ReferralCard';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -1086,6 +1087,9 @@ export default function StudentDetail() {
             )}
           </div>
         </Card>
+
+        {/* Referral program */}
+        <ReferralCard studentId={id!} studentName={student.name} />
 
         {/* Virtual Courses Section */}
         {student.modality !== 'presencial' && (
