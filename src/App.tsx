@@ -82,34 +82,34 @@ const App = () => (
             <Route path="/r/:code" element={<PublicReferralLanding />} />
             <Route path="/preferencias/:token" element={<TokenizedPreferences />} />
             {/* Teacher-accessible routes */}
-            <Route path="/virtual-groups" element={<ProtectedRoute><Header /><VirtualGroups /></ProtectedRoute>} />
-            <Route path="/virtual-groups/:id" element={<ProtectedRoute><Header /><VirtualGroupDetail /></ProtectedRoute>} />
-            <Route path="/teacher/availability" element={<ProtectedRoute><Header /><TeacherAvailability /></ProtectedRoute>} />
-            <Route path="/teacher/trials" element={<ProtectedRoute><Header /><TeacherTrials /></ProtectedRoute>} />
-            <Route path="/calendario" element={<ProtectedRoute><Header /><Schedule /></ProtectedRoute>} />
+            <Route path="/virtual-groups" element={<ProtectedRoute><Header><VirtualGroups /></Header></ProtectedRoute>} />
+            <Route path="/virtual-groups/:id" element={<ProtectedRoute><Header><VirtualGroupDetail /></Header></ProtectedRoute>} />
+            <Route path="/teacher/availability" element={<ProtectedRoute><Header><TeacherAvailability /></Header></ProtectedRoute>} />
+            <Route path="/teacher/trials" element={<ProtectedRoute><Header><TeacherTrials /></Header></ProtectedRoute>} />
+            <Route path="/calendario" element={<ProtectedRoute><Header><Schedule /></Header></ProtectedRoute>} />
             {/* Admin/staff-only routes */}
-            <Route path="/" element={<ProtectedRoute><NoTeacher><Header /><Dashboard /></NoTeacher></ProtectedRoute>} />
-            <Route path="/student/:id" element={<ProtectedRoute><NoTeacher><Header /><StudentDetail /></NoTeacher></ProtectedRoute>} />
-            <Route path="/student/:id/edit" element={<ProtectedRoute><NoTeacher><Header /><EditStudent /></NoTeacher></ProtectedRoute>} />
-            <Route path="/students" element={<ProtectedRoute><NoTeacher><Header /><Students /></NoTeacher></ProtectedRoute>} />
-            <Route path="/students/new" element={<ProtectedRoute><NoTeacher><Header /><NewStudent /></NoTeacher></ProtectedRoute>} />
-            <Route path="/leads" element={<ProtectedRoute><NoTeacher><Header /><Leads /></NoTeacher></ProtectedRoute>} />
-            <Route path="/leads/new" element={<ProtectedRoute><NoTeacher><Header /><NewLead /></NoTeacher></ProtectedRoute>} />
-            <Route path="/leads/import" element={<ProtectedRoute><NoTeacher><Header /><ImportLeads /></NoTeacher></ProtectedRoute>} />
-            <Route path="/leads/:id" element={<ProtectedRoute><NoTeacher><Header /><LeadDetail /></NoTeacher></ProtectedRoute>} />
-            <Route path="/trial-leads" element={<ProtectedRoute><NoTeacher><Header /><TrialLeads /></NoTeacher></ProtectedRoute>} />
-            <Route path="/trial-leads/new" element={<ProtectedRoute><NoTeacher><Header /><NewTrialLead /></NoTeacher></ProtectedRoute>} />
-            <Route path="/trial-leads/:id" element={<ProtectedRoute><NoTeacher><Header /><TrialLeadDetail /></NoTeacher></ProtectedRoute>} />
-            <Route path="/payments" element={<ProtectedRoute><NoTeacher><Header /><Payments /></NoTeacher></ProtectedRoute>} />
-            <Route path="/conversations" element={<ProtectedRoute><NoTeacher><Header /><Conversations /></NoTeacher></ProtectedRoute>} />
-            <Route path="/pablo-stats" element={<ProtectedRoute><NoTeacher><Header /><PabloStats /></NoTeacher></ProtectedRoute>} />
-            <Route path="/instagram" element={<ProtectedRoute><NoTeacher><Header /><InstagramConversations /></NoTeacher></ProtectedRoute>} />
-            <Route path="/candidatos" element={<ProtectedRoute><NoTeacher><Header /><EligibleStudents /></NoTeacher></ProtectedRoute>} />
-            <Route path="/referidos" element={<ProtectedRoute><NoTeacher><Header /><Referrals /></NoTeacher></ProtectedRoute>} />
-            <Route path="/individuales" element={<ProtectedRoute><NoTeacher><Header /><IndividualStudents /></NoTeacher></ProtectedRoute>} />
-            <Route path="/individuales/:studentId" element={<ProtectedRoute><Header /><IndividualStudentDetail /></ProtectedRoute>} />
-            <Route path="/teacher/individuales" element={<ProtectedRoute><Header /><TeacherIndividuals /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><NoTeacher><Header /><Settings /></NoTeacher></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute><NoTeacher><Header><Dashboard /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/student/:id" element={<ProtectedRoute><NoTeacher><Header><StudentDetail /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/student/:id/edit" element={<ProtectedRoute><NoTeacher><Header><EditStudent /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/students" element={<ProtectedRoute><NoTeacher><Header><Students /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/students/new" element={<ProtectedRoute><NoTeacher><Header><NewStudent /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/leads" element={<ProtectedRoute><NoTeacher><Header><Leads /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/leads/new" element={<ProtectedRoute><NoTeacher><Header><NewLead /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/leads/import" element={<ProtectedRoute><NoTeacher><Header><ImportLeads /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/leads/:id" element={<ProtectedRoute><NoTeacher><Header><LeadDetail /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/trial-leads" element={<ProtectedRoute><NoTeacher><Header><TrialLeads /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/trial-leads/new" element={<ProtectedRoute><NoTeacher><Header><NewTrialLead /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/trial-leads/:id" element={<ProtectedRoute><NoTeacher><Header><TrialLeadDetail /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/payments" element={<ProtectedRoute><NoTeacher><Header><Payments /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/conversations" element={<ProtectedRoute><NoTeacher><Header><Conversations /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/pablo-stats" element={<ProtectedRoute><NoTeacher><Header><PabloStats /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/instagram" element={<ProtectedRoute><NoTeacher><Header><InstagramConversations /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/candidatos" element={<ProtectedRoute><NoTeacher><Header><EligibleStudents /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/referidos" element={<ProtectedRoute><NoTeacher><Header><Referrals /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/individuales" element={<ProtectedRoute><NoTeacher><Header><IndividualStudents /></Header></NoTeacher></ProtectedRoute>} />
+            <Route path="/individuales/:studentId" element={<ProtectedRoute><Header><IndividualStudentDetail /></Header></ProtectedRoute>} />
+            <Route path="/teacher/individuales" element={<ProtectedRoute><Header><TeacherIndividuals /></Header></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><NoTeacher><Header><Settings /></Header></NoTeacher></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppShell>
