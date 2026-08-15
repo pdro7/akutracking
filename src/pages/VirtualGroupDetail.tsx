@@ -417,7 +417,7 @@ export default function VirtualGroupDetail() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Fetch previous records before deleting to compute the delta
+      // Fetch previous records before saving to compute the delta
       const { data: prevRecords } = await supabase
         .from('attendance_records')
         .select('student_id, attended')
@@ -426,13 +426,6 @@ export default function VirtualGroupDetail() {
       const prevMap: Record<string, boolean> = {};
       (prevRecords ?? []).forEach((r: any) => { prevMap[r.student_id] = r.attended; });
 
-      // Delete existing records for this session
-      await supabase
-        .from('attendance_records')
-        .delete()
-        .eq('course_session_id', attendanceSession.id);
-
-      // Insert new records
       const records = Object.entries(attendanceMap).map(([studentId, attended]) => ({
         student_id: studentId,
         date: attendanceSession.scheduled_date,
@@ -442,10 +435,26 @@ export default function VirtualGroupDetail() {
         is_makeup: false,
       }));
 
+      // Upsert instead of delete+insert: reguardar una sesión no deja la
+      // asistencia borrada a medias si algo falla entre medias.
       if (records.length > 0) {
-        const { error } = await supabase.from('attendance_records').insert(records);
+        const { error } = await supabase
+          .from('attendance_records')
+          .upsert(records, { onConflict: 'student_id,course_session_id' });
         if (error) throw error;
       }
+
+      // Limpia registros de alumnos que ya no aparecen en la sesión
+      const currentIds = Object.keys(attendanceMap);
+      let staleQuery = supabase
+        .from('attendance_records')
+        .delete()
+        .eq('course_session_id', attendanceSession.id);
+      if (currentIds.length > 0) {
+        staleQuery = staleQuery.not('student_id', 'in', `(${currentIds.join(',')})`);
+      }
+      const { error: staleError } = await staleQuery;
+      if (staleError) throw staleError;
 
       // Update classes_remaining / classes_attended for each student whose
       // attendance status changed in this session
