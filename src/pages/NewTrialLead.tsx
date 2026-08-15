@@ -13,7 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import { TimeSlotPicker } from '@/components/TimeSlotPicker';
+import { TrialSlotPicker, type TrialSlotValue } from '@/components/TrialSlotPicker';
 import { LEAD_MODALITY_OPTIONS } from '@/lib/subjects';
+import { translateBookingError } from '@/lib/trialWindows';
+import { useState } from 'react';
 
 const trialLeadSchema = z.object({
   childName: z.string().min(1, 'Nombre requerido').max(100),
@@ -21,7 +24,6 @@ const trialLeadSchema = z.object({
   parentName: z.string().min(1, 'Nombre requerido').max(100),
   parentPhone: z.string().max(20).optional().or(z.literal('')),
   parentEmail: z.string().email('Email inválido').max(255).optional().or(z.literal('')),
-  trialClassDate: z.string().min(1, 'Fecha requerida'),
   status: z.enum(['trial_scheduled', 'trial_attended', 'enrolled', 'trial_cancelled', 'trial_no_show', 'interested']),
   notes: z.string().max(500).optional(),
   interestedCourseId: z.string().optional(),
@@ -45,7 +47,6 @@ export default function NewTrialLead() {
       parentName: '',
       parentPhone: '',
       parentEmail: '',
-      trialClassDate: '',
       status: 'trial_scheduled',
       notes: '',
       interestedCourseId: '',
@@ -54,6 +55,8 @@ export default function NewTrialLead() {
       desiredStartBy: '',
     },
   });
+
+  const [slot, setSlot] = useState<TrialSlotValue>({ date: '', time: '', force: false });
 
   const { data: courses = [] } = useQuery({
     queryKey: ['virtual_courses'],
@@ -72,6 +75,7 @@ export default function NewTrialLead() {
     mutationFn: async (values: TrialLeadFormValues) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+      if (!slot.date) throw new Error('Elige un horario para la clase de prueba');
 
       const { data, error } = await supabase.from('leads').insert({
         child_name: values.childName,
@@ -79,7 +83,6 @@ export default function NewTrialLead() {
         parent_name: values.parentName,
         phone: values.parentPhone || null,
         email: values.parentEmail || null,
-        trial_class_date: values.trialClassDate,
         status: values.status as any,
         notes: values.notes || null,
         source: 'other' as any,
@@ -91,6 +94,27 @@ export default function NewTrialLead() {
       }).select().single();
 
       if (error) throw error;
+
+      // La fecha y hora no se escriben directamente en leads: pasan por el
+      // RPC, que asigna profesor, respeta la ocupación y deja el trigger
+      // sincronizar leads. Es el mismo camino que usa el link público.
+      const { error: bookErr } = await (supabase as any).rpc('book_trial_slot', {
+        p_lead_id: data.id,
+        p_date: slot.date,
+        p_start: slot.time || '09:00',
+        p_source: 'admin',
+        p_course_id: values.interestedCourseId || null,
+        p_actor: user.id,
+        p_force: slot.force,
+      });
+      if (bookErr) {
+        // El lead se creó pero la reserva falló. Sin fecha no aparecería en
+        // /trial-leads, así que quedaría huérfano e invisible: se borra para
+        // que el admin pueda reintentar limpiamente.
+        await supabase.from('leads').delete().eq('id', data.id);
+        throw new Error(translateBookingError(bookErr.message));
+      }
+
       return data;
     },
     onSuccess: (data) => {
@@ -270,17 +294,14 @@ export default function NewTrialLead() {
               <CardTitle>Clase de prueba</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="trialClassDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha *</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div>
+                <FormLabel>Horario *</FormLabel>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Sólo se muestran huecos con algún profesor libre. Se asigna
+                  automáticamente al reservar.
+                </p>
+                <TrialSlotPicker value={slot} onChange={setSlot} />
+              </div>
               <FormField
                 control={form.control}
                 name="status"

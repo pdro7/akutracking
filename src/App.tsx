@@ -31,6 +31,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TeacherAvailability from "./pages/TeacherAvailability";
 import SetPassword from "./pages/SetPassword";
 import PublicInterest from "./pages/PublicInterest";
+import PublicTrialBooking from "./pages/PublicTrialBooking";
 import PublicReferralLanding from "./pages/PublicReferralLanding";
 import TokenizedPreferences from "./pages/TokenizedPreferences";
 import Schedule from "./pages/Schedule";
@@ -79,6 +80,7 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/interes" element={<PublicInterest />} />
+            <Route path="/agendar" element={<PublicTrialBooking />} />
             <Route path="/r/:code" element={<PublicReferralLanding />} />
             <Route path="/preferencias/:token" element={<TokenizedPreferences />} />
             {/* Teacher-accessible routes */}
