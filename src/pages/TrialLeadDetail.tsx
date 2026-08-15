@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Calendar, Save, UserPlus } from 'lucide-react';
+import { ArrowLeft, Calendar, Save, UserPlus, Link as LinkIcon } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -182,6 +182,23 @@ export default function TrialLeadDetail() {
     enabled: !!id,
   });
 
+  // Reserva activa: sólo se usa para ofrecer el link de autogestión que
+  // el padre recibe por correo, por si hay que reenviárselo por WhatsApp.
+  const { data: activeBooking } = useQuery({
+    queryKey: ['trial_booking_active', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('trial_bookings')
+        .select('id, manage_token')
+        .eq('lead_id', id)
+        .eq('status', 'booked')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const rescheduleMutation = useMutation({
     mutationFn: async () => {
       if (!lead) throw new Error('Lead no encontrado');
@@ -343,6 +360,28 @@ export default function TrialLeadDetail() {
                 {lead.trial_class_time && ` · ${lead.trial_class_time.slice(0, 5)}`}
               </span>
             </div>
+            {activeBooking?.manage_token && (
+              <div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  title="Link para que el padre cambie o cancele su clase"
+                  onClick={async () => {
+                    const url = `${window.location.origin}/mi-clase/${activeBooking.manage_token}`;
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      toast.success('Link copiado');
+                    } catch {
+                      toast.error(url);
+                    }
+                  }}
+                >
+                  <LinkIcon size={14} />
+                  Copiar link de gestión
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
 

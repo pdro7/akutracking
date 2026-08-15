@@ -87,6 +87,20 @@ function buildIcs(opts: {
 // HTML inline y sencillo: los clientes de correo ignoran buena parte del
 // CSS moderno, así que nada de flex ni variables.
 
+/**
+ * Link de autogestión. La base viene de PUBLIC_APP_URL (secreto de la
+ * función), nunca del cliente: si la aceptáramos del navegador, cualquiera
+ * podría hacer que el correo apuntara a un dominio suyo.
+ * Sin la variable configurada, el correo sale sin link en vez de con uno roto.
+ */
+function manageBlock(token: string | null): string {
+  const base = (Deno.env.get('PUBLIC_APP_URL') ?? '').replace(/\/+$/, '');
+  if (!base || !token) return '';
+  return `<p style="margin:16px 0 0;font-size:14px;line-height:1.6;">
+    <a href="${base}/mi-clase/${token}" style="color:#1e5fc4;">Cambiar o cancelar la clase</a>
+  </p>`;
+}
+
 function layout(title: string, body: string): string {
   return `<!doctype html>
 <html lang="es"><body style="margin:0;padding:24px;background:#f4f6fb;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
@@ -118,8 +132,10 @@ function detailsBlock(dateLabel: string, start: string, end: string): string {
 
 function render(kind: Kind, d: {
   parentName: string; childName: string; dateLabel: string; start: string; end: string;
+  manageToken?: string | null;
 }): { subject: string; html: string } {
   const details = detailsBlock(d.dateLabel, d.start, d.end);
+  const manage = manageBlock(d.manageToken ?? null);
 
   if (kind === 'trial_confirmation') {
     return {
@@ -133,7 +149,8 @@ function render(kind: Kind, d: {
         <p style="margin:0;font-size:14px;line-height:1.6;color:#6b7280;">
           Adjuntamos el evento para que lo añadas a tu calendario.
           Solo hace falta un computador con internet.
-        </p>`),
+        </p>
+        ${manage}`),
     };
   }
 
@@ -145,7 +162,8 @@ function render(kind: Kind, d: {
           Hola ${d.parentName}, un recordatorio de la clase de prueba de
           <strong>${d.childName}</strong>.
         </p>
-        ${details}`),
+        ${details}
+        ${manage}`),
     };
   }
 
@@ -157,7 +175,8 @@ function render(kind: Kind, d: {
           Hola ${d.parentName}, la clase de prueba de <strong>${d.childName}</strong>
           queda para:
         </p>
-        ${details}`),
+        ${details}
+        ${manage}`),
     };
   }
 
@@ -199,7 +218,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: booking, error: bErr } = await supabase
       .from('trial_bookings')
-      .select('id, lead_id, scheduled_date, scheduled_start_time, scheduled_end_time, status, leads(parent_name, child_name, email)')
+      .select('id, lead_id, manage_token, scheduled_date, scheduled_start_time, scheduled_end_time, status, leads(parent_name, child_name, email)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -230,6 +249,7 @@ Deno.serve(async (req: Request) => {
       dateLabel: prettyDate(date),
       start,
       end,
+      manageToken: (booking as any).manage_token ?? null,
     });
 
     const payload: Record<string, unknown> = { from, to: [to], subject, html };

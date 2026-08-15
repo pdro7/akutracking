@@ -67,6 +67,7 @@ export default function PublicTrialBooking() {
   const [city, setCity] = useState('');
   const [experience, setExperience] = useState('');
   const [referralSource, setReferralSource] = useState('');
+  const [manageToken, setManageToken] = useState<string | null>(null);
 
   const { data: slots = [], isLoading } = useQuery({
     queryKey: ['public_trial_availability'],
@@ -154,6 +155,7 @@ export default function PublicTrialBooking() {
       if (referralCode && typeof window !== 'undefined') {
         window.localStorage.removeItem('aku_referral_code');
       }
+      setManageToken(data?.manage_token ?? null);
       setStep('done');
     } catch (err) {
       toast.error((err as Error).message);
@@ -240,9 +242,20 @@ export default function PublicTrialBooking() {
               Enviamos la confirmación a <strong className="text-foreground">{email}</strong>.
               Si no la ves en unos minutos, revisa la carpeta de spam.
             </p>
-            <p>
-              ¿Necesitas cambiarla? Escríbenos al WhatsApp {WHATSAPP} y la movemos.
-            </p>
+            {manageToken ? (
+              <p>
+                Puedes{' '}
+                <a
+                  href={`/mi-clase/${manageToken}`}
+                  className="text-primary underline font-medium"
+                >
+                  cambiar o cancelar la clase aquí
+                </a>
+                . Guarda este enlace.
+              </p>
+            ) : (
+              <p>¿Necesitas cambiarla? Escríbenos al WhatsApp {WHATSAPP} y la movemos.</p>
+            )}
           </div>
         </div>
       </div>
