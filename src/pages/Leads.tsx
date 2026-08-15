@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Users, LayoutGrid, List, MessageCircle, Upload } from 'lucide-react';
+import { Plus, Search, Users, LayoutGrid, List, MessageCircle, Upload, Zap } from 'lucide-react';
+import { QuickLeadDialog } from '@/components/QuickLeadDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -49,6 +50,7 @@ export default function Leads() {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+  const [showQuickLead, setShowQuickLead] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads', statusFilter],
@@ -166,6 +168,10 @@ export default function Leads() {
           <Button variant="outline" onClick={() => navigate('/leads/import')} className="hidden sm:flex gap-2">
             <Upload size={16} />
             Importar CSV
+          </Button>
+          <Button variant="outline" onClick={() => setShowQuickLead(true)} className="gap-2" title="Registro mínimo para no perder rastro de una llamada entrante">
+            <Zap size={16} />
+            <span className="hidden sm:inline">Lead rápido</span>
           </Button>
           <Button onClick={() => navigate('/leads/new')} className="gap-2">
             <Plus size={20} />
@@ -386,6 +392,8 @@ export default function Leads() {
           })}
         </div>
       )}
+
+      <QuickLeadDialog open={showQuickLead} onOpenChange={setShowQuickLead} />
     </div>
   );
 }
