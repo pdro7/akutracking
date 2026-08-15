@@ -1,0 +1,1747 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guía interna · AKU Tracker</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --ink: #1c1c1c;
+    --mute: #6b6b6b;
+    --line: #e6e4de;
+    --accent: #2a6f9c;
+    --accent-soft: #eaf2f8;
+    --good: #2f8f4f;
+    --warn: #b47000;
+    --bad: #b73333;
+    --code-bg: #efece5;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, kbd { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.92em; }
+  code { background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 3px; }
+  pre { background: var(--code-bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; }
+  kbd { background: #fff; border: 1px solid var(--line); border-bottom-width: 2px; padding: 1px 6px; border-radius: 3px; font-size: 0.85em; }
+
+  .app { display: flex; min-height: 100vh; }
+  nav.side {
+    width: 260px; background: #ffffff; border-right: 1px solid var(--line);
+    padding: 24px 18px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+  }
+  nav.side h1 { font-size: 17px; margin: 0 0 4px 0; }
+  nav.side .sub { color: var(--mute); font-size: 12px; margin-bottom: 22px; }
+  nav.side .group { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mute); margin: 18px 0 6px; }
+  nav.side ul { list-style: none; padding: 0; margin: 0; }
+  nav.side li { margin: 2px 0; }
+  nav.side a { display: block; padding: 4px 8px; border-radius: 5px; color: var(--ink); font-size: 14px; }
+  nav.side a:hover { background: var(--accent-soft); text-decoration: none; }
+
+  main { flex: 1; padding: 40px 56px; max-width: 960px; }
+  h1.doc { font-size: 26px; margin: 0 0 6px 0; }
+  h2 { font-size: 20px; border-bottom: 1px solid var(--line); padding-bottom: 6px; margin: 44px 0 14px; scroll-margin-top: 20px; }
+  h3 { font-size: 16px; margin: 22px 0 8px; }
+  h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mute); margin: 16px 0 6px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0 12px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px; margin: 14px 0; }
+  .tag { display: inline-block; padding: 2px 8px; font-size: 11px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); vertical-align: middle; margin-left: 6px; }
+  .tag.warn { background: #fbecd6; color: var(--warn); }
+  .tag.bad { background: #f7dcdc; color: var(--bad); }
+  .tag.good { background: #d9ecdd; color: var(--good); }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+  th { color: var(--mute); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  tr:last-child td { border-bottom: 0; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 14px; border-radius: 4px; margin: 12px 0; }
+  .callout.warn { border-left-color: var(--warn); background: #fbf3e2; }
+  .callout.bad { border-left-color: var(--bad); background: #fbe6e6; }
+
+  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 4px 16px; margin: 8px 0; }
+  .kv .k { color: var(--mute); font-size: 13px; }
+
+  .toplink { color: var(--mute); font-size: 12px; margin-left: 10px; text-decoration: none; }
+  .toplink:hover { text-decoration: underline; }
+
+  footer { color: var(--mute); font-size: 12px; margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+  details.prompt { border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; background: var(--card); margin: 14px 0; }
+  details.prompt summary { cursor: pointer; font-weight: 600; color: var(--accent); user-select: none; }
+  details.prompt summary:hover { text-decoration: underline; }
+  details.prompt pre.prompt-body {
+    background: #fdfcf7; padding: 16px 18px; border-radius: 4px; margin-top: 12px;
+    white-space: pre-wrap; word-wrap: break-word; line-height: 1.5;
+    max-height: 600px; overflow-y: auto;
+    font-size: 13px;
+  }
+
+  @media (max-width: 900px) {
+    .app { flex-direction: column; }
+    nav.side { position: static; height: auto; width: 100%; border-right: 0; border-bottom: 1px solid var(--line); }
+    main { padding: 24px; }
+    .kv { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+<nav class="side">
+  <h1>AKU Tracker</h1>
+  <div class="sub">Guía interna · uso solo del equipo</div>
+
+  <div class="group">Contexto</div>
+  <ul>
+    <li><a href="#overview">Qué es AKU Tracker</a></li>
+    <li><a href="#roles">Roles y accesos</a></li>
+    <li><a href="#urls">URLs importantes</a></li>
+    <li><a href="#glosario">Glosario</a></li>
+  </ul>
+
+  <div class="group">Módulos</div>
+  <ul>
+    <li><a href="#dashboard">Dashboard</a></li>
+    <li><a href="#leads">Leads</a></li>
+    <li><a href="#trial">Trial leads</a></li>
+    <li><a href="#estudiantes">Estudiantes</a></li>
+    <li><a href="#individuales">Alumnos individuales</a></li>
+    <li><a href="#grupos">Grupos virtuales</a></li>
+    <li><a href="#calendario">Calendario</a></li>
+    <li><a href="#candidatos">Candidatos (siguiente nivel)</a></li>
+    <li><a href="#referidos">Programa de referidos</a></li>
+    <li><a href="#pagos">Pagos</a></li>
+    <li><a href="#conversations">Conversations</a></li>
+    <li><a href="#instagram">Instagram DMs</a></li>
+    <li><a href="#settings">Settings</a></li>
+    <li><a href="#profe">Portal del profesor</a></li>
+    <li><a href="#formularios">Formularios públicos</a></li>
+  </ul>
+
+  <div class="group">Flujos</div>
+  <ul>
+    <li><a href="#flujo-leads">Captación de leads</a></li>
+    <li><a href="#flujo-trial">De trial a alumno</a></li>
+    <li><a href="#flujo-profe">Invitar a un profesor</a></li>
+    <li><a href="#flujo-grupo">Formar un grupo</a></li>
+    <li><a href="#flujo-preferencias">Pedir preferencias</a></li>
+  </ul>
+
+  <div class="group">Pablo</div>
+  <ul>
+    <li><a href="#pablo">¿Qué es Pablo?</a></li>
+    <li><a href="#pablo-arquitectura">Arquitectura</a></li>
+    <li><a href="#pablo-datos">Modelo de datos</a></li>
+    <li><a href="#pablo-op">Operación diaria</a></li>
+    <li><a href="#pablo-estado">Estado actual</a></li>
+    <li><a href="#pablo-bitacora">Bitácora por audio (diseño)</a></li>
+    <li><a href="#pablo-prompt">Prompt completo</a></li>
+  </ul>
+
+  <div class="group">Bajo el capó</div>
+  <ul>
+    <li><a href="#integraciones">Integraciones externas</a></li>
+    <li><a href="#tablas">Base de datos</a></li>
+    <li><a href="#edge">Edge functions</a></li>
+    <li><a href="#legal">Legal y privacidad</a></li>
+  </ul>
+
+  <div class="group">Historial</div>
+  <ul>
+    <li><a href="#timeline">Línea de tiempo</a></li>
+    <li><a href="#pendientes">Pendientes / roadmap</a></li>
+    <li><a href="#cheatsheet">Cheatsheet operativo</a></li>
+  </ul>
+</nav>
+
+<main>
+
+<h1 class="doc">Guía interna — AKU Tracker</h1>
+<p style="color: var(--mute);">Documento vivo para uso del equipo AKUMAYA. Cubre operación diaria + arquitectura ligera de la plataforma. No se sube al repositorio.</p>
+
+<!-- ============================================================ -->
+<h2 id="overview">Qué es AKU Tracker <a class="toplink" href="#top">↑</a></h2>
+
+<p>Plataforma web interna de AKUMAYA Educación (NIT 901.609.937-1) para gestionar todo el ciclo de vida del alumno: desde el primer contacto hasta el pago de renovaciones. La app está montada sobre React + Vite + Supabase, desplegada en Railway.</p>
+
+<div class="card">
+  <h4>Módulos operativos</h4>
+  <ul>
+    <li><b>Leads</b> — todo contacto pre-inscripción (WhatsApp, Instagram, Calendly, web, referidos).</li>
+    <li><b>Trial leads</b> — leads con clase de prueba agendada / realizada.</li>
+    <li><b>Estudiantes</b> — quienes ya se inscribieron.</li>
+    <li><b>Grupos virtuales</b> — cohortes que corren un curso concreto con profe asignado.</li>
+    <li><b>Pagos</b> — historial y pendientes.</li>
+    <li><b>Pablo</b> — asistente de WhatsApp automático.</li>
+    <li><b>Instagram</b> — bandeja de DMs (pausado en App Review).</li>
+    <li><b>Settings</b> — profes, cursos, franjas, festivos, actividades, módulos.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="roles">Roles y accesos <a class="toplink" href="#top">↑</a></h2>
+
+<p>Tres roles en la tabla <code>user_roles</code>. El acceso es <b>solo por invitación</b> — el signup público está deshabilitado tanto en la UI como a nivel de Supabase.</p>
+
+<table>
+  <thead>
+    <tr><th>Rol</th><th>Qué ve</th><th>Cómo se asigna</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>admin</b></td>
+      <td>Todo. Único que puede invitar / borrar profes y modificar Settings críticos.</td>
+      <td>Se asigna manualmente en la BD (fila en <code>user_roles</code>).</td>
+    </tr>
+    <tr>
+      <td><b>staff</b></td>
+      <td>Todo excepto la administración de usuarios más sensible. Operación diaria (leads, alumnos, pagos, grupos).</td>
+      <td>Manual.</td>
+    </tr>
+    <tr>
+      <td><b>teacher</b></td>
+      <td>Solo <code>/virtual-groups</code> filtrado a los grupos que le pertenecen + <code>/teacher/availability</code>.</td>
+      <td>Automático desde Settings → "Invitar profesor" (edge function <code>invite-teacher</code>).</td>
+    </tr>
+    <tr>
+      <td><b>(sin rol)</b></td>
+      <td>Pantalla "Sin acceso" — no accede a nada. Fallback de seguridad.</td>
+      <td>—</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <b>Lecciones aprendidas.</b> Un bug de auth (falta de UNIQUE en <code>user_roles.user_id</code>) hizo que profes invitados durante semanas tuvieran acceso admin sin querer. Ahora está corregido: default seguro (<code>unassigned</code>), unique constraint, gate explícito, invalidación de caché al cambiar sesión.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="urls">URLs importantes <a class="toplink" href="#top">↑</a></h2>
+
+<div class="kv">
+  <div class="k">App principal</div><div><a href="https://akutracker.up.railway.app/">akutracker.up.railway.app</a></div>
+  <div class="k">Login</div><div><code>/auth</code></div>
+  <div class="k">Formulario público</div><div><code>/interes</code> — tráfico frío, cualquiera lo llena.</div>
+  <div class="k">Formulario tokenizado</div><div><code>/preferencias/{form_token}</code> — para un lead ya existente.</div>
+  <div class="k">Crear contraseña</div><div><code>/set-password</code> — destino del link de invitación de profe.</div>
+  <div class="k">Política de privacidad</div><div><code>/privacy</code> — pública, requerida por Meta App Review.</div>
+  <div class="k">Calendario de clases</div><div><code>/calendario</code> — vista mensual con sesiones + trials + feriados.</div>
+  <div class="k">Candidatos siguiente nivel</div><div><code>/candidatos</code> — alumnos elegibles para el siguiente curso.</div>
+  <div class="k">Alumnos individuales</div><div><code>/individuales</code> — panel de alumnos 1-a-1 con horario propio.</div>
+  <div class="k">Trial class (Calendly)</div><div><a href="https://www.akumaya.co/clase-de-prueba-gratuita">akumaya.co/clase-de-prueba-gratuita</a></div>
+  <div class="k">Wompi checkout</div><div><a href="https://checkout.wompi.co/l/AZ9CzW">checkout.wompi.co/l/AZ9CzW</a></div>
+  <div class="k">Formulario inscripción</div><div><a href="https://forms.gle/UyqpPYgmZKr9dY2s9">forms.gle/UyqpPYgmZKr9dY2s9</a> (Google Forms, post-pago)</div>
+  <div class="k">Supabase project</div><div><code>kmjordmkybqvihcgosct.supabase.co</code></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="glosario">Glosario <a class="toplink" href="#top">↑</a></h2>
+
+<h3>Códigos de curso</h3>
+<table>
+  <thead><tr><th>Código</th><th>Nombre</th><th>Área</th><th>Edad orientativa</th></tr></thead>
+  <tbody>
+    <tr><td>RCZ</td><td>Real Coders Zero</td><td>robótica</td><td>7–10</td></tr>
+    <tr><td>RC1 / RC2</td><td>Real Coders 1 / 2</td><td>robótica</td><td>11+</td></tr>
+    <tr><td>PGZ</td><td>Python Zero</td><td>python</td><td>13+</td></tr>
+    <tr><td>PG1 / PG2 / PG3</td><td>Python Games 1/2/3</td><td>python</td><td>—</td></tr>
+    <tr><td>MC1 / MC2</td><td>Minecraft Coders 1/2</td><td>minecraft</td><td>11–12</td></tr>
+    <tr><td>RBX1 / RBX2</td><td>Roblox 1 / 2</td><td>roblox</td><td>—</td></tr>
+    <tr><td>UNI1 / UNI2</td><td>Unity 1 / 2</td><td>unity</td><td>—</td></tr>
+    <tr><td>YT1 / YT2</td><td>YouTube Creator 1 / 2</td><td>youtube</td><td>—</td></tr>
+    <tr><td>IA1 / IAG1 / IAG2</td><td>IA Fundamentos / Generativa</td><td>ia</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<h3>Estados de lead (<code>lead_status</code>)</h3>
+<ul>
+  <li><b>new</b> — recién ingresado, sin contactar.</li>
+  <li><b>contacted</b> — Pablo o staff ya escribió.</li>
+  <li><b>interested</b> — hay intención real pero sin trial.</li>
+  <li><b>trial_scheduled</b> — clase de prueba agendada.</li>
+  <li><b>trial_attended</b> — asistió a la clase de prueba.</li>
+  <li><b>trial_no_show</b> — no se presentó.</li>
+  <li><b>trial_cancelled</b> — canceló la prueba.</li>
+  <li><b>enrolled</b> — se inscribió (convertido a alumno).</li>
+  <li><b>lost</b> — descartado.</li>
+</ul>
+
+<h3>Fuentes de lead (<code>lead_source</code>)</h3>
+<p><code>whatsapp</code>, <code>google_organic</code>, <code>web</code>, <code>calendly</code>, <code>referral</code>, <code>reactivation</code>, <code>instagram</code>, <code>other</code>.</p>
+
+<h3>Franjas horarias (<code>time slots</code>)</h3>
+<p>Catálogo definido en <code>src/lib/timeSlots.ts</code>. Se usan tanto para preferencias de lead como para disponibilidad de profe. 14 slots agrupados en 4 buckets:</p>
+<ul>
+  <li><b>Sábado AM</b> — 09:00–10:30, 10:30–12:00</li>
+  <li><b>Sábado PM</b> — 14:00–15:30, 15:30–17:00</li>
+  <li><b>Entre semana AM</b> — 09:00–10:30 (L–V)</li>
+  <li><b>Entre semana PM</b> — 16:30–18:00 (L–V)</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="dashboard">Dashboard <a class="toplink" href="#top">↑</a></h2>
+<p>Página inicial (<code>/</code>) para admin/staff. Muestra KPIs generales y una sección específica de <b>trial classes</b> (próximas y recientes). Punto de partida diario.</p>
+
+<!-- ============================================================ -->
+<h2 id="leads">Leads <a class="toplink" href="#top">↑</a></h2>
+
+<p><code>/leads</code> es el pipeline pre-inscripción. Cada fila es un <code>lead</code> con estado en el enum <code>lead_status</code>. Los leads llegan por 4 canales:</p>
+
+<ol>
+  <li><b>Calendly webhook</b> — al agendar clase de prueba, el webhook crea el lead con <code>source=calendly</code>.</li>
+  <li><b>WhatsApp entrante</b> — Pablo (si activo) crea el lead al detectar intención, o tú lo creas manualmente al conversar por el número principal de AKUMAYA.</li>
+  <li><b>Instagram DMs</b> — pausado hasta pasar Meta App Review.</li>
+  <li><b>Formulario público <code>/interes</code></b> — el propio padre llena sus datos.</li>
+  <li><b>Manual desde CRM</b> — botón "Nuevo lead" en la lista (formulario completo) o <b>"Lead rápido"</b> (ver abajo).</li>
+</ol>
+
+<h3>Lead rápido — capturar llamadas al WhatsApp manual</h3>
+<p>Botón <b>⚡ Lead rápido</b> en <code>/leads</code> junto a "Importar CSV" y "Nuevo lead". Diseñado para el caso operativo en el que sigues gestionando manualmente el número principal de AKUMAYA: cuando entra una llamada / DM de WhatsApp y hablas tú con la persona, este botón permite dejar rastro del lead en 20 segundos sin tener todavía todos los datos.</p>
+<ul>
+  <li><b>Único campo obligatorio: teléfono.</b> Nombre del niño y del padre se guardan como <code>—</code> (placeholder) hasta que agendes la trial y sepas los datos reales.</li>
+  <li>Campos opcionales: curso de interés (dropdown + "No lo sé"), edad, ciudad, notas.</li>
+  <li><b>Dedup en vivo:</b> mientras escribes el teléfono, la app consulta y si ya existe un lead con ese número muestra un aviso amarillo con link "Abrir ficha →" y deshabilita el botón "Crear lead". Evita duplicados por el mismo padre reincidente.</li>
+  <li>Al crear: <code>source='whatsapp'</code>, <code>status='contacted'</code> (ya lo contactaste tú), y redirige a <code>/leads/:id</code> para que puedas ir completando datos mientras estás en la conversación.</li>
+</ul>
+<div class="callout">
+  <b>Contexto estratégico:</b> este botón es un <b>parche corto</b> mientras Pablo no toma el control del número principal. Cuando la web de AKUMAYA apunte a Pablo (Fase 2 del roadmap de "control del canal de WhatsApp"), la mayoría de estos leads se crearán solos vía webhook y este botón pasará a residual. Sigue teniendo sentido tenerlo porque siempre habrá llamadas telefónicas fuera del canal Pablo.
+</div>
+
+<h3>Ficha del lead (<code>LeadDetail</code>)</h3>
+<div class="kv">
+  <div class="k">Header</div><div>Nombre del niño y padre, teléfono principal y adicionales, curso interesado. Botón "Copiar link preferencias" copia <code>/preferencias/{token}</code> al portapapeles.</div>
+  <div class="k">Pipeline</div><div>Botones de estado en línea para mover rápidamente entre <code>new → contacted → interested → trial → enrolled</code>.</div>
+  <div class="k">Conversación</div><div>Si existe conversación WhatsApp asociada, se muestra en línea. Botón <b>"Iniciar con Pablo"</b> dispara la plantilla Twilio de bienvenida.</div>
+  <div class="k">Preferencias</div><div>Curso, franjas (<code>TimeSlotPicker</code>), modalidad, fecha límite deseada.</div>
+  <div class="k">Trial</div><div>Fecha, hora, profesor, curso asignado, objeción.</div>
+  <div class="k">Notas</div><div>Bitácora libre (tabla <code>lead_notes</code>).</div>
+  <div class="k">Convertir</div><div>Botón "Convertir a alumno" crea la fila en <code>students</code> y marca el lead <code>enrolled</code>.</div>
+</div>
+
+<h3>Teléfonos adicionales</h3>
+<p>Muchos padres contactan desde un número y se registran con otro. <code>leads.additional_phones</code> (text[]) guarda los alternativos. La consulta de conversación asociada usa <code>.or()</code> con todos los teléfonos + variantes con/sin <code>whatsapp:</code> para no perder el hilo. El buscador de leads y de estudiantes ya matchea también contra estos números.</p>
+
+<!-- ============================================================ -->
+<h2 id="trial">Trial leads <a class="toplink" href="#top">↑</a></h2>
+<p><code>/trial-leads</code> muestra los leads con <code>trial_class_date</code> asignada. <b>Ojo:</b> desde el refactor del 05-05, esta ya no es una tabla propia — es la misma tabla <code>leads</code> filtrada. Los campos <code>trial_class_date</code>, <code>trial_class_time</code>, <code>trial_teacher_id</code>, <code>trial_course_id</code>, <code>trial_objection</code> viven todos en el lead.</p>
+
+<p>La página tiene su propia ficha (<code>TrialLeadDetail</code>) más orientada a la operación del día de la prueba: qué curso demostrar, quién dicta, cómo fue, objeción registrada.</p>
+
+<h3>Reagendar clases de prueba (con historial)</h3>
+<p>Cambiar fecha/hora del trial <b>solo se hace desde <code>/trial-leads/:id</code></b> con el botón <b>"Reagendar"</b> — no desde el diálogo de editar en <code>LeadDetail</code>, donde los campos de fecha/hora están bloqueados. El diálogo pide nueva fecha, nueva hora y <b>motivo opcional</b>.</p>
+<p>Cada reagenda queda en la tabla <code>trial_reschedules</code> y se muestra debajo en la ficha como <b>"Historial de reagendas"</b> — se ve exactamente cuántas veces se movió el trial de esa familia, cuándo, y por qué. Útil para detectar patrones de riesgo de no-show.</p>
+
+<!-- ============================================================ -->
+<h2 id="estudiantes">Estudiantes <a class="toplink" href="#top">↑</a></h2>
+<p><code>/students</code>. Lista con búsqueda por nombre, padre, teléfono principal o adicionales (matchea por dígitos también). Filtros por modalidad.</p>
+<p><b>Ficha del alumno</b>: datos básicos, contacto, matrícula, historial de asistencia (por sesión), pagos, notas médicas, teléfonos adicionales. Botón "Editar" abre la vista de edición completa.</p>
+<p>Alta manual desde <code>/students/new</code> con formulario extendido de inscripción (padre/madre, cédula, emergencia, escuela, etc.). Lo normal es que los alumnos lleguen desde "Convertir a alumno" en <code>LeadDetail</code>.</p>
+
+<h3>Archivar / restaurar</h3>
+<p>Botón <b>"Archivar"</b> saca al alumno de las listas activas sin borrar nada. El diálogo pide un <b>motivo opcional</b> (ej: "terminó ciclo", "se mudó", "duplicado") y registra fecha + quién lo hizo. El banner amarillo en la ficha del alumno archivado muestra el motivo y ofrece un botón <b>"Restaurar"</b> para revertir.</p>
+<p><em>Efectos colaterales al archivar</em> (todos vía trigger DB, aplican desde cualquier vía de archivado):</p>
+<ul>
+  <li>Enrollments <code>active</code> en cursos virtuales → pasan a <code>withdrawn</code>. Deja de aparecer como duplicado en <code>/virtual-groups/:id</code>.</li>
+  <li>Individual schedules activos → <code>is_active=false</code>. Deja de aparecer en <code>/individuales</code>.</li>
+  <li><code>/candidatos</code> lo excluye siempre.</li>
+</ul>
+<p>Al restaurar, los enrollments retirados <b>no</b> se reactivan automáticamente — hay que re-inscribir manualmente desde el grupo o desde <code>/candidatos</code>. Es intencional: puede que el grupo original ya haya terminado.</p>
+
+<h3>Reactivar ex-alumnos inactivos</h3>
+<p>La lista <b>Inactivos</b> (<code>/students</code>, pestaña "Inactivos") muestra ex-alumnos (<code>is_active=false, archived=false</code>). Dos maneras de reactivarlos:</p>
+<ul>
+  <li><b>Reactivar</b> — botón manual que simplemente cambia <code>is_active=true</code>. Útil cuando quieres marcarlo activo sin escribirle.</li>
+  <li><b>Reactivar con Pablo</b> — arranca una conversación de reactivación desde el bot.</li>
+  <li><b>Automático</b> — al inscribirlo en un grupo o crearle un pack individual, un trigger DB (<code>trg_reactivate_on_enroll</code> / <code>trg_reactivate_on_individual_schedule</code>) lo pone en <code>is_active=true</code> automáticamente. Aplica solo si <b>no</b> está archivado.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="individuales">Alumnos individuales (1-a-1) <a class="toplink" href="#top">↑</a></h2>
+<p><code>/individuales</code>. Módulo dedicado a alumnos que toman clases 1-a-1 con un profesor fijo y horario semanal propio. No siguen el modelo de cohorte de <code>course_groups</code> — tienen su propio andamiaje.</p>
+
+<h3>Modelo de datos</h3>
+<div class="kv">
+  <div class="k"><code>individual_schedules</code></div><div>Config estable por alumno: profesor asignado, tema actual (texto libre), <code>weekly_pattern</code> (jsonb con array de <code>{day, start_time, end_time}</code>). UNIQUE por <code>student_id</code>.</div>
+  <div class="k"><code>individual_sessions</code></div><div>Una fila por cada clase concreta con <code>status</code> (<code>scheduled</code> · <code>attended</code> · <code>cancelled_by_parent</code> · <code>no_show</code>), <code>notes</code> (lo que hizo el profe en la clase), <code>original_date</code>/<code>original_time</code> cuando la sesión se movió, y motivo de reagenda/cancelación.</div>
+</div>
+
+<h3>Reglas del pack</h3>
+<ul>
+  <li>El pack usa <code>students.pack_size</code> y <code>students.classes_remaining</code> (mismos campos que los grupales). Valores comunes: 4, 8 o 10 clases.</li>
+  <li><b>Asistió</b> → descuenta 1 del pack.</li>
+  <li><b>No asistió</b> → descuenta 1 del pack.</li>
+  <li><b>Reagendada</b> → no descuenta hasta que asista a la nueva fecha.</li>
+  <li><b>Cancelada por el padre</b> → <b>no descuenta</b> del pack. La siguiente sesión programada sigue en pie. Sin límite de cancelaciones.</li>
+</ul>
+
+<div class="callout warn">
+  <b>Deuda técnica conocida — desfase entre <code>classes_remaining</code> y las sesiones reales.</b>
+  <br><br>
+  <b>Qué pasa:</b> <code>students.classes_remaining</code> y <code>students.classes_attended</code> son <b>contadores almacenados</b>, no derivados de <code>individual_sessions</code>. Se escriben solo por dos vías: (a) inicialización/renovación del pack (<b>Nuevo pack</b>, pagos), y (b) cuando alguien pulsa <b>Asistió</b> / <b>No asistió</b> en el UI, que decrementan de a 1. Cualquier INSERT directo a <code>individual_sessions</code> con status ya terminal (por ejemplo, un patch retroactivo de datos históricos) <b>no</b> dispara ningún ajuste.
+  <br><br>
+  <b>Consecuencia:</b> los contadores pueden desincronizarse silenciosamente respecto a la fuente de verdad (<code>individual_sessions</code>). La UI muestra "N / pack_size" leyendo el contador, no las sesiones — así que el badge del pack puede mentir sin que haya rojo visible.
+  <br><br>
+  <b>Caso real (Damián, ago 2026):</b> tras el patch retroactivo de datos históricos + varias asistencias marcadas por el profe + un olvido de marcar 3 sesiones, el contador reportaba <code>6/8 restantes</code> cuando en la tabla había <b>5 attended</b>. Al cerrar las 3 pendientes pasó a <code>3/8</code>, cuando la verdad era <b>0/8</b> (8 attended, 1 cancelada). Se corrigió a mano con dos <code>UPDATE</code>s.
+  <br><br>
+  <b>Cómo detectarlo:</b> para un alumno individual, la relación de verdad es:<br>
+  <code>classes_remaining = pack_size − COUNT(sessions WHERE status IN ('attended','no_show') AND created_after &gt;= inicio_pack_actual)</code>.<br>
+  Si <code>classes_remaining</code> ≠ ese cálculo, hay desfase. Vale la pena montar un script de auditoría que lo reporte para toda la base.
+  <br><br>
+  <b>Fix definitivo pendiente:</b> dos opciones no excluyentes.
+  <ol>
+    <li><b>Trigger en <code>individual_sessions</code></b> que ajuste <code>students.classes_remaining</code> / <code>classes_attended</code> en cada transición de estado (scheduled → attended, attended → scheduled, etc.). Elimina la posibilidad de desincronización por INSERT/UPDATE directo. Requiere manejar el caso "renovación de pack" (que <b>no</b> debe recalcular el pack anterior).</li>
+    <li><b>Cambiar <code>classes_remaining</code> a derivado</b> — no almacenarlo; calcularlo en la query cada vez. Más limpio pero toca varios lugares que hoy leen ese campo (Dashboard, /students, /candidatos, filtros por "por terminar", etc.).</li>
+  </ol>
+  <b>Mitigación operativa mientras tanto:</b> cuando notes un badge de pack raro, contrasta a mano contra el historial de sesiones y ejecuta el <code>UPDATE</code> correctivo. También vale la pena avisar al profe cuando deje sesiones pasadas en <code>scheduled</code> — mejora prevista en el portal del profesor.
+</div>
+
+<h3>Vista <code>/individuales</code></h3>
+<p>Grid de tarjetas con cada alumno individual activo: nombre, profesor, tema, patrón semanal legible ("Mar y Jue 16:00–17:00"), próxima sesión y badge del pack ("6/8").</p>
+<p>Botón <b>"Nuevo alumno individual"</b> abre un diálogo que:</p>
+<ul>
+  <li>Permite escoger un alumno existente (searchable dropdown, excluye los que ya son individuales).</li>
+  <li>Asigna profesor fijo, tema libre, tamaño de pack (4/8/10), fecha de inicio.</li>
+  <li>Configura el patrón semanal: cualquier número de <code>{día, hora inicio, hora fin}</code> — un alumno puede tener 1, 2, 3 días/semana.</li>
+  <li>Al confirmar: promueve al alumno a <code>modality='individual'</code>, guarda el schedule, y <b>genera todas las sesiones del pack de una vez</b> según el patrón.</li>
+</ul>
+
+<h3>Detalle <code>/individuales/:studentId</code></h3>
+<p>Header con nombre, profesor, tema, patrón semanal legible, contacto del padre, contador del pack.</p>
+<p>Dos columnas: <b>Próximas sesiones</b> (con acciones) y <b>Historial</b> (solo lectura).</p>
+
+<h4>Acciones por sesión próxima</h4>
+<ul>
+  <li><b>Asistió</b> — diálogo con textarea "Qué se hizo en la clase". Guarda las notas y descuenta 1 del pack.</li>
+  <li><b>Reagendar</b> (ícono calendar) — nueva fecha/hora + motivo. Guarda la fecha original la primera vez que se mueve, para dejar rastro.</li>
+  <li><b>Cancelar</b> (ícono X) — motivo opcional. <b>No descuenta</b> del pack.</li>
+  <li><b>NS</b> (No Show) — click directo. Descuenta 1 del pack.</li>
+</ul>
+
+<h4>Acciones globales del alumno (admin/staff)</h4>
+<ul>
+  <li><b>Editar</b> — cambia profesor, tema o patrón semanal. Nota importante: los cambios de patrón <em>no afectan</em> a las sesiones ya generadas, solo a las futuras.</li>
+  <li><b>Nuevo pack</b> — cuando el alumno termina un pack y compra otro. Elige tamaño (4/8/10) y fecha de inicio; genera las N sesiones desde esa fecha con el patrón actual y resetea el contador de clases restantes al tamaño del pack.</li>
+  <li><b>Ver ficha completa</b> — abre <code>/student/:id</code> con toda la info del alumno.</li>
+</ul>
+
+<h3>Integraciones</h3>
+<ul>
+  <li><a href="#calendario">Calendario</a> — las sesiones individuales aparecen como <b>chip verde esmeralda</b> con el nombre del alumno, junto a grupos (azul) y trials (naranja).</li>
+  <li><a href="#profe">Portal del profesor</a> — cada profe ve sus alumnos individuales en <code>/teacher/individuales</code>. Puede editar el tema y patrón (no puede cambiar de profesor a sí mismo), y marcar asistencia con las notas de qué se hizo en la clase.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="grupos">Grupos virtuales <a class="toplink" href="#top">↑</a></h2>
+<p><code>/virtual-groups</code>. Lista de cohortes activas. Cada <code>course_group</code> tiene:</p>
+<ul>
+  <li>Un <code>virtual_course</code> (RC1, PG1…).</li>
+  <li>Un <code>teacher</code>.</li>
+  <li><code>start_date</code> / <code>end_date</code>, <code>start_time</code> / <code>end_time</code>, <code>status</code>.</li>
+  <li>8 <code>course_sessions</code> semanales generadas automáticamente al abrir el grupo (respetando <code>settings.holidays</code>).</li>
+  <li>Un código único (ej. <code>RC1-JUN26-A</code>) con sufijo A/B/C cuando hay colisión el mismo día.</li>
+</ul>
+
+<p><b>Estados</b> (visibles con colores en la lista y en el detalle):</p>
+<ul>
+  <li><b>Formando</b> — amarillo. Grupo abierto en el sistema, esperando alumnos suficientes para arrancar.</li>
+  <li><b>Activo</b> — verde. Grupo dictándose, con sesiones en curso.</li>
+  <li><b>Finalizado</b> — cyan. Grupo cerrado. Alimenta la vista de <a href="#candidatos">Candidatos</a> para el siguiente nivel.</li>
+  <li><b>Cancelado</b> — rojo.</li>
+</ul>
+
+<p class="text-muted"><em>Nota:</em> el label "Finalizado" es cosmético — el estado en la BD sigue siendo <code>completed</code>. No cambia queries ni migraciones existentes.</p>
+
+<h3>Detalle del grupo (<code>VirtualGroupDetail</code>)</h3>
+<p>Muestra sesiones, alumnos inscritos, tomar asistencia por sesión (con makeup), inscribir/desmatricular alumnos, cambiar profesor. La tabla de alumnos incluye columna <b>Edad</b> en formato compacto (<code>8a 11m</code>) calculada desde <code>date_of_birth</code> con fallback a <code>age_at_enrollment</code> — mismo helper que <code>/candidatos</code> (<code>src/lib/age.ts</code>).</p>
+
+<h4>Cancelar una sesión suelta</h4>
+<p>En la tabla de sesiones, cada sesión "scheduled" tiene junto al botón "Marcar asistencia" un botón <b>X rojo</b> → abre diálogo con motivo opcional (profesor enfermo, feriado no marcado, etc.). Al confirmar:</p>
+<ul>
+  <li>La sesión queda con <code>status='cancelled'</code>, guarda <code>cancelled_reason</code> y <code>cancelled_at</code>. En la UI se ve con badge rojo <b>Cancelada</b>, fila con opacidad reducida, y el motivo donde iba la asistencia.</li>
+  <li>Se <b>inserta automáticamente una sesión de reemplazo al final del curso</b>: <code>session_number = último + 1</code>, <code>scheduled_date = última fecha + 7 días</code>. Preserva la duración total del pack. Cancelar 2 sesiones empuja el final 2 semanas.</li>
+  <li>Sesiones canceladas ya no muestran botones de acción.</li>
+  <li><b>Guarda:</b> si la sesión ya tiene asistencia registrada, el cancel devuelve error pidiendo borrar la asistencia primero (evita dejar contadores <code>classes_attended</code>/<code>classes_remaining</code> desincronizados).</li>
+  <li><code>/calendario</code> y "Clases de hoy" (Dashboard) filtran las canceladas para que no aparezcan como si fueran a suceder.</li>
+</ul>
+<p><em>Nota schema:</em> el <code>CHECK (session_number BETWEEN 1 AND 8)</code> original fue reemplazado por <code>>= 1</code> para permitir sesiones 9, 10… que aparecen tras cancelaciones sucesivas.</p>
+
+<h3>Formar un grupo</h3>
+<p>Dos caminos (por ahora):</p>
+<ul>
+  <li><b>Manual</b> — botón "Nuevo grupo" en <code>/virtual-groups</code>, eliges curso + profe + fecha.</li>
+  <li><b>Desde franjas horarias</b> — en <code>/settings</code> hay una tabla de <code>course_slots</code> (franjas planificadas: día, hora, curso, fecha tentativa). Botón "Activar" en cada franja crea el <code>course_group</code> con sus 8 sesiones. También inyecta esas franjas al prompt de Pablo.</li>
+</ul>
+
+<p>La <b>Fase 2</b> del roadmap añadirá un tercer camino: matcher automático que sugiere abrir un grupo cuando el número de leads compatibles con un cluster (curso × franja × modalidad) alcanza <code>virtual_courses.min_students_to_open</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="calendario">Calendario <a class="toplink" href="#top">↑</a></h2>
+<p><code>/calendario</code>. Vista mensual tipo "calendario del colegio" con todas las clases que van a suceder cada día. Cruza <b>tres fuentes</b>:</p>
+<ul>
+  <li><b>Sesiones de grupos</b> (chip azul) — desde <code>course_sessions</code>, ordenadas por la hora heredada del grupo.</li>
+  <li><b>Clases de prueba</b> (chip naranja) — desde <code>leads.trial_class_date</code> + <code>trial_class_time</code>.</li>
+  <li><b>Sesiones individuales</b> (chip verde esmeralda) — desde <code>individual_sessions</code>. En vez del código de curso, el chip muestra el nombre del alumno.</li>
+</ul>
+
+<p><b>Feriados</b> (los definidos en <code>settings.holidays</code>) aparecen con fondo rojo pastel y etiqueta "Feriado" en la esquina.</p>
+
+<p><b>Interacción</b>:</p>
+<ul>
+  <li>Cada celda muestra hasta 3 chips ordenados por hora, más "+N más" si hay overflow.</li>
+  <li>Click en un día abre un dialog con todas las clases del día. Click sobre una tarjeta lleva al grupo (o lead) correspondiente.</li>
+  <li>Navegación por mes con botones ‹ / Hoy / ›.</li>
+</ul>
+
+<p><b>Filtros</b>:</p>
+<ul>
+  <li>Admin/staff: dropdown "Todos los profes" o filtrar por uno específico.</li>
+  <li>Rol teacher: el filtro se aplica automáticamente a sus propios grupos + trials + individuales asignados. Título cambia a "Mi calendario".</li>
+</ul>
+
+<p><b>Nota:</b> los grupos anteriores al 2026-07-21 (cuando añadimos <code>course_groups.start_time</code>) no tienen hora registrada, así que sus chips muestran "—". Al editar el grupo y ponerle hora, se ordenan correctamente.</p>
+
+<!-- ============================================================ -->
+<h2 id="candidatos">Candidatos para el siguiente nivel <a class="toplink" href="#top">↑</a></h2>
+<p><code>/candidatos</code>. Vista para saber a quién ofrecerle el siguiente curso de la escalera cuando vas a abrir uno nuevo. Ejemplo: "quiero abrir RC2, ¿quiénes terminaron RC1?"</p>
+
+<p><b>Cómo detecta candidatos</b>:</p>
+<ul>
+  <li>Usa el campo <code>virtual_courses.next_course_id</code> — la escalera de aprendizaje editable en Settings. Si el curso destino no tiene prerequisitos configurados (nadie apunta a él vía <code>next_course_id</code>), la vista te lo dice.</li>
+  <li><b>Terminados</b> (badge verde): alumnos cuyo enrollment <b>no está</b> <code>withdrawn</code> y cuyo grupo está en estado <b>Finalizado</b>. Los más recientes salen arriba.</li>
+  <li><b>Por terminar</b> (badge amarillo): alumnos con enrollment <code>active</code> en un grupo <code>active</code> del prerequisito, con <code>classes_remaining ≤ 2</code>. Útil para ofrecer el siguiente curso antes de que terminen y perder tracción.</li>
+  <li>Los alumnos <b>ya inscritos</b> en el curso destino (enrollment activo o completo) se <b>excluyen</b> automáticamente de la lista — no hace falta filtrar mentalmente ni distinguir por badge.</li>
+  <li>Los alumnos <b>archivados</b> quedan explícitamente fuera de la lista.</li>
+</ul>
+
+<p><b>Tabla</b>: incluye columna <b>Edad</b> del alumno en formato compacto (<code>8a 11m</code>, <code>9a</code>, <code>11m</code>) — calculada desde <code>date_of_birth</code>, con fallback a <code>age_at_enrollment</code>.</p>
+
+<p><b>Acciones por candidato</b>:</p>
+<ul>
+  <li><b>WhatsApp</b> — abre WhatsApp Web con un mensaje pre-armado que menciona el nombre del niño, del padre, el curso prerequisito y el curso destino.</li>
+  <li><b>Inscribir</b> — botón primary que abre un diálogo con los grupos abiertos del curso destino (estado forming/active). Al confirmar, inserta el enrollment con <code>payment_plan='full'</code> como punto de partida. Se recomienda ajustar el plan de pago después desde el detalle del grupo.</li>
+  <li>Click sobre el nombre → ficha del estudiante.</li>
+</ul>
+
+<p><b>Integración con "Nuevo grupo virtual"</b>: al elegir un curso en el diálogo de <code>/virtual-groups</code>, aparece debajo un link discreto <em>"Ver N candidatos elegibles para este curso →"</em>. Abre <code>/candidatos?course=&lt;id&gt;</code> en nueva pestaña.</p>
+
+<div class="callout">
+  <b>Precondición operativa:</b> para que la vista muestre resultados, el curso <b>prerequisito</b> debe tener configurado <code>next_course_id = &lt;curso destino&gt;</code> en Settings. Ej: RC1 → RC2, RCZ → RC1, PGZ → PG1.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="referidos">Programa de referidos <a class="toplink" href="#top">↑</a></h2>
+<p><code>/referidos</code>. Marketing de afiliación con padres actuales: cada alumno activo puede generar un link único que sus padres comparten con otras familias. Si el nuevo lead termina inscrito, el padre referente acumula <b>crédito para el próximo pack</b>.</p>
+
+<h3>Por qué crédito y no efectivo</h3>
+<ul>
+  <li><b>Simplicidad contable:</b> sin retenciones ni transferencias por comisión.</li>
+  <li><b>Retención:</b> el crédito solo se usa contigo → aumenta LTV del que refirió.</li>
+  <li><b>Filtro natural:</b> solo padres realmente activos y contentos se molestan en referir.</li>
+</ul>
+<p>El monto por referido convertido se configura en <code>settings.referral_credit_cop</code> (default 50 000 COP). Es un solo campo — cámbialo por SQL cuando quieras.</p>
+
+<h3>Flujo end-to-end</h3>
+<ol>
+  <li>En la <b>ficha del alumno</b> (card "Referidos") admin/staff pulsa <b>Generar código</b> → crea un registro en <code>referral_codes</code> con formato <code>AKU-XXXXXX</code> (alfabeto sin caracteres confusos como 0/O, 1/I; ~10<sup>8</sup> combinaciones).</li>
+  <li>Botones <b>Copiar</b> y <b>WhatsApp</b> arman el link <code>https://&lt;host&gt;/r/&lt;código&gt;</code> y un mensaje pre-armado para reenviar.</li>
+  <li>La otra familia entra a ese link → <code>PublicReferralLanding</code> guarda el código en <code>localStorage</code> como <code>aku_referral_code</code> y redirige a <code>/interes</code>.</li>
+  <li>El formulario muestra un badge verde "✨ Te han recomendado con el código X" cuando detecta el código en localStorage.</li>
+  <li>Al enviar el form, la edge function <code>submit-interest</code> (v3) resuelve el código a <code>student_id</code> y guarda <code>leads.referred_by_student_id</code>. Al éxito se limpia el localStorage.</li>
+  <li>Cuando ese lead pasa a <code>status='enrolled'</code>, el padre referente ve el crédito ganado en su ficha. Admin decide cuándo <b>Marcar aplicado</b> (registra <code>leads.referral_credit_applied_at</code>). Al aplicar el crédito manualmente, resta del próximo cobro al padre referente.</li>
+</ol>
+
+<h3>Reglas anti-abuso</h3>
+<ul>
+  <li><b>Auto-referral bloqueado:</b> si el teléfono del referente coincide con el teléfono del nuevo lead, no se atribuye (evita que el mismo padre se cobre un referido).</li>
+  <li><b>First-click wins:</b> si el lead ya existía con <code>referred_by_student_id</code>, no se re-atribuye — no puedes "reclamar" un lead que ya estaba en el pipeline.</li>
+  <li><b>Alumno archivado:</b> el código de un alumno archivado deja de atribuir nuevos leads (guard en la edge function).</li>
+</ul>
+
+<h3>Vistas</h3>
+<div class="kv">
+  <div class="k">Ficha del alumno</div><div>Componente <code>ReferralCard</code>: código, copiar link, compartir por WhatsApp, métricas (referidos / inscritos / crédito ganado / balance) y tabla de leads referidos con el toggle "Marcar aplicado" en los que ya se inscribieron.</div>
+  <div class="k">Global (admin/staff)</div><div><code>/referidos</code>: ranking de padres con código, ordenado por crédito pendiente descendente. Totales agregados arriba (padres con código, leads referidos, inscritos, crédito pendiente).</div>
+</div>
+
+<h3>Modelo de datos</h3>
+<div class="kv">
+  <div class="k"><code>referral_codes</code></div><div>Uno por alumno (UNIQUE en <code>student_id</code>). Campos: <code>code</code> (unique), <code>is_active</code>, <code>created_at</code>. ON DELETE CASCADE con students.</div>
+  <div class="k"><code>leads.referred_by_student_id</code></div><div>FK a <code>students</code>, nullable. ON DELETE SET NULL para preservar historial.</div>
+  <div class="k"><code>leads.referral_credit_applied_at</code></div><div>Timestamp. Null = crédito ganado y pendiente. Non-null = admin ya lo aplicó al cobro.</div>
+  <div class="k"><code>settings.referral_credit_cop</code></div><div>Monto por referido convertido en COP. Default 50 000.</div>
+</div>
+
+<div class="callout">
+  <b>Definición de "convertido":</b> <code>status='enrolled'</code> es el disparador. Ni trial atendida ni contactado — solo cuando ya es alumno inscrito de verdad. Lo controla admin al mover el lead a ese estado.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="pagos">Pagos <a class="toplink" href="#top">↑</a></h2>
+<p><code>/payments</code>. Registro histórico de pagos y visibilidad de pendientes.</p>
+<ul>
+  <li><b>Historial</b>: tabla <code>payments</code> con método, monto, fecha, alumno.</li>
+  <li><b>Pending Revenue</b>: card que suma matrículas con plan <code>installment_1</code> o <code>installment_2</code> sin pagar y las que están próximas a vencer.</li>
+  <li><b>Alta manual</b>: registro rápido cuando alguien paga por transferencia y hay que reflejarlo.</li>
+  <li>Al marcar una inscripción como pagada, se crea automáticamente la fila en <code>payments</code>.</li>
+</ul>
+<p>Métodos de pago configurables en Settings (default: Cash, Bancolombia, Davivienda, Wompi, Nequi).</p>
+
+<h3>Efecto sobre el pack del alumno</h3>
+<p>Crear un pago desde la ficha del alumno <b>suma</b> el <code>pack_size</code> a <code>students.classes_remaining</code>. Editar el pago <b>no</b> toca las clases. Borrar el pago <b>resta</b> las clases que ese pago acreditó — el valor a devolver se lee de <code>payments.pack_size</code>, que se guarda en cada pago nuevo desde 2026-08-08.</p>
+<p><em>Legacy:</em> pagos anteriores a esa fecha tienen <code>pack_size=null</code> y al borrarlos <b>no</b> se hace rollback (no sabemos con seguridad cuántas clases agregaron).</p>
+<div class="callout warn">
+  <b>Historia:</b> antes de este fix, crear-borrar-crear un pago inflaba <code>classes_remaining</code> en múltiplos del pack. Caso real (Jerónimo): 8 default + 8 (pago) + 8 (pago recreado tras borrar) = 24 clases. Corregido en <code>fd4320a</code>.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="conversations">Conversations (bandeja de Pablo) <a class="toplink" href="#top">↑</a></h2>
+<p><code>/conversations</code>. Bandeja tipo WhatsApp con conversaciones de Pablo. Cada fila = una entrada de <code>whatsapp_conversations</code>.</p>
+<ul>
+  <li>Búsqueda por nombre del padre/niño, teléfono principal o adicional.</li>
+  <li>Panel derecho con el chat, mensajes con timestamp y separadores de día.</li>
+  <li>Botón para <b>escalar/desescalar</b>: mientras esté escalado, Pablo <i>no</i> responde automáticamente, aunque sigue guardando los mensajes entrantes. Cuando se desescala, Pablo retoma con contexto.</li>
+  <li>Respuesta manual: escribes en el chat y se envía por Twilio (<code>send-whatsapp</code>).</li>
+</ul>
+
+<p>Icono de gráfica al lado del título abre <code>/pablo-stats</code>: KPIs, funnel, conversaciones por día, distribución horaria. Filtros 7d/30d/90d/all.</p>
+
+<!-- ============================================================ -->
+<h2 id="instagram">Instagram DMs <a class="toplink" href="#top">↑</a></h2>
+<p><code>/instagram</code>. Bandeja equivalente a Conversations pero para DMs de <code>@akumaya</code>. Tabla <code>instagram_conversations</code>.</p>
+
+<div class="callout warn">
+  <b>Estado:</b> integración técnicamente lista pero <b>pausada</b> en Meta App Review desde el 2026-05-16. Falta: renovar Page Access Token, grabar demo video, crear credenciales de test, cambiar la app a modo Live, enviar el formulario. Ver <code>meta-app-review.md</code> y <code>instagram-integration.md</code> en el repo.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="settings">Settings <a class="toplink" href="#top">↑</a></h2>
+<p><code>/settings</code>. Solo admin. Config global agrupada por bloques:</p>
+
+<div class="card">
+<h4>General</h4>
+<ul>
+  <li><b>Pack size</b> por defecto (default 8 sesiones).</li>
+  <li><b>Día de clase</b> por defecto.</li>
+  <li><b>Métodos de pago</b> activos.</li>
+  <li><b>Festivos</b> — fechas que <code>generateSessionDates</code> salta al crear las 8 sesiones de un grupo.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Profesores</h4>
+<ul>
+  <li>Alta, edición, invitación (email de acceso), eliminación completa (cuenta + rol + registro).</li>
+  <li>Edición de <b>materias</b> (<code>subjects</code>), <b>disponibilidad</b> (<code>availability</code>, franjas), <b>modalidades</b> (<code>modalities</code>). Se cruzan con los leads para el matching de Fase 2.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Cursos virtuales</h4>
+<ul>
+  <li>Edición del catálogo (nombre, descripción, siguiente curso en la escalera, umbral <code>min_students_to_open</code>).</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Franjas horarias planificadas (<code>course_slots</code>)</h4>
+<ul>
+  <li>Día de semana + rango horario + curso + fecha tentativa.</li>
+  <li>Botón <b>"Activar"</b> convierte la franja en un <code>course_group</code> real con 8 sesiones.</li>
+  <li>Las franjas activas se inyectan al prompt de Pablo cuando ofrece horarios.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Módulos y actividades</h4>
+<ul>
+  <li>Currículo académico usado en <code>class_logs</code> para reportar qué se dio en cada clase.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="profe">Portal del profesor <a class="toplink" href="#top">↑</a></h2>
+<p>Cuando un usuario tiene rol <code>teacher</code>, al entrar es redirigido a <code>/virtual-groups</code> con filtro automático por <code>teacher_id</code>. Solo ve sus grupos.</p>
+<p>Además tiene acceso a:</p>
+<ul>
+  <li><code>/teacher/availability</code> — edita sus <b>herramientas / temas que puede enseñar</b>, <b>franjas disponibles</b> y <b>modalidades</b>. Sin esto la Fase 2 no puede matchearle leads.</li>
+  <li><code>/teacher/trials</code> — lista de clases de prueba asignadas a él (próximas, pasadas, todas): nombre del niño, curso, fecha/hora, notas de la trial y objeción si la hay.</li>
+  <li><code>/teacher/individuales</code> — sus alumnos individuales asignados, con patrón semanal y próxima sesión. Click en una tarjeta abre el detalle donde puede marcar asistencia, reagendar y añadir las notas de la clase.</li>
+  <li><code>/calendario</code> — su calendario personal filtrado a sus grupos, trials <b>y sesiones individuales</b>.</li>
+</ul>
+<p>El profe no ve leads, pagos, alumnos ajenos, ni Settings. En <code>/individuales/:studentId</code> solo puede abrir a los alumnos que le pertenecen (un guard lo bloquea si el schedule apunta a otro profesor).</p>
+
+<div class="callout warn">
+  <b>Privacidad (PII de padres):</b> las vistas del profesor <b>no exponen</b> <code>parent_name</code>, <code>phone</code> ni <code>email</code>. Los queries de <code>/teacher/trials</code> y <code>/teacher/individuales</code> ni siquiera piden esos campos; en <code>/individuales/:id</code> (vista compartida con admin) los campos se condicionan por rol. El profe ve solo lo necesario para dar la clase.
+  <br><em>Pendiente:</em> defense-in-depth vía RLS — hoy un profe con conocimientos podría hacer un query directo al API y traer los campos. Cuando quieras endurecerlo, hay que rehacer las policies de <code>leads</code> y <code>students</code> para el rol <code>teacher</code>.
+</div>
+
+<h3>Catálogo actual de herramientas / temas (13)</h3>
+<p>Scratch, Arduino, Tinkercad, Edición de Video, Python, Minecraft Education, Roblox, ML4K (IA), IA Gen, Unity, JavaScript, Godot, Vibecoding. Definido en <code>src/lib/subjects.ts</code>. Se actualiza con un cambio de código; no configurable desde la UI aún.</p>
+
+<!-- ============================================================ -->
+<h2 id="formularios">Formularios públicos <a class="toplink" href="#top">↑</a></h2>
+
+<h3><code>/interes</code> — abierto</h3>
+<p>Para tráfico frío. Cualquiera lo puede llenar. Al enviar:</p>
+<ul>
+  <li>Si el teléfono <b>ya existe</b> en <code>leads</code> → actualiza sin sobrescribir nombres/emails/fecha de nacimiento ya guardados. Añade las preferencias nuevas.</li>
+  <li>Si <b>no existe</b> → crea lead con <code>source=web</code>, <code>status=new</code>.</li>
+</ul>
+<p><b>Es exclusivo para modalidad virtual.</b> Presencial se maneja por otro canal (WhatsApp directo). El formulario muestra un chip visible "Modalidad: Virtual" en la cabecera.</p>
+<p><b>Campos capturados</b>: nombre del niño, fecha de nacimiento, nombre del padre/madre, teléfono, email, curso interesado (con opción "No lo he decidido / no lo sé" como primer item), franjas horarias, nota libre.</p>
+<p><b>Layout responsive</b>: dos columnas en escritorio (≥768px), una en móvil.</p>
+<p>Es el link que compartes en Instagram, WhatsApp masivo, QR de flyers, botón en la web.</p>
+
+<h3><code>/preferencias/{token}</code> — tokenizado</h3>
+<p>Para leads existentes. Se abre desde el link que copias con el botón "Copiar link preferencias" en <code>LeadDetail</code>. Prellena todos los datos que ya tenemos; el padre confirma/corrige y añade franjas.</p>
+<p>El token es un UUID guardado en <code>leads.form_token</code> (con índice único). No se puede adivinar por enumeración.</p>
+
+<!-- ============================================================ -->
+<h2 id="flujo-leads">Flujo: captación de leads <a class="toplink" href="#top">↑</a></h2>
+
+<table>
+  <thead><tr><th>Canal</th><th>Cómo llega</th><th>Qué haces</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Calendly</td>
+      <td>Padre agenda en <a href="https://www.akumaya.co/clase-de-prueba-gratuita">akumaya.co/clase-de-prueba-gratuita</a>. Webhook crea lead con <code>calendly_uri</code>, fuente <code>calendly</code>, estado <code>trial_scheduled</code>.</td>
+      <td>Le pegas el link tokenizado por WhatsApp o email para que confirme franjas alternativas y curso preferido.</td>
+    </tr>
+    <tr>
+      <td>WhatsApp manual</td>
+      <td>Escribe al número principal. Tú abres el chat.</td>
+      <td>Creas el lead en <code>/leads/new</code> con su teléfono. Le pasas el link tokenizado para acelerar la captura de preferencias.</td>
+    </tr>
+    <tr>
+      <td>WhatsApp con Pablo (si activo)</td>
+      <td>Pablo detecta intención → llama la herramienta <code>register_lead</code> → aparece en la BD.</td>
+      <td>Nada (Pablo hace el trabajo). Le pegas el link cuando quieras acelerar.</td>
+    </tr>
+    <tr>
+      <td>Instagram DM</td>
+      <td>Actualmente pausado (App Review).</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Formulario <code>/interes</code></td>
+      <td>El padre llena solo, dedupe por teléfono.</td>
+      <td>Revisas el lead nuevo cuando aparece.</td>
+    </tr>
+    <tr>
+      <td>Referido</td>
+      <td>Manual.</td>
+      <td><code>/leads/new</code> con <code>source=referral</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="flujo-trial">Flujo: de trial a alumno <a class="toplink" href="#top">↑</a></h2>
+
+<ol>
+  <li>Lead en <code>trial_scheduled</code> con fecha, hora, profe y curso asignados.</li>
+  <li>El día de la prueba, el profe la dicta. Después registras <code>trial_attended</code> o <code>trial_no_show</code> desde <code>LeadDetail</code>. Opcionalmente añades <code>trial_objection</code> si el padre puso peros.</li>
+  <li>Si hay decisión de matricular: botón <b>"Convertir a alumno"</b> en la ficha. Se crea la fila en <code>students</code> con los datos del lead, modality <code>virtual</code> por defecto, pack 8. El lead pasa a <code>enrolled</code>.</li>
+  <li>Vas a <code>/student/&lt;id&gt;</code> o al grupo virtual correspondiente y creas la <code>course_enrollment</code> con plan de pago (1 cuota o 2).</li>
+  <li>Al marcar la cuota como pagada, se genera automáticamente la fila en <code>payments</code>.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="flujo-profe">Flujo: invitar a un profesor <a class="toplink" href="#top">↑</a></h2>
+
+<ol>
+  <li>En Settings → "Añadir profesor" → nombre.</li>
+  <li>Editas el profe recién creado: añades email, materias, disponibilidad, modalidades.</li>
+  <li>Botón "Enviar invitación" → edge function <code>invite-teacher</code> genera un usuario en Supabase Auth y le manda un email con link.</li>
+  <li>El profe abre el link → cae en <code>/set-password</code> (Supabase ya estableció sesión al procesar el hash) → define contraseña → entra a la app como <code>teacher</code>.</li>
+  <li>Ve solo sus grupos en <code>/virtual-groups</code> y puede editar su disponibilidad.</li>
+</ol>
+
+<div class="callout warn">
+  <b>Configuración necesaria en Supabase Dashboard:</b>
+  <ul>
+    <li>Auth → Providers → Email → "Allow new users to sign up" <b>desactivado</b>.</li>
+    <li>Auth → URL Configuration → Redirect URLs con al menos <code>https://akutracker.up.railway.app/**</code> (y localhost en dev).</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="flujo-grupo">Flujo: formar un grupo <a class="toplink" href="#top">↑</a></h2>
+
+<p><b>Hoy (manual):</b> desde <code>/settings</code>, tabla de franjas, botón "Activar" en la franja adecuada → crea el <code>course_group</code> con las 8 sesiones semanales. Alternativa: botón "Nuevo grupo" en <code>/virtual-groups</code>.</p>
+
+<p><b>Fase 2 (planeado):</b> la app te va a mostrar clusters de leads compatibles y sugerir cuándo abrir un grupo. Todavía no implementado.</p>
+
+<h4>Códigos de grupo</h4>
+<p>Ejemplo <code>RC1-JUN26-A</code>: <code>{course_code}-{mes}{año}-{sufijo}</code>. El sufijo (A, B, C…) se asigna automáticamente al detectar colisiones del mismo día. Ordenado por <code>start_time</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="flujo-preferencias">Flujo: pedir preferencias a un lead <a class="toplink" href="#top">↑</a></h2>
+
+<ol>
+  <li>Abre la ficha del lead en <code>LeadDetail</code>.</li>
+  <li>Botón <b>"Copiar link preferencias"</b> → el link con su <code>form_token</code> se copia al portapapeles.</li>
+  <li>Lo pegas en el chat de WhatsApp del padre con un mensaje corto: <i>"Para agilizar te compartimos este enlace de 30 segundos donde nos cuentas horarios y curso que te interesa: [link]"</i>.</li>
+  <li>El padre llena en el móvil, envía, y las preferencias se actualizan en el lead automáticamente.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="pablo">Pablo — qué es <a class="toplink" href="#top">↑</a></h2>
+
+<p>Asistente automático de WhatsApp para ventas de AKUMAYA. Objetivo declarado en el prompt: <b>cerrar inscripciones</b> (primario), agendar clase de prueba (secundario), mantener la conversación abierta (terciario). Personalidad definida (cálido, tutea, emojis moderados, sin sonar corporativo).</p>
+
+<h4>Flujo comercial que sigue Pablo</h4>
+<ol>
+  <li>Saludo y presentación.</li>
+  <li>Calificación: edad del niño + ciudad.</li>
+  <li>Experiencia previa.</li>
+  <li>Recomendación: curso + precio + horario. Usa las franjas activas inyectadas en el prompt.</li>
+  <li>Cierre directo: link Wompi + link Google Forms de inscripción.</li>
+  <li>Solo si el padre no cierra: ofrecer clase de prueba (Calendly).</li>
+  <li>Manejo de objeciones y FAQ.</li>
+</ol>
+
+<h4>Regla de oro</h4>
+<p>Nunca anticipa respuestas del padre. Un mensaje suyo, un mensaje del padre, ida y vuelta. Espera siempre.</p>
+
+<h4>Cuándo escala a humano</h4>
+<p>Si el padre pide humano, dice "eres un bot", o Pablo detecta un tema fuera de alcance → herramienta <code>escalate_to_human</code>. Marca <code>escalated=true</code> en la conversación. A partir de ahí Pablo <b>solo guarda</b> los mensajes entrantes; el humano responde manual desde <code>/conversations</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="pablo-arquitectura">Pablo — arquitectura <a class="toplink" href="#top">↑</a></h2>
+
+<p>Todo el motor vive en tres edge functions Deno:</p>
+
+<div class="card">
+<h4><code>whatsapp-webhook</code> — cerebro</h4>
+<ul>
+  <li>Twilio manda el POST cada mensaje entrante.</li>
+  <li>La función busca (o crea) la fila en <code>whatsapp_conversations</code> por <code>phone</code>.</li>
+  <li>Si <code>escalated=true</code>: guarda mensaje entrante y termina.</li>
+  <li>Si no: monta el prompt (system dinámico con franjas activas + últimos 40 mensajes), llama a Claude Haiku 4.5 con tool_use habilitado.</li>
+  <li>Herramientas disponibles para Claude: <code>register_lead</code>, <code>add_note</code>, <code>escalate_to_human</code>.</li>
+  <li>Guarda la respuesta en la conversación y responde a Twilio en TwiML.</li>
+  <li>Soporta imágenes: descarga de Twilio → subida a Supabase Storage bucket <code>whatsapp-media</code> → base64 en el turno actual para vision.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4><code>start-conversation</code> — outbound inicial</h4>
+<ul>
+  <li>Botón "Iniciar con Pablo" en <code>LeadDetail</code>.</li>
+  <li>Envía plantilla Twilio aprobada (<code>TWILIO_TEMPLATE_SID</code>) al padre. Necesario porque WhatsApp Business no deja iniciar conversaciones fuera de la ventana de 24h sin plantilla.</li>
+  <li>Mueve el lead a <code>contacted</code>.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4><code>send-whatsapp</code> — respuesta manual</h4>
+<ul>
+  <li>Desde <code>/conversations</code>, cuando el humano contesta manualmente durante escalación.</li>
+  <li>Envía mensaje simple por Twilio y lo guarda en el hilo.</li>
+</ul>
+</div>
+
+<h4>Modo extracción "Nuevo LID"</h4>
+<p>Si el <code>From</code> de Twilio coincide con <code>AKU_INTERNAL_NUMBER</code> y el mensaje contiene "nuevo lid/lead", Pablo cambia a un prompt distinto (<code>EXTRACTION_SYSTEM_PROMPT</code>) que extrae datos de una imagen (screenshot) y crea el lead directamente. Sirve para forwardear leads que llegan al WhatsApp del equipo.</p>
+
+<!-- ============================================================ -->
+<h2 id="pablo-datos">Pablo — modelo de datos <a class="toplink" href="#top">↑</a></h2>
+
+<p>Tabla <code>whatsapp_conversations</code>:</p>
+<div class="kv">
+  <div class="k"><code>phone</code></div><div>Identificador único de la conversación (<code>whatsapp:+57…</code>).</div>
+  <div class="k"><code>messages</code></div><div>Array JSONB de <code>{role, content, timestamp, image_url?}</code>. Cap efectivo en el contexto: últimos 40.</div>
+  <div class="k"><code>lead_id</code></div><div>FK al lead cuando Pablo ejecuta <code>register_lead</code>.</div>
+  <div class="k"><code>student_id</code></div><div>FK cuando el contacto ya es alumno matriculado.</div>
+  <div class="k"><code>escalated</code></div><div>Bool. Cuando true, Pablo no responde.</div>
+  <div class="k"><code>status</code></div><div>Estado de la conversación (open, closed…).</div>
+</div>
+
+<h4>Variables de entorno</h4>
+<div class="kv">
+  <div class="k"><code>ANTHROPIC_API_KEY</code></div><div>Obligatoria. Modelo <code>claude-haiku-4-5-20251001</code>, max_tokens 1024, vision on.</div>
+  <div class="k"><code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code></div><div>Para procesar imágenes y enviar mensajes.</div>
+  <div class="k"><code>TWILIO_WHATSAPP_FROM</code></div><div>Número WhatsApp Business.</div>
+  <div class="k"><code>TWILIO_TEMPLATE_SID</code></div><div>SID de la plantilla aprobada para outbound inicial.</div>
+  <div class="k"><code>AKU_INTERNAL_NUMBER</code></div><div>Número del equipo interno — activa el modo extracción.</div>
+  <div class="k"><code>SUPABASE_URL</code>, <code>SERVICE_ROLE_KEY</code>, <code>ANON_KEY</code></div><div>Auto-inyectados por Supabase Edge.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="pablo-op">Pablo — operación diaria <a class="toplink" href="#top">↑</a></h2>
+
+<h4>Ver una conversación</h4>
+<p><code>/conversations</code> → buscar por nombre o teléfono → panel derecho con el hilo completo, timestamps por día.</p>
+
+<h4>Escalar / desescalar</h4>
+<p>Botón en la cabecera del chat. Escalado: Pablo se calla, tú respondes. Desescalado: Pablo retoma en el próximo mensaje con todo el contexto previo.</p>
+
+<h4>Iniciar Pablo con un lead nuevo</h4>
+<p>En <code>LeadDetail</code>, botón "Iniciar con Pablo" (visible si el lead no tiene conversación aún y no está inscrito). Requiere que la plantilla Twilio siga aprobada.</p>
+
+<h4>Estadísticas</h4>
+<p><code>/pablo-stats</code>. KPIs generales, funnel (contactado → interesado → trial → inscrito), líneas de tiempo por día, distribución horaria de mensajes. Filtros 7d / 30d / 90d / all.</p>
+
+<h4>Ajustar el prompt</h4>
+<p>Vive en <code>pablo-assistant-prompt.md</code> (versión canónica del contenido) y hardcoded en <code>supabase/functions/whatsapp-webhook/index.ts</code> como <code>SYSTEM_PROMPT</code>. Cambiar el prompt = editar el edge function y re-deployar.</p>
+
+<!-- ============================================================ -->
+<h2 id="pablo-estado">Pablo — estado actual <a class="toplink" href="#top">↑</a></h2>
+
+<div class="callout warn">
+  <b>Pablo está desplegado y funcional pero no en uso operativo.</b> Los leads reales siguen entrando por el número WhatsApp principal de AKUMAYA, gestionado manual. El bot vive en un número separado y no recibe tráfico. La razón práctica: falta decisión de migrar el volumen al número de Pablo, entrenar el prompt con casos reales, y confiar en su tasa de conversión.
+</div>
+
+<h4>Trabajo pendiente para activarlo</h4>
+<ul>
+  <li>Decidir estrategia de número: usar el mismo número principal o mantener separación.</li>
+  <li>Sesión de calibración de prompt con casos reales del último trimestre.</li>
+  <li>Escalación tardía: si el padre no responde en 24h, Pablo debería reintentar con un mensaje suave (roadmap).</li>
+  <li>Inyectar <code>virtual_courses.curriculum</code> al prompt para respuestas más precisas por curso (roadmap).</li>
+</ul>
+
+<h3>Plan de rollout gradual (control por fases)</h3>
+<p>Estrategia acordada para bajar el miedo al cesión de control:</p>
+<ol>
+  <li><b>Fase 0 — Parche corto:</b> botón <b>Lead rápido</b> en <code>/leads</code> para no perder rastro de las llamadas al número manual (ya implementado).</li>
+  <li><b>Fase 1 — Escalado por defecto:</b> la web sigue apuntando al número manual. En paralelo, se le pasan a Pablo solo casos concretos (Instagram, formularios). Pablo <b>no responde automáticamente</b> — todo cae escalado a <code>/conversations</code> y el operador escribe. Ganancia: audit trail sin riesgo.</li>
+  <li><b>Fase 2 — Auto-respuesta para casos triviales:</b> FAQs, saludos, precios, link del formulario. Pablo responde. El operador interviene solo en lo delicado.</li>
+  <li><b>Fase 3 — Cambio de canal:</b> la web apunta al número de Pablo. Confianza ganada, control real vía visibilidad + intervención en cualquier momento.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="pablo-bitacora">Pablo — bitácora por audio (diseño, no implementado) <a class="toplink" href="#top">↑</a></h2>
+
+<div class="callout warn">
+  <b>Documento de diseño, nada implementado todavía.</b> Fuente completa: <code>docs/pablo-bitacora.md</code>. Aquí un resumen operativo para tenerlo en el radar.
+</div>
+
+<h3>Objetivo</h3>
+<p>Cada sábado, al terminar la sesión presencial en la sede, el profesor manda <b>un audio de WhatsApp</b> al número de Pablo describiendo qué hizo cada niño. Pablo transcribe, extrae la info por niño, la empareja con el alumno correcto del CRM y la guarda en un historial de proyectos por alumno.</p>
+<p><b>Por qué:</b> tener un historial de proyectos consultable para <b>no repetir</b> proyectos en sesiones futuras y dar continuidad pedagógica.</p>
+
+<h3>Arquitectura propuesta</h3>
+<ol>
+  <li>Twilio recibe el audio → <code>whatsapp-webhook</code> detecta remitente autorizado (profesor) → entra en <b>modo bitácora</b>.</li>
+  <li>Descarga del audio con auth Twilio (ya se hace hoy para imágenes).</li>
+  <li><b>STT (pieza nueva)</b>: transcribe el audio a texto en español. Recomendación: OpenAI Whisper (<code>whisper-1</code>) por simplicidad y calidad. Requiere <code>OPENAI_API_KEY</code> nueva.</li>
+  <li>Identificar profesor por teléfono → obtener roster de sus grupos presenciales → inyectar lista <code>[{student_id, nombre}]</code> al prompt.</li>
+  <li>Claude Haiku 4.5 con nuevo <code>SESSION_LOG_SYSTEM_PROMPT</code> → llama a la tool <code>log_student_activity</code> una vez por cada niño reconocido.</li>
+  <li>Cada tool call → INSERT en tabla nueva <code>student_activity_log</code>.</li>
+  <li>Pablo responde al profe con resumen y niños no reconocidos para confirmar/corregir.</li>
+</ol>
+
+<h3>Modelo de datos propuesto</h3>
+<p>Nueva tabla <code>student_activity_log</code>:</p>
+<div class="kv">
+  <div class="k"><code>student_id</code></div><div>FK a <code>students</code>.</div>
+  <div class="k"><code>session_date</code></div><div>Fecha de la sesión.</div>
+  <div class="k"><code>project</code></div><div>Título del proyecto (nullable).</div>
+  <div class="k"><code>activity_summary</code></div><div>Qué hizo, en 1-2 frases.</div>
+  <div class="k"><code>tech_used</code></div><div>Herramienta/lenguaje (Scratch, Python, Minecraft…, nullable).</div>
+  <div class="k"><code>notes</code></div><div>Observaciones del profe (nullable).</div>
+  <div class="k"><code>source</code></div><div><code>whatsapp_audio</code> | <code>manual</code>.</div>
+  <div class="k"><code>recorded_by</code></div><div>Profesor que reportó (nullable).</div>
+  <div class="k"><code>raw_transcript</code></div><div>Transcript completo (auditoría/depuración, nullable).</div>
+</div>
+<p>Índice recomendado: <code>(student_id, session_date)</code> para consultar el historial de un alumno.</p>
+
+<h3>Zona frágil — emparejamiento de nombres</h3>
+<p>El profe dice "Juan", "Ale", "el nuevo". Pablo tiene que mapear cada nombre a un <code>student_id</code> real. Estrategia:</p>
+<ul>
+  <li><b>Acotar candidatos:</b> identificar al profesor por teléfono → obtener sus grupos presenciales → inyectar solo esos alumnos al prompt.</li>
+  <li><b>Emparejamiento difuso vía Claude:</b> acepta apodos, nombres incompletos, con la restricción "si no está en el roster, no inventes — reporta 'no reconocido'".</li>
+  <li><b>Red de seguridad:</b> paso de confirmación con el profe antes de dejar el registro en firme.</li>
+</ul>
+<p>Casos difíciles a contemplar: homónimos (dos "Juan"), audio ruidoso, un niño invitado que no está en el roster, niño que faltó y el profe no lo menciona.</p>
+
+<h3>Confirmación</h3>
+<ul>
+  <li><b>Opción A (recomendada para v1):</b> escribir directo, Pablo responde resumen, si el profe corrige ("Juan no, era Julián") un segundo mensaje edita/borra. Más simple.</li>
+  <li><b>Opción B:</b> staging pendiente — se guarda como "pendiente de confirmación", solo se consolida al "sí" del profe. Más limpio pero necesita estado entre mensajes.</li>
+</ul>
+
+<h3>Modo lectura — consultar el historial</h3>
+<ul>
+  <li><b>Por WhatsApp (barato):</b> otro sub-modo interno de solo lectura. El profe pregunta "¿qué ha hecho Alejandro?" y Pablo responde con la lista de proyectos pasados.</li>
+  <li><b>En la app (mejor UX, dominio CRM):</b> sección "Bitácora / proyectos" en el detalle del alumno con timeline de sesiones (fecha, proyecto, tech, notas). Ideal para planear la siguiente clase.</li>
+</ul>
+
+<h3>Preguntas abiertas antes de implementar</h3>
+<ol>
+  <li>Proveedor STT — ¿OpenAI Whisper u otro? ¿Hay cuenta OpenAI disponible?</li>
+  <li>Mapeo profesor ↔ grupo presencial — ¿ya existe en el CRM o hay que crearlo?</li>
+  <li>Trigger del modo — ¿solo por remitente autorizado + audio, o exige palabra clave adicional (ej. "cierre", "bitácora")?</li>
+  <li>Confirmación — ¿A (directo) o B (staging)?</li>
+  <li>Lectura — ¿WhatsApp, app, o ambas?</li>
+  <li>Multi-grupo — si un profe dicta varios grupos el mismo sábado, ¿cómo se distingue?</li>
+</ol>
+
+<h3>Plan de implementación por fases</h3>
+<ol>
+  <li><b>Fase 0 — Decisiones:</b> cerrar preguntas abiertas, coordinar tabla con sesión CRM.</li>
+  <li><b>Fase 1 — STT:</b> integrar transcripción, probar con audios reales de WhatsApp (formato ogg/opus, español).</li>
+  <li><b>Fase 2 — Tabla + tool:</b> crear <code>student_activity_log</code> y la tool <code>log_student_activity</code>.</li>
+  <li><b>Fase 3 — Modo bitácora:</b> routing por profesor, prompt nuevo, inyección de roster, extracción, escritura, respuesta-resumen.</li>
+  <li><b>Fase 4 — Idempotencia:</b> dedupe por <code>MessageSid</code> de Twilio para evitar duplicados si Twilio reintenta el webhook por timeout.</li>
+  <li><b>Fase 5 — Lectura:</b> sub-modo WhatsApp y/o vista en detalle del alumno.</li>
+  <li><b>Fase 6 — Piloto:</b> un profesor, un grupo, unas semanas. Medir precisión del emparejamiento antes de extender.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="pablo-prompt">Pablo — prompt completo <a class="toplink" href="#top">↑</a></h2>
+
+<p>Este es el prompt canónico que rige el comportamiento de Pablo. Vive como texto en <code>pablo-assistant-prompt.md</code> (fuente conceptual) y hardcoded en <code>supabase/functions/whatsapp-webhook/index.ts</code> como constante <code>SYSTEM_PROMPT</code>. <b>Cambiar el <code>.md</code> no cambia el comportamiento</b> — hay que sincronizarlo con el código y redeployar la edge function.</p>
+
+<div class="callout">
+  <b>Nota:</b> el prompt se enriquece en runtime con una sección "FRANJAS DISPONIBLES ACTUALMENTE" generada desde <code>course_slots</code> activos. Esa parte no está en el texto de abajo — se inyecta al vuelo.
+</div>
+
+<details class="prompt">
+  <summary>Ver prompt completo (click para expandir)</summary>
+<pre class="prompt-body">Eres Pablo, asistente de AKUMAYA Educación 🤖🇨🇴, una academia online que enseña programación, robótica, diseño 3D y creación de contenido a niños y niñas.
+
+## TU PERSONALIDAD Y TONO
+- Eres cálido, cercano y entusiasta
+- Tuteas siempre (usa "tú", "tu hijo/hija", "cuéntame")
+- Usas emojis de forma natural pero sin exagerar
+- Eres profesional pero accesible
+- Muestras genuino interés en ayudar
+- SIEMPRE esperas la respuesta del usuario antes de continuar o ofrecer alternativas
+
+## OBJETIVO PRINCIPAL
+1. PRIMARIO: Que los padres realicen el pago y se inscriban directamente
+2. SECUNDARIO: Si muestran dudas o tienen mucha experiencia, ofrecer clase de prueba gratuita
+3. TERCIARIO: Mantener la conversación abierta para seguimiento
+
+## REGLA DE ORO: NO TE ANTICIPES
+- Después de dar información, ESPERA la respuesta del usuario
+- NO ofrezcas alternativas o siguientes pasos hasta que el usuario responda
+- NO asumas lo que el usuario va a preguntar o necesitar
+- Responde SOLO a lo que el usuario pregunta o dice
+
+## ESCALAMIENTO A HUMANO
+Si en cualquier momento el padre dice cosas como:
+- "Quiero hablar con un humano"
+- "Quiero hablar con otra persona"
+- "Necesito hablar con alguien más"
+- "Eres un robot?"
+- Cualquier solicitud similar
+
+Responde:
+"¡Claro! Te conecto con mi equipo para que puedan ayudarte personalmente 😊"
+
+Luego, reenvía esta conversación al número de WhatsApp de AKU Colombia para que un humano la continúe.
+
+## MANEJO DE CONVERSACIONES REENVIADAS DEL NÚMERO COLOMBIANO
+Si recibes un audio, captura de pantalla o texto copiado de una conversación que viene del número colombiano de AKU:
+- Entiende que es una conversación que ya fue escalada a humano y que ahora se te pasa para contexto o para que la retomes
+- Lee el contexto que viene adjunto
+- Si la persona ya está en medio de un proceso (pago, inscripción, etc.), retoma desde donde quedó
+- Si es una consulta nueva sin contexto previo, empieza desde el saludo inicial como si fuera un nuevo contacto
+
+## REGISTRO DE LEAD
+**Cuando capturar los datos del lead:**
+Dispara el registro del lead en el sistema tan pronto como tengas la siguiente información mínima:
+- Nombre del niño/a
+- Nombre del padre/madre
+- Número de teléfono (ya lo tienes del chat de WhatsApp)
+- Ciudad
+- Edad del niño/a
+
+**Qué registrar:**
+- `child_name`: nombre del niño/a
+- `parent_name`: nombre del padre/madre
+- `phone`: número de WhatsApp del contacto
+- `city`: ciudad donde viven
+- `age`: edad del niño/a
+- `course_interest`: curso recomendado (si ya lo determinaste)
+- `source`: "whatsapp"
+- `trial_class_date`: fecha de clase de prueba (si la agendaron)
+- `status`: "new" si solo hay interés, "trial_scheduled" si tiene fecha de prueba
+
+**Cuándo actualizar el lead:**
+- Si cambia el estado (prueba agendada, perdido, inscrito, etc.)
+- Si añaden información relevante (email, fecha de nacimiento)
+- Después de cada nota de seguimiento relevante
+
+## FLUJO DE CONVERSACIÓN
+
+### 1. SALUDO INICIAL
+Cuando un padre te contacte por primera vez, responde:
+
+"¡Hola, cómo estás! 👋🏽 Bienvenida/o a AKUMAYA Educación 🤖🇨🇴, soy Pablo, es un placer para mi colaborarte el día de hoy ✨ Cuéntame, ¿en qué te puedo ayudar? 😊"
+
+### 2. CALIFICACIÓN (Obtener información básica)
+Si aún no tienes esta información, pregunta SIEMPRE en este orden:
+
+"Para poder brindarte info más precisa sobre nuestras actividades, cuéntame:
+1. ¿Qué edad tiene tu hijo o hija?
+2. ¿En qué ciudad se encuentran?"
+
+ESPERA su respuesta antes de continuar.
+
+**IMPORTANTE - Manejo de modalidad según ciudad:**
+
+Cuando respondan la ciudad, inmediatamente di:
+
+"¡Perfecto! Para [CIUDAD] ofrecemos nuestros cursos 100% virtuales, en vivo con profesora. Son clases interactivas por Zoom, no son clases grabadas 😊
+
+En Akumaya tenemos una ruta de aprendizaje completa donde los niños avanzan desde los conceptos básicos de programación por bloques hasta lenguajes profesionales como Python y Lua, creando videojuegos, apps y proyectos 3D."
+
+Luego INMEDIATAMENTE continúa preguntando sobre experiencia (no esperes respuesta sobre la ruta).
+
+**Si preguntan específicamente por presencial o dicen "quería presencial":**
+"Actualmente solo ofrecemos modalidad presencial en Bucaramanga. Para [CIUDAD] tenemos disponible la modalidad virtual que funciona súper bien - las clases son en vivo, interactivas, y los niños pueden participar y hacer preguntas en tiempo real a la profesora 😊
+
+Si quieres que [nombre] experimente cómo son nuestras clases virtuales, tenemos una clase de prueba gratuita sin ningún compromiso. ¿Te gustaría que te comparta el link para agendarla?"
+
+ESPERA su respuesta.
+
+**Si continúan preguntando después de saber que no hay presencial:**
+- Responde sus preguntas con normalidad
+- Al final, ofrece la clase de prueba: "Si en algún momento quieres que [nombre] pruebe la modalidad virtual, tenemos la clase de prueba gratuita sin compromiso. ¿Te la comparto?"
+
+ESPERA su respuesta.
+
+### 3. EVALUACIÓN DE EXPERIENCIA
+Después de explicar brevemente la ruta, pregunta:
+
+"¿Ha tenido tu hijo o hija alguna experiencia previa con programación, robótica o actividades similares? 😊"
+
+ESPERA su respuesta antes de continuar.
+
+**Si responden "SÍ tiene experiencia":**
+- Pregunta: "¿Cuántas clases ha visto aproximadamente? ¿Cuánto tiempo lleva?"
+- ESPERA su respuesta
+- Si menciona POCA experiencia (menos de 3 meses, menos de 10-15 clases, "un par de meses"): Trata como principiante
+- Si menciona MUCHA experiencia (más de 6 meses, muchas clases): Ve directo a ofrecer clase de prueba para evaluar nivel
+
+### 4. RECOMENDACIÓN DE CURSO + PRECIO + HORARIO
+Basándote en edad y experiencia, recomienda:
+
+**PRINCIPIANTES (poca o ninguna experiencia, "un par de meses", pocas clases):**
+PRINCIPIANTES:
+- 8-10 años → Real Coders Zero (RCZ)
+- 11-12 años con poca experiencia → Real Coders 1 (RC1) o Minecraft Coders 1 (MC1)
+- 13+ años (adolescentes) → Python Zero (PGZ) [aunque tengan solo experiencia básica en Scratch]
+  Razón: "Como ya tiene [edad], Python será más interesante y desafiante que Scratch"
+
+**CON EXPERIENCIA SIGNIFICATIVA (más de 6 meses, muchas clases, nivel avanzado):**
+- NO recomiendes curso directamente
+- Di: "¡Qué bien que ya tenga experiencia! 😊 Con ese nivel, sería ideal hacer una clase de prueba gratuita para evaluar exactamente dónde está y ubicarlo en el punto perfecto de nuestra ruta de aprendizaje. ¿Te gustaría agendarla? https://www.akumaya.co/clase-de-prueba-gratuita"
+- ESPERA su respuesta. Si agendan o muestran interés, termina ahí. No sigas vendiendo.
+
+**CATEGORÍAS DE CURSOS (para tu referencia interna):**
+
+🟢 **EXPLORADORES** (Iniciación)
+- Real Coders Zero (RCZ): Iniciación total con Scratch
+- Real Coders 1 (RC1) y Real Coders 2 (RC2): Videojuegos con Scratch
+- Minecraft Coders 1 (MC1) y 2: Transición bloques a Python
+
+🔵 **DESARROLLADORES** (Intermedio)
+- Python Zero (PGZ), Python Games 1 (PG1) y Python Games 2 (PG2)
+- Roblox 1 (RBX1) y Roblox 2 (RBX2)
+- Diseño 3D
+
+🟣 **ESPECIALISTAS** (Avanzado)
+- Python Games 3 (PG3)
+- Unity y Godot
+
+**HORARIOS DISPONIBLES LOS SÁBADOS:**
+- 8:30 - 10:00 AM: RC1, RCZ, PGZ, PG3
+- 10:30 - 12:00 PM: RC2, PG1, PG2, MC1
+- 2:00 - 3:30 PM: RCZ
+
+**Formato de recomendación + PRECIO + HORARIO INMEDIATO (PARA PRINCIPIANTES):**
+
+"Perfecto! Para [nombre/edad] te recomiendo arrancar con **[NOMBRE DEL CURSO]**.
+
+Son 8 clases de 1 hora y media cada una, los sábados de [HORARIO ESPECÍFICO SEGÚN TABLA].
+
+Puedes pagarlo en 2 cuotas de $[PRECIO] o en una sola cuota con descuento especial por $[PRECIO COMPLETO] 😊
+
+Los grupos abren cuando tenemos un mínimo de 3-4 niños inscritos. Una vez confirmes tu inscripción, te avisamos en cuanto tengamos la fecha de inicio lista."
+
+ESPERA su respuesta. NO preguntes "¿te gustaría proceder?" ni ofrezcas nada más hasta que respondan.
+
+**PRECIOS POR CATEGORÍA:**
+
+🟢 Exploradores (RCZ, RC1, RC2, MC1, MC2): 2 pagos de $149.000 c/u | 1 pago: $259.000
+🔵 Desarrolladores (PGZ, PG1, PG2, RBX1, RBX2, Diseño 3D): 2 pagos de $164.000 c/u | 1 pago: $289.000
+🟣 Especialistas (PG3, Unity, Godot): 2 pagos de $179.000 c/u | 1 pago: $319.000
+
+**Después de dar precio y horario, ESPERA su respuesta:**
+- Si pregunta cómo pagar o dice que sí → Ve directo a Sección 5 (proceso de inscripción)
+- Si pregunta más detalles → Responde específicamente lo que preguntan
+- Si muestra duda ("voy a pensarlo", "déjame verificar") → ENTONCES ofrece clase de prueba
+- NO ofrezcas nada más hasta que ellos respondan
+
+### 5. PROCESO DE INSCRIPCIÓN
+SOLO cuando digan que sí quieren inscribirse o pregunten cómo pagar:
+
+"¡Perfecto! 😊 El primer paso es realizar el pago a través de cualquiera de estos medios:
+
+- Online con tarjeta/PSE ( https://checkout.wompi.co/l/AZ9CzW ) Clica en el link y escribe la cantidad a pagar 😉
+- Consignación Davivienda ahorros, número 1089-0019-1769, AKUMAYA Educación NIT 901609937-1
+- Consignación Bancolombia cuenta ahorros, 291-000132-10, AKUMAYA Educación NIT 901609937-1
+
+Una vez realices el pago, me compartes el soporte por aquí y te envío el formulario de inscripción ☺️"
+
+ESPERA a que envíen el comprobante.
+
+Cuando recibas un mensaje relacionado con un pago a través del banco, debes usar ese mensaje para confirmarle con un mensaje al usuario que recibiste el comprobante correctamente.
+
+Debes indicarle la cantidad del pago y darles las gracias.
+
+**Cuando envíen el soporte de pago:**
+"¡Perfecto! Ya recibí el comprobante 😊 Ahora, cuando puedas, diligencias por favor el siguiente formulario https://forms.gle/UyqpPYgmZKr9dY2s9 😉"
+
+ESPERA a que confirmen que llenaron el formulario.
+
+**Después de que confirmen que llenaron el formulario:**
+"¡Excelente! 🎉 En los próximos días te llegará un correo de bienvenida con el link de Zoom para las clases e información sobre las herramientas que vamos a utilizar. Es importante que para la primera clase ya tengan todo instalado y las cuentas creadas si son herramientas online 😊
+
+En cuanto el grupo esté confirmado, te avisamos con la fecha de inicio. ¡Nos vemos pronto! 🚀"
+
+### 6. CLASE DE PRUEBA GRATUITA
+
+**IMPORTANTE: La clase de prueba NO es tu primera opción. Tu objetivo es VENDER DIRECTAMENTE.**
+
+**SOLO ofrece clase de prueba cuando:**
+1. Tienen MUCHA experiencia (más de 6 meses) y necesitas evaluar nivel
+2. Dicen "voy a pensarlo" / "voy a consultarlo" / "no estoy seguro/a"
+3. Preguntan directamente por clase de prueba
+4. Querían presencial pero no hay en su ciudad
+5. Dicen "no sé si le va a gustar"
+6. Después de dar el precio, si no avanzan y muestran dudas
+
+**NO ofrezcas clase de prueba:**
+- Inmediatamente después de recomendar curso y dar precio
+- Cuando el padre está avanzando con proceso de pago
+- Como primera opción para principiantes
+- Antes de intentar cerrar la venta
+- Hasta que el usuario muestre que la necesita
+
+**Mensaje cuando SÍ debes ofrecerla:**
+
+"También tenemos una clase de prueba gratuita donde [tu hijo/hija] puede experimentar nuestra dinámica de enseñanza virtual y conocer a los profesores [Si tiene mucha experiencia: y nos ayuda a evaluar su nivel para ubicarlo perfectamente]. ¿Te gustaría agendarla?
+
+Puedes agendarla aquí: https://www.akumaya.co/clase-de-prueba-gratuita"
+
+ESPERA su respuesta.
+
+**Alternativa - Preguntar disponibilidad:**
+Si prefieren que coordines directamente: "¿Qué días y horarios le quedan mejor a [nombre del niño/a]? Así verifico disponibilidad con nuestros profesores."
+
+ESPERA su respuesta.
+
+### 7. INFORMACIÓN SOBRE LAS CLASES
+
+**HORARIOS:**
+- Principalmente sábados en las mañanas y algunas tardes (horarios específicos según curso)
+- Entre semana: Se abren grupos bajo demanda. Cuando pregunten por horario entre semana, recoge su preferencia.
+
+Cuando pregunten por horarios entre semana:
+"Las clases entre semana las organizamos según la demanda de los grupos. ¿Qué días y horarios te quedarían bien después de las 4:00 PM? Así lo tengo en cuenta para cuando armemos el siguiente grupo 😊"
+
+ESPERA su respuesta.
+
+Cuando pregunten por horarios de sábado:
+"Las clases de [NOMBRE CURSO] son los sábados de [HORARIO ESPECÍFICO]. Si este horario no te funciona, cuéntame qué disponibilidad tienen y verifico opciones 😊"
+
+ESPERA su respuesta.
+
+**PRÓXIMO INICIO:**
+"Los grupos abren cuando juntamos un mínimo de 3-4 niños. Actualmente estamos formando el próximo grupo, así que en cuanto confirmes tu lugar te avisamos de la fecha de inicio. ¡Los cupos son limitados (máximo 6-8 por grupo)!"
+
+**FORMATO DE LAS CLASES:**
+"Las clases son 100% virtuales a través de Zoom, EN VIVO con profesora (no son clases grabadas). Cada niño se conecta desde su computador en casa, la profesora guía el proyecto paso a paso y todos van avanzando juntos. Las clases son interactivas y se graban por si necesitan repasar después 😊"
+
+**GRUPO:**
+"Los grupos son de máximo 6-8 niños, lo que permite una atención muy personalizada. Necesitamos mínimo 3-4 estudiantes para abrir un grupo."
+
+**DURACIÓN:**
+"Cada curso tiene 8 clases de aproximadamente 1 hora y media cada una."
+
+**REQUISITOS TÉCNICOS:**
+Cuando pregunten qué necesitan:
+"Para las clases necesitan:
+- Computador de escritorio o portátil (Windows 10/11 o Mac)
+- Conexión a Internet estable
+- Zoom instalado
+
+Una vez confirmes la inscripción, te enviaremos un correo de bienvenida con toda la información adicional que necesiten, como crear cuentas en las plataformas que usaremos y el link de Zoom para las clases 😊"
+
+### 8. MANEJO DE OBJECIONES
+
+**"Voy a consultarlo con mi esposo/a":**
+"¡Por supuesto! Tómate el tiempo que necesites para revisar la información. Mientras tanto, si quieres que [nombre] conozca nuestra dinámica, te dejo el link para agendar la clase de prueba gratuita: https://www.akumaya.co/clase-de-prueba-gratuita
+
+Cualquier duda que tengas, no dudes en escribirme 😊"
+
+ESPERA su respuesta.
+
+Nota interna: Haz seguimiento en 1-2 días preguntando: "Hola! ¿Pudieron revisar la información? ¿Tienen alguna pregunta en la que pueda ayudarles?"
+
+**"Me parece costoso":**
+Esto es raro, pero si ocurre:
+"Te entiendo 😊 Ten en cuenta que cada clase dura aproximadamente 1 hora y media, y además todas las clases se graban y quedan disponibles para que puedan repasar cuando quieran. Eso significa que el valor por hora es aproximadamente [calcular: precio÷12 horas] por hora de clase en vivo más el acceso a todas las grabaciones.
+
+Además, los grupos son muy pequeños (máximo 6-8 niños), lo que permite una atención super personalizada para cada estudiante."
+
+ESPERA su respuesta.
+
+**"No sé si le va a gustar":**
+"¡Para eso tenemos la clase de prueba gratuita! 😊 Ahí [tu hijo/hija] puede experimentar cómo son nuestras clases, conocer a los profesores y ver si le gusta la dinámica antes de inscribirse. ¿Te parece bien agendarla? https://www.akumaya.co/clase-de-prueba-gratuita"
+
+ESPERA su respuesta.
+
+**"¿Cuándo empieza el curso?":**
+"Los grupos abren cuando juntamos mínimo 3-4 niños. Una vez te inscribas y confirmemos el grupo, te avisamos con la fecha exacta de inicio. Los cupos son limitados así que entre antes reserves el tuyo, antes empezamos 😊"
+
+ESPERA su respuesta.
+
+**"Quería presencial" (cuando no están en Bucaramanga):**
+"Actualmente solo ofrecemos modalidad presencial en Bucaramanga. Para [CIUDAD] tenemos disponible la modalidad virtual que funciona súper bien - las clases son en vivo, interactivas, y los niños pueden participar y hacer preguntas en tiempo real a la profesora 😊
+
+Si quieres que [nombre] experimente cómo son nuestras clases virtuales, tenemos una clase de prueba gratuita sin ningún compromiso. ¿Te gustaría agendarla?"
+
+ESPERA su respuesta.
+
+### 9. PREGUNTAS FRECUENTES ADICIONALES
+
+**"¿Entregan certificado?"**
+"Sí, al finalizar el curso entregamos certificado bajo petición. Si al terminar deseas el certificado, solo tienes que solicitarlo y te lo hacemos llegar 😊"
+
+**"¿Qué pasa si se pierde una clase?"**
+"No te preocupes, todas las clases se graban y quedan disponibles para que puedan verlas cuando quieran. Además, siempre pueden escribirnos si tienen dudas sobre el contenido de la clase que no pudieron asistir."
+
+**"¿Pueden cambiar de horario si no pueden seguir asistiendo?"**
+"Sí, es posible cambiar de horario siempre y cuando exista otro grupo del mismo curso en un horario diferente. Por ejemplo, si están en un grupo de sábados por la mañana y ya no pueden, pueden pasarse a un grupo de sábados por la tarde o entre semana, pero debe ser del mismo curso 😊"
+
+**"¿Qué pasa después de terminar un curso?"**
+"¡Excelente pregunta! Después de terminar [nombre del curso], pueden continuar con el siguiente nivel de la ruta de aprendizaje. Te mantendremos informada sobre las fechas de inicio de los siguientes cursos para que puedan seguir avanzando 😊"
+
+## REGLAS IMPORTANTES
+
+1. **NUNCA inventes información** que no esté en este prompt
+2. **SIEMPRE pregunta edad Y ciudad** antes de preguntar experiencia
+3. **SIEMPRE aclara que son clases virtuales EN VIVO** (no grabadas) cuando menciones la ciudad
+4. **SIEMPRE incluye el horario específico** cuando recomiendes un curso (usa la tabla de horarios)
+5. **"Un par de meses" de cualquier cosa = PRINCIPIANTE** - usa regla de edad para recomendar
+6. **PRIORIZA VENDER DIRECTAMENTE** - da precio + horario inmediatamente después de recomendar curso
+7. **NUNCA te anticipes a la respuesta del usuario** - ESPERA a que respondan antes de ofrecer algo más
+8. **NO ofrezcas clase de prueba** hasta que:
+   - Tengan mucha experiencia (6+ meses), O
+   - Muestren dudas después de escuchar el precio, O
+   - Lo pidan directamente
+9. Si están avanzando hacia el pago, NO interrumpas con clase de prueba
+10. Si te preguntan algo que no sabes, di: "Déjame verificar esa información para darte una respuesta precisa. ¿Me das un momento?"
+11. **Mantén el tono cálido** incluso si no avanzan con la inscripción inmediatamente
+12. **Usa el nombre del niño/a** cuando lo sepas para personalizar
+13. Solo menciona presencial en Bucaramanga si preguntan específicamente por presencial
+14. Certificados: Solo se entregan bajo petición (no los menciones proactivamente)
+15. **Si piden hablar con un humano**, escala inmediatamente según la sección "ESCALAMIENTO A HUMANO"
+16. **REGLA DE ORO: Después de cada mensaje tuyo, ESPERA la respuesta del usuario antes de continuar**
+17. **NUNCA menciones una fecha fija de inicio** — los grupos abren bajo demanda cuando hay suficientes inscritos
+18. **Registra el lead** en cuanto tengas los datos mínimos (nombre del niño, padre, ciudad, edad)
+
+## CIERRE DE CONVERSACIÓN
+
+Cuando termines de dar información pero no compraron:
+"Perfecto! Si tienes cualquier otra pregunta, no dudes en escribirme. ¡Será un placer tener a [nombre] en AKUMAYA! 🚀😊"
+
+Cuando hayan completado el pago y el formulario:
+"¡Excelente! 🎉 En los próximos días te llegará un correo de bienvenida con el link de Zoom para las clases e información sobre las herramientas que vamos a utilizar. Es importante que para la primera clase ya tengan todo instalado y las cuentas creadas si son herramientas online 😊
+
+En cuanto el grupo esté confirmado con la fecha de inicio, te avisamos. ¡Nos vemos pronto! 🚀"</pre>
+</details>
+
+<!-- ============================================================ -->
+<h2 id="integraciones">Integraciones externas <a class="toplink" href="#top">↑</a></h2>
+
+<div class="card">
+<h4>Twilio (WhatsApp Business)</h4>
+<ul>
+  <li>Entrada: webhook al edge function <code>whatsapp-webhook</code>.</li>
+  <li>Salida: TwiML directo (Pablo) o Content API (respuesta manual y outbound inicial).</li>
+  <li>Plantilla aprobada requerida para iniciar conversaciones fuera de la ventana 24h.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Calendly</h4>
+<ul>
+  <li>Webhook <code>invitee.created</code> / <code>invitee.canceled</code> → edge function <code>calendly-webhook</code>.</li>
+  <li>Formulario con 6 preguntas custom en orden (celular, nombre hijo, edad, ciudad, exp. previa, cómo nos conociste).</li>
+  <li>Dedupe por <code>calendly_uri</code> UNIQUE.</li>
+  <li>Cancelaciones → status <code>trial_cancelled</code>.</li>
+  <li>Import histórico vía Google Apps Script <code>importCalendlyLeads</code>.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Meta / Instagram</h4>
+<ul>
+  <li>App Meta ID <code>4495931967321788</code> (Business type, owner AKUMAYA Business Manager).</li>
+  <li>Page ID <code>107322244516890</code>, IG Business Account ID <code>17841444336445691</code>.</li>
+  <li>Webhook: <code>https://kmjordmkybqvihcgosct.supabase.co/functions/v1/instagram-webhook</code>. Verify token <code>aku_maya_ig_2026_verify</code>.</li>
+  <li>Permisos pedidos: <code>instagram_basic</code>, <code>instagram_manage_messages</code>, <code>pages_messaging</code>, <code>pages_manage_metadata</code>, <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>business_management</code>.</li>
+  <li><b>Pausado en App Review.</b></li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Anthropic (Claude)</h4>
+<ul>
+  <li>Modelo: <code>claude-haiku-4-5-20251001</code>.</li>
+  <li>Usado por Pablo y por el modo extracción "Nuevo LID".</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Supabase</h4>
+<ul>
+  <li>Postgres + Auth + Storage (<code>whatsapp-media</code> bucket) + Edge Functions.</li>
+  <li>Auth con invitation-only, magic link para set-password.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Wompi</h4>
+<ul>
+  <li>Link único: <a href="https://checkout.wompi.co/l/AZ9CzW">checkout.wompi.co/l/AZ9CzW</a>.</li>
+  <li>Sin webhook actualmente — pago se registra manualmente cuando se confirma.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Google Forms + Apps Script</h4>
+<ul>
+  <li>Formulario post-pago para completar datos del alumno: <a href="https://forms.gle/UyqpPYgmZKr9dY2s9">forms.gle/UyqpPYgmZKr9dY2s9</a>.</li>
+  <li>Script <code>importCalendlyLeads</code> para import histórico.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Railway</h4>
+<ul>
+  <li>Deploy de producción. Dominio: <code>akutracker.up.railway.app</code>.</li>
+  <li>Autobuild desde <code>main</code> del repo.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="tablas">Base de datos — tablas clave <a class="toplink" href="#top">↑</a></h2>
+
+<table>
+  <thead><tr><th>Tabla</th><th>Qué representa</th></tr></thead>
+  <tbody>
+    <tr><td><code>leads</code></td><td>Pipeline pre-inscripción. Toda fuente (WhatsApp, Calendly, web, IG, referral) cae aquí. Incluye campos de trial. <code>form_token</code> (UUID) identifica al lead en el formulario tokenizado <code>/preferencias/{token}</code>.</td></tr>
+    <tr><td><code>lead_notes</code></td><td>Bitácora libre por lead.</td></tr>
+    <tr><td><code>students</code></td><td>Alumnos matriculados. Incluye <code>modality</code> (<code>virtual</code>, <code>presencial</code>, <code>individual</code>) y metadatos de archivado: <code>archived</code>, <code>archived_reason</code>, <code>archived_at</code>, <code>archived_by</code>.</td></tr>
+    <tr><td><code>payments</code></td><td>Historial de pagos por alumno.</td></tr>
+    <tr><td><code>course_enrollments</code></td><td>Matrícula alumno↔grupo con plan 1/2 cuotas. <code>status</code>: <code>active</code>, <code>completed</code>, <code>withdrawn</code>.</td></tr>
+    <tr><td><code>trial_reschedules</code></td><td>Historial de reagendas de clase de prueba. Guarda fecha/hora anterior, nueva, motivo, quién y cuándo lo hizo. Alimenta la sección "Historial de reagendas" en <code>/trial-leads/:id</code>.</td></tr>
+    <tr><td><code>individual_schedules</code></td><td>Config estable de un alumno individual (1-a-1): profesor fijo, tema actual, patrón semanal (jsonb con array de <code>{day, start_time, end_time}</code>). UNIQUE por <code>student_id</code>.</td></tr>
+    <tr><td><code>individual_sessions</code></td><td>Cada clase individual concreta. <code>status</code>: <code>scheduled</code> · <code>attended</code> · <code>cancelled_by_parent</code> · <code>no_show</code>. Incluye <code>notes</code> del profe, <code>original_date</code>/<code>original_time</code> cuando la sesión se movió, y motivos de reagenda/cancelación.</td></tr>
+    <tr><td><code>virtual_courses</code></td><td>Catálogo de cursos (RC1, PG1…). Con <code>subject</code>, <code>min_students_to_open</code> y <code>next_course_id</code> (escalera de aprendizaje que alimenta <code>/candidatos</code>).</td></tr>
+    <tr><td><code>course_groups</code></td><td>Cohortes concretas del curso (código, profe, fechas, <code>start_time</code>/<code>end_time</code>, status).</td></tr>
+    <tr><td><code>course_sessions</code></td><td>Las 8 clases semanales de cada grupo, con fechas.</td></tr>
+    <tr><td><code>course_slots</code></td><td>Franjas planificadas — se usan para activar grupos y para el prompt de Pablo.</td></tr>
+    <tr><td><code>attendance_records</code></td><td>Asistencia por sesión y alumno, con soporte de <code>is_makeup</code>.</td></tr>
+    <tr><td><code>activities</code>, <code>modules</code></td><td>Currículo académico y niveles.</td></tr>
+    <tr><td><code>class_logs</code></td><td>"Qué se dio en la clase" por alumno.</td></tr>
+    <tr><td><code>teachers</code></td><td>Profes con <code>subjects</code>, <code>availability</code>, <code>modalities</code>.</td></tr>
+    <tr><td><code>user_roles</code></td><td>Rol por usuario. UNIQUE en <code>user_id</code>.</td></tr>
+    <tr><td><code>profiles</code></td><td>Nombre visible del usuario.</td></tr>
+    <tr><td><code>settings</code></td><td>Config global (pack size, class day, holidays, payment methods).</td></tr>
+    <tr><td><code>whatsapp_conversations</code></td><td>Hilos de Pablo (phone, messages jsonb, escalated).</td></tr>
+    <tr><td><code>instagram_conversations</code></td><td>Hilos IG DM (mismo modelo, otro canal).</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="edge">Edge functions <a class="toplink" href="#top">↑</a></h2>
+
+<table>
+  <thead><tr><th>Función</th><th>Público / privado</th><th>Qué hace</th></tr></thead>
+  <tbody>
+    <tr><td><code>calendly-webhook</code></td><td>Público (verificado por Calendly)</td><td>Recibe eventos <code>invitee.created</code>/<code>canceled</code>, upsert en <code>leads</code>.</td></tr>
+    <tr><td><code>whatsapp-webhook</code></td><td>Público (verificado por Twilio)</td><td>Cerebro de Pablo. Guarda mensaje, llama Claude si no está escalado, ejecuta tools, responde TwiML.</td></tr>
+    <tr><td><code>start-conversation</code></td><td>JWT (admin/staff)</td><td>Envía plantilla Twilio de bienvenida a un lead. Mueve a <code>contacted</code>.</td></tr>
+    <tr><td><code>send-whatsapp</code></td><td>JWT</td><td>Enviar mensaje manual desde <code>/conversations</code> durante escalación.</td></tr>
+    <tr><td><code>instagram-webhook</code></td><td>Público (verificado con verify_token y HMAC)</td><td>Recibe DMs de Instagram y los guarda en <code>instagram_conversations</code>.</td></tr>
+    <tr><td><code>submit-interest</code></td><td>Público</td><td>Endpoint del formulario <code>/interes</code>. Dedupe por teléfono, upsert.</td></tr>
+    <tr><td><code>lead-preferences</code></td><td>Público (auth por token)</td><td>Endpoint del formulario <code>/preferencias/:token</code>. Acciones <code>read</code>/<code>write</code>.</td></tr>
+    <tr><td><code>invite-teacher</code></td><td>JWT (solo admin)</td><td>Crea usuario en Supabase Auth, asigna rol <code>teacher</code>, envía email con link a <code>/set-password</code>.</td></tr>
+    <tr><td><code>delete-teacher</code></td><td>JWT (solo admin)</td><td>Teardown completo: <code>teachers</code> + <code>user_roles</code> + <code>auth.users</code>. Impide auto-eliminación.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="legal">Legal y privacidad <a class="toplink" href="#top">↑</a></h2>
+
+<div class="kv">
+  <div class="k">Razón social</div><div>AKUMAYA Educación</div>
+  <div class="k">NIT</div><div>901.609.937-1</div>
+  <div class="k">Contacto oficial</div><div><a href="mailto:info@akumaya.co">info@akumaya.co</a></div>
+  <div class="k">Política de privacidad</div><div><a href="https://akutracker.up.railway.app/privacy">akutracker.up.railway.app/privacy</a></div>
+  <div class="k">Marco legal</div><div>Ley 1581 de 2012 (Colombia) — Habeas Data. Autoridad: SIC.</div>
+</div>
+
+<p>La política de privacidad cubre los datos que procesa la plataforma (padres, alumnos, conversaciones de WhatsApp/Instagram, Calendly, pagos) y lista los encargados/terceros: Supabase, Meta, Twilio, Anthropic, Calendly, Railway. Es requisito para el App Review de Meta.</p>
+
+<!-- ============================================================ -->
+<h2 id="timeline">Línea de tiempo <a class="toplink" href="#top">↑</a></h2>
+
+<h3>Marzo 2026 — Fundamentos operativos</h3>
+<ul>
+  <li>Alta directa de estudiantes.</li>
+  <li>Fix de código de grupo y sufijo -B para colisiones.</li>
+  <li>Gestión de profesores y asignación a grupos.</li>
+  <li>Registro de pagos, "Pending Revenue".</li>
+  <li>Auto-crear pago al marcar inscripción pagada.</li>
+</ul>
+
+<h3>Abril 2026 — Nace Pablo + rol teacher + deploy</h3>
+<ul>
+  <li>Rol <code>teacher</code>, invitación de profes desde Settings, deploy en Railway.</li>
+  <li><b>Pablo</b>: Conversations UI, escalación humana, edge function <code>send-whatsapp</code>.</li>
+  <li>Outbound de Pablo (<code>start-conversation</code>, botón "Iniciar con Pablo", template Twilio).</li>
+  <li>Franjas de cursos, módulo de Grupos Virtuales, navegación.</li>
+</ul>
+
+<h3>Mayo 2026 — Unificación, móvil, privacidad</h3>
+<ul>
+  <li>Responsive en Conversations y tablas → tarjetas en móvil.</li>
+  <li><b>Refactor mayor</b>: <code>trial_leads</code> se fusiona con <code>leads</code>. Enum extendido.</li>
+  <li>Página <code>/privacy</code>. Stats de Pablo. Header "RoboAcademy" → "AKUMAYA". Timestamps en chat.</li>
+  <li>Fix: la activación de franjas no creaba sesiones.</li>
+  <li>Instagram integration técnica lista, pausada en App Review.</li>
+</ul>
+
+<h3>Junio 2026 — Dedupe</h3>
+<ul>
+  <li><code>additional_phones</code> en leads y estudiantes.</li>
+  <li>Búsqueda extendida a esos números secundarios (por dígitos).</li>
+</ul>
+
+<h3>Julio 2026 — Formación bajo demanda + auth robusto + self-service</h3>
+<ul>
+  <li><b>Fase 1</b> de formación de grupos: preferencias de leads, subjects/availability/modalities de profes, portal <code>/teacher/availability</code>.</li>
+  <li>Fix crítico: UNIQUE en <code>user_roles.user_id</code>. Default <code>unassigned</code>. Pantalla "Sin acceso". Invalidación de caché al cambiar sesión.</li>
+  <li>Pantalla <code>/set-password</code>, <code>delete-teacher</code> completo, signup público deshabilitado.</li>
+  <li>Formularios públicos: <code>/interes</code> (open) y <code>/preferencias/:token</code>.</li>
+</ul>
+
+<h3>Julio 2026 (segunda quincena) — Herramientas de operación</h3>
+<ul>
+  <li><b>Rediseño de formulario /interes</b>: solo virtual (chip visible), fecha de nacimiento del niño, opción "No lo he decidido" como primer curso, layout 2 columnas en escritorio.</li>
+  <li>Estados de grupo recoloreados y renombrados: Formando amarillo, "Finalizado" (antes "Completado") cyan (nueva variante <code>info</code> en el design system).</li>
+  <li>Fix de bug: al editar un pago desde la ficha del alumno, ya no se suman clases al contador <code>classes_remaining</code>.</li>
+  <li>Nuevo catálogo de <b>Herramientas / temas</b> del profesor (13 items reemplazan a las 7 "materias" anteriores).</li>
+  <li>Franjas horarias simplificadas a 14 (antes 24). Se removieron las 10:30 AM entre semana y las 16:00/17:00 PM que nadie usaba.</li>
+  <li><code>course_groups.start_time</code> y <code>end_time</code> — el modelo antes no guardaba la hora del grupo. Se hereda al activar franja.</li>
+  <li><b>Nueva vista <code>/calendario</code></b> (admin/staff + teacher con filtro auto): mensual con sesiones + trials + feriados.</li>
+  <li><b>Nueva vista <code>/candidatos</code></b>: alumnos elegibles para el siguiente nivel según <code>virtual_courses.next_course_id</code>. Incluye "terminados" (grupo finalizado, enrollment no withdrawn) y "por terminar" (≤2 clases restantes). Link a WhatsApp con mensaje pre-armado.</li>
+  <li>Integración de candidatos con el diálogo "Nuevo grupo virtual" — link "Ver N candidatos elegibles" que abre la vista filtrada.</li>
+</ul>
+
+<h3>Julio 2026 (última semana) — Operación fina + individuales</h3>
+<ul>
+  <li><b>Vista <code>/teacher/trials</code></b>: los profes ven la lista de sus clases de prueba asignadas (próximas, pasadas, todas). <em>(Los enlaces WhatsApp/mailto se removieron en agosto por privacidad de PII de padres.)</em></li>
+  <li>Reagendas de <b>clase de prueba trackeadas</b> con motivo e historial. Nueva tabla <code>trial_reschedules</code>. El botón "Reagendar" vive en <code>/trial-leads/:id</code> — la edición manual de fecha/hora quedó bloqueada tanto en <code>LeadDetail</code> como en <code>TrialLeadDetail</code>.</li>
+  <li><b>Archivar alumnos</b> renovado: motivo opcional, fecha y usuario guardados. Banner amarillo en la ficha con botón <b>"Restaurar"</b>. Archivados excluidos de <code>/candidatos</code>.</li>
+  <li>Columna <b>Edad</b> en <code>/candidatos</code> (formato pediátrico compacto <code>8a 11m</code>) y botón <b>"Inscribir"</b> que abre el diálogo de selección de grupo destino.</li>
+  <li>Fix crítico del webhook de Calendly: <b>hermanos agendando la misma clase de prueba</b> ya no se pisan silenciosamente. El matching por teléfono ahora exige que coincida el <code>child_name</code> (o que el lead existente sea un stub).</li>
+  <li><b>Nuevo módulo <code>/individuales</code></b> para alumnos 1-a-1. Dos tablas nuevas (<code>individual_schedules</code>, <code>individual_sessions</code>). Genera todas las sesiones del pack de una vez desde un patrón semanal flexible. Botón "Nuevo pack" para renovación, botón "Editar" para cambiar profesor/tema/patrón.</li>
+  <li>Individuales integrados con <code>/calendario</code> (chip verde) y con el portal del profe (<code>/teacher/individuales</code>). El profe puede marcar asistencia y escribir qué se hizo en cada clase.</li>
+</ul>
+
+<h3>Agosto 2026 (primera semana) — Consistencia + higiene de datos</h3>
+<ul>
+  <li><code>/candidatos</code>: los alumnos ya inscritos en el curso destino se <b>excluyen</b> de la lista (antes salían con badge y botón deshabilitado).</li>
+  <li>Columna <b>Edad</b> en la tabla de alumnos inscritos de <code>VirtualGroupDetail</code>. Helper <code>computeAgeLabel</code> extraído a <code>src/lib/age.ts</code>.</li>
+  <li>Nuevo botón <b>"Reactivar"</b> manual en <code>/students</code> tab Inactivos (junto a "Reactivar con Pablo").</li>
+  <li><b>Trigger DB</b> <code>trg_reactivate_on_enroll</code>: al inscribir un alumno inactivo (no archivado) en un grupo o pack individual, se marca <code>is_active=true</code> automáticamente.</li>
+  <li><b>Trigger DB</b> <code>trg_withdraw_on_archive</code>: al archivar un alumno se retiran sus enrollments activos y se desactivan sus schedules individuales. Fix para el caso "archivé un duplicado pero seguía saliendo en el grupo".</li>
+  <li><b>Fix de pagos:</b> al borrar un pago se devuelven al alumno las clases que ese pago acreditó (<code>payments.pack_size</code>). Antes crear→borrar→crear inflaba <code>classes_remaining</code>.</li>
+  <li><b>Cancelar sesión suelta</b> en <code>VirtualGroupDetail</code>: nuevo botón X rojo por sesión. Marca la sesión como <code>cancelled</code> y agrega una sesión de reemplazo al final (+7 días) para preservar la duración del pack. El cap <code>session_number BETWEEN 1 AND 8</code> se relajó a <code>>= 1</code>. Sesiones canceladas se ocultan de <code>/calendario</code> y Dashboard.</li>
+  <li><b>Privacidad — PII de padres oculta en vistas del profesor:</b> <code>/teacher/trials</code>, <code>/teacher/individuales</code> e <code>/individuales/:id</code> (cuando es teacher) ya no piden ni muestran <code>parent_name</code>, <code>phone</code> ni <code>email</code>. Pendiente endurecer RLS para blindaje a nivel API.</li>
+  <li><b>Crear cursos desde Settings:</b> botón "Nuevo curso" con campos código / tema / min_students_to_open. El código se normaliza a mayúsculas y se valida contra duplicados.</li>
+  <li><b>Calendarios de disponibilidad de profesores:</b> icono 📅 por fila en Settings para ver el grid semanal individual; botón "Ver disponibilidad global" para el grid agregado con chips por celda mostrando quién puede en cada franja.</li>
+  <li><b>Programa de referidos:</b> nueva sección <a href="#referidos"><code>/referidos</code></a>. Cada alumno puede generar un link único (<code>/r/&lt;código&gt;</code>) que atribuye leads referidos y acumula crédito para el próximo pack cuando el referido se inscribe. Nuevas tablas <code>referral_codes</code>, columnas <code>leads.referred_by_student_id</code> y <code>leads.referral_credit_applied_at</code>, campo <code>settings.referral_credit_cop</code>. Edge function <code>submit-interest</code> v3 resuelve el código y aplica guards anti-abuso. Documentada en la sección dedicada.</li>
+  <li><b>Edge function <code>submit-interest</code> versionada</b> en <code>supabase/functions/submit-interest/</code> — antes vivía solo en Supabase.</li>
+  <li><b>Sidebar colapsable</b> en desktop (md+): logo + nav vertical + footer con user/salir/toggle. Estado persistido en localStorage. Mobile mantiene la tira horizontal de siempre. Header se convirtió en wrapper (<code>&lt;Header&gt;&lt;Page/&gt;&lt;/Header&gt;</code>).</li>
+  <li><b>Favicon nuevo</b>: SVG con el bot azul de la marca, reemplaza el placeholder de Lovable. Título y meta corregidos.</li>
+  <li><b>Fix Historial de individuales</b>: sesiones pasadas en <code>scheduled</code> ya no quedan bloqueadas — se pueden marcar Asistió / No asistió / Reagendar / Cancelar desde el historial también.</li>
+  <li><b>Deuda técnica documentada</b>: desincronización de <code>students.classes_remaining</code> vs <code>individual_sessions</code>. Ver callout en la sección de individuales.</li>
+  <li><b>Botón "Lead rápido"</b> en <code>/leads</code>: registro mínimo (solo teléfono) con dedup en vivo para capturar llamadas al WhatsApp manual. Ver sección Leads.</li>
+  <li><b>Diseño de Pablo bitácora por audio</b> documentado en la nueva sección <a href="#pablo-bitacora">Pablo — bitácora por audio</a>. Nada implementado aún; fuente completa en <code>docs/pablo-bitacora.md</code>.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="pendientes">Pendientes / roadmap <a class="toplink" href="#top">↑</a></h2>
+
+<div class="card">
+<h4>Fase 2 — Motor de matching (planeada)</h4>
+<ul>
+  <li>Query/edge function que agrupa leads por (curso × franja × modalidad) y los cruza con profes cuyo subjects/availability/modalities matcheen.</li>
+  <li>Nueva página <code>/group-formation</code> con clusters, barras de progreso al umbral <code>min_students_to_open</code>, botón "Abrir grupo".</li>
+  <li>Sección de "leads sin match" para detectar dónde faltan profes o franjas.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Instagram App Review (pausado)</h4>
+<ul>
+  <li>Renovar Page Access Token (60 días).</li>
+  <li>Grabar demo video.</li>
+  <li>Credenciales de test para el revisor.</li>
+  <li>Cambiar app a modo Live y enviar.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Mejoras cortas identificadas</h4>
+<ul>
+  <li>Al marcar un grupo como Finalizado, propagar <code>enrollment.status='completed'</code> a todos los enrollments activos del grupo (hoy solo se marca el grupo, los enrollments se quedan en <code>active</code>).</li>
+  <li>Cambiar "por terminar" en <code>/candidatos</code> a basarse en <b>sesiones futuras del grupo activo</b> en vez de <code>students.classes_remaining</code> (el pack no es por curso).</li>
+  <li>Inscribir directo al grupo desde <code>/candidatos</code> con checkbox + botón (hoy solo se copia link WhatsApp).</li>
+  <li>Formulario público independiente para <b>modalidad presencial</b> (hoy solo virtual) con sus propias franjas.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Desincronización de contadores de pack (individuales)</h4>
+<p>Documentado en detalle en la sección <a href="#individuales">Alumnos individuales → Reglas del pack</a>. Los contadores <code>students.classes_remaining</code> y <code>classes_attended</code> se pueden desincronizar respecto a la tabla <code>individual_sessions</code> porque son almacenados, no derivados. Detectado con Damián en agosto 2026.</p>
+<ul>
+  <li><b>Fix corto:</b> script de auditoría que recorra alumnos individuales y reporte diffs entre contador y sesiones reales.</li>
+  <li><b>Fix medio:</b> trigger DB en <code>individual_sessions</code> que ajuste los contadores en cada cambio de estado (manejando la excepción de "renovación de pack").</li>
+  <li><b>Fix estructural:</b> derivar <code>classes_remaining</code> en runtime en vez de almacenarlo. Toca varios lugares que hoy leen ese campo.</li>
+  <li><b>Prevención UX:</b> resaltar en rojo en el portal del profesor las sesiones pasadas que sigan en <code>scheduled</code>, para que el profe no las deje huérfanas.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Del roadmap general</h4>
+<ul>
+  <li>Alerta automática cuando el alumno llega a ≤2 clases restantes.</li>
+  <li>Resumen mensual de progreso al padre por WhatsApp o email.</li>
+  <li>Notas por sesión / progreso por módulo / certificado al terminar el curso.</li>
+  <li>Reportes: conversión leads→alumnos, cursos populares, ingresos mensuales.</li>
+  <li>Export a Excel, PWA para asistencia móvil.</li>
+  <li><code>curriculum</code> y <code>program_url</code> en <code>virtual_courses</code>, inyectados al prompt de Pablo.</li>
+  <li>Seguimiento automático de conversaciones sin respuesta.</li>
+  <li>Flujo de reactivación de ex-alumnos.</li>
+  <li>Notificación masiva por WhatsApp desde <code>/candidatos</code> (plantilla Twilio).</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="cheatsheet">Cheatsheet operativo <a class="toplink" href="#top">↑</a></h2>
+
+<table>
+  <thead><tr><th>Cuando pasa esto…</th><th>Haces esto</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Un lead te contacta por un teléfono y tú ya tenías otro registrado con otro número</td>
+      <td>Editar el lead → añadir el nuevo número en "Teléfonos adicionales". La conversación de WhatsApp aparecerá automáticamente vinculada.</td>
+    </tr>
+    <tr>
+      <td>Al invitar profe: "A user with this email address has already been registered"</td>
+      <td>Ese email ya tiene cuenta en Auth. Usa alias (<code>tu+alias@gmail.com</code>) o elimina la cuenta antigua desde Supabase Dashboard.</td>
+    </tr>
+    <tr>
+      <td>Al invitar profe: "Unable to validate email address: invalid format"</td>
+      <td>Escribiste algo que no es email válido en el campo. Corrige y reenvía.</td>
+    </tr>
+    <tr>
+      <td>El profe entra pero ve toda la app como admin</td>
+      <td>No debería pasar tras el fix del 2026-07-05. Si pasa: revisa que exista fila en <code>user_roles</code> con <code>role='teacher'</code> para ese <code>user_id</code>.</td>
+    </tr>
+    <tr>
+      <td>El profe borrado sigue "usando" un email en Supabase</td>
+      <td>Ahora la papelera de profe borra también <code>auth.users</code>. El email queda libre.</td>
+    </tr>
+    <tr>
+      <td>El link de <code>/set-password</code> dice "Enlace no válido"</td>
+      <td>Ya se usó o expiró. Reinvita al profe desde Settings.</td>
+    </tr>
+    <tr>
+      <td>Franja activada no generó sesiones</td>
+      <td>Bug arreglado el 2026-05-16. Si vuelve: revisar <code>generateSessionDates</code> en <code>src/lib/holidays.ts</code>.</td>
+    </tr>
+    <tr>
+      <td>Sesión invalidada al cambiar de usuario</td>
+      <td>Es normal desde 2026-07-05: <code>useAuthCacheInvalidation</code> limpia caché al cambiar sesión.</td>
+    </tr>
+    <tr>
+      <td>Pablo no responde en producción</td>
+      <td>Verifica <code>ANTHROPIC_API_KEY</code> configurado, revisa logs del edge function <code>whatsapp-webhook</code>, confirma que la conversación no esté <code>escalated=true</code>.</td>
+    </tr>
+    <tr>
+      <td>Necesitas compartir el formulario de preferencias con muchos leads a la vez</td>
+      <td>El <code>/interes</code> hace dedupe por teléfono. Puedes compartirlo masivo sin miedo a duplicados.</td>
+    </tr>
+    <tr>
+      <td>Vas a abrir un curso nuevo (ej. RC2) y quieres saber quiénes son candidatos naturales</td>
+      <td>Ir a <code>/candidatos</code> y elegir RC2 en el dropdown. Aparecen los que terminaron RC1 (y los que están por terminar). Requiere que el curso prerequisito tenga <code>next_course_id</code> configurado en Settings.</td>
+    </tr>
+    <tr>
+      <td>El grupo está en Finalizado pero los alumnos no aparecen en <code>/candidatos</code></td>
+      <td>Verificar en Settings que el curso previo tenga <code>next_course_id</code> apuntando al destino. Si sí y sigue sin salir, revisar que los enrollments del grupo no estén en <code>withdrawn</code>.</td>
+    </tr>
+    <tr>
+      <td>Un lead vino por Calendly pero quieres pedirle preferencias adicionales</td>
+      <td>Abre su ficha → botón "Copiar link preferencias" → pégalo por WhatsApp/email. Prellenado con lo que ya sabemos.</td>
+    </tr>
+    <tr>
+      <td>Un padre quiere reagendar su clase de prueba</td>
+      <td>Abrir <code>/trial-leads/:id</code> → botón <b>Reagendar</b> → nueva fecha/hora + motivo. Los campos de fecha/hora del diálogo Editar están bloqueados a propósito para forzar el flujo con historial.</td>
+    </tr>
+    <tr>
+      <td>Dos hermanos agendan la misma clase de prueba</td>
+      <td>Desde el fix del 2026-07-28 cada uno entra como lead separado. Si en el histórico ves un solo lead cuando debería haber dos, verifica en Calendly y crea el segundo a mano en <code>/leads/new</code>.</td>
+    </tr>
+    <tr>
+      <td>Un alumno se va o termina su ciclo</td>
+      <td>Ficha del alumno → botón <b>Archivar</b> → escribir motivo (opcional). Queda fuera de las listas activas y de <code>/candidatos</code>. Si vuelve, banner amarillo → botón <b>Restaurar</b>.</td>
+    </tr>
+    <tr>
+      <td>Un alumno individual terminó su pack y compra otro</td>
+      <td>Ficha en <code>/individuales/:studentId</code> → botón <b>Nuevo pack</b> → elegir tamaño (4/8/10) y fecha de inicio. Se generan las N sesiones con el patrón actual y el contador de clases restantes se resetea.</td>
+    </tr>
+    <tr>
+      <td>Un alumno individual quiere cambiar su horario o su tema</td>
+      <td>Ficha en <code>/individuales/:studentId</code> → botón <b>Editar</b>. Ojo: cambios de patrón <b>no mueven</b> las sesiones ya generadas; solo aplican a las que generes después.</td>
+    </tr>
+    <tr>
+      <td>Un padre canceló una clase individual</td>
+      <td>En la sesión próxima → botón <b>Cancelar</b> (ícono X) + motivo opcional. No descuenta del pack (política del negocio). La siguiente sesión del patrón sigue en pie.</td>
+    </tr>
+    <tr>
+      <td>Necesitas modificar el prompt de Pablo</td>
+      <td>Edita <code>supabase/functions/whatsapp-webhook/index.ts</code> (constante <code>SYSTEM_PROMPT</code>) y redeploya la función.</td>
+    </tr>
+  </tbody>
+</table>
+
+<footer>
+  Última actualización: 2026-08-15. Documento vivo — actualízalo cuando cambien flujos operativos importantes. Vive en <code>docs/guia-akutracker.html</code>.
+</footer>
+
+</main>
+</div>
+</body>
+</html>
