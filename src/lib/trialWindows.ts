@@ -140,6 +140,9 @@ export function translateBookingError(raw: string): string {
   if (raw.includes('NO_TEACHER_AVAILABLE')) {
     return 'No hay ningún profesor libre en esa franja.';
   }
+  if (raw.includes('CROSSES_MIDNIGHT')) {
+    return 'La clase terminaría después de medianoche. Elige una hora más temprana.';
+  }
   if (raw.includes('MISSING_ARGS')) {
     return 'Faltan la fecha o la hora.';
   }

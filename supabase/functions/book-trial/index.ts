@@ -180,6 +180,25 @@ Deno.serve(async (req: Request) => {
 
     const b = Array.isArray(booking) ? booking[0] : booking;
 
+    // ── Confirmación por correo ──────────────────────────────────────────
+    // Best-effort a propósito: la reserva ya está hecha y confirmada en
+    // pantalla. Si el correo falla, se registra en notification_log y se
+    // puede reenviar, pero no se tumba la reserva por eso.
+    if (b?.id) {
+      try {
+        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/trial-notify`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ booking_id: b.id, kind: 'trial_confirmation' }),
+        });
+      } catch (e) {
+        console.error('book-trial: fallo al disparar la confirmación', e);
+      }
+    }
+
     return json({
       success: true,
       lead_id: leadId,

@@ -32,6 +32,7 @@ import TeacherAvailability from "./pages/TeacherAvailability";
 import SetPassword from "./pages/SetPassword";
 import PublicInterest from "./pages/PublicInterest";
 import PublicTrialBooking from "./pages/PublicTrialBooking";
+import PublicTrialManage from "./pages/PublicTrialManage";
 import PublicReferralLanding from "./pages/PublicReferralLanding";
 import TokenizedPreferences from "./pages/TokenizedPreferences";
 import Schedule from "./pages/Schedule";
@@ -81,6 +82,7 @@ const App = () => (
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/interes" element={<PublicInterest />} />
             <Route path="/agendar" element={<PublicTrialBooking />} />
+            <Route path="/mi-clase/:token" element={<PublicTrialManage />} />
             <Route path="/r/:code" element={<PublicReferralLanding />} />
             <Route path="/preferencias/:token" element={<TokenizedPreferences />} />
             {/* Teacher-accessible routes */}

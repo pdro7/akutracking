@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.book-trial]
 verify_jwt = false
+
+# trial-notify NO es pública: la llaman book-trial y el cron del
+# recordatorio con la service role key. Deja verify_jwt en true.
