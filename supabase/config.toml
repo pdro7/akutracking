@@ -1,1 +1,10 @@
-project_id = "fkuciomozutomcszyuhi"
+project_id = "kmjordmkybqvihcgosct"
+
+# Endpoints públicos del agendador de clases de prueba: los llama la página
+# /agendar sin sesión, igual que submit-interest. La validación la hace la
+# propia función; las RPC de Postgres siguen cerradas a anon.
+[functions.trial-availability]
+verify_jwt = false
+
+[functions.book-trial]
+verify_jwt = false

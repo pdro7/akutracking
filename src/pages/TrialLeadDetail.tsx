@@ -1,6 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { TrialSlotPicker, type TrialSlotValue } from '@/components/TrialSlotPicker';
+import { translateBookingError } from '@/lib/trialWindows';
+import { referralSourceLabel } from '@/lib/referralSources';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -77,8 +80,7 @@ export default function TrialLeadDetail() {
   const [trialClassTime, setTrialClassTime] = useState('');
   // Reschedule dialog
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
-  const [rescheduleDate, setRescheduleDate] = useState('');
-  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [slot, setSlot] = useState<TrialSlotValue>({ date: '', time: '', force: false });
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [status, setStatus] = useState<TrialLeadStatus>('trial_scheduled');
   const [notes, setNotes] = useState('');
@@ -183,33 +185,31 @@ export default function TrialLeadDetail() {
   const rescheduleMutation = useMutation({
     mutationFn: async () => {
       if (!lead) throw new Error('Lead no encontrado');
-      if (!rescheduleDate) throw new Error('La nueva fecha es obligatoria');
+      if (!slot.date) throw new Error('Elige el nuevo horario');
       const { data: { user } } = await supabase.auth.getUser();
-      const { error: insErr } = await supabase.from('trial_reschedules').insert({
-        lead_id: id!,
-        previous_date: lead.trial_class_date ?? null,
-        previous_time: lead.trial_class_time ?? null,
-        new_date: rescheduleDate,
-        new_time: rescheduleTime || null,
-        reason: rescheduleReason.trim() || null,
-        rescheduled_by: user?.id ?? null,
+
+      // Todo dentro del RPC: cancela la reserva anterior, registra la
+      // reagenda en trial_reschedules e inserta la nueva, en una sola
+      // transacción. Antes eran dos operaciones sueltas que podían dejar
+      // el historial a medias.
+      const { error } = await (supabase as any).rpc('book_trial_slot', {
+        p_lead_id: id!,
+        p_date: slot.date,
+        p_start: slot.time || '09:00',
+        p_source: 'admin',
+        p_reason: rescheduleReason.trim() || null,
+        p_actor: user?.id ?? null,
+        p_force: slot.force,
       });
-      if (insErr) throw insErr;
-      const { error: updErr } = await supabase.from('leads').update({
-        trial_class_date: rescheduleDate,
-        trial_class_time: rescheduleTime || null,
-        status: 'trial_scheduled' as any,
-        updated_at: new Date().toISOString(),
-      }).eq('id', id!);
-      if (updErr) throw updErr;
+      if (error) throw new Error(translateBookingError(error.message));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trial-lead', id] });
       queryClient.invalidateQueries({ queryKey: ['trial-leads'] });
       queryClient.invalidateQueries({ queryKey: ['trial_reschedules', id] });
+      queryClient.invalidateQueries({ queryKey: ['trial_availability'] });
       setShowRescheduleDialog(false);
-      setRescheduleDate('');
-      setRescheduleTime('');
+      setSlot({ date: '', time: '', force: false });
       setRescheduleReason('');
       toast.success('Clase de prueba reagendada');
     },
@@ -218,8 +218,7 @@ export default function TrialLeadDetail() {
 
   const openReschedule = () => {
     if (!lead) return;
-    setRescheduleDate(lead.trial_class_date || '');
-    setRescheduleTime(lead.trial_class_time?.slice(0, 5) || '');
+    setSlot({ date: '', time: '', force: false });
     setRescheduleReason('');
     setShowRescheduleDialog(true);
   };
@@ -470,6 +469,17 @@ export default function TrialLeadDetail() {
               </div>
             </div>
 
+            {/* Canal declarado por el padre en el formulario público.
+                Solo lectura: es su respuesta, no un campo del CRM. */}
+            {(lead as any)?.referral_source && (
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Cómo nos conoció</label>
+                <p className="text-sm text-muted-foreground">
+                  {referralSourceLabel((lead as any).referral_source)}
+                </p>
+              </div>
+            )}
+
             {/* Notes */}
             <div>
               <label className="text-sm font-medium mb-1.5 block">Notas</label>
@@ -497,7 +507,7 @@ export default function TrialLeadDetail() {
 
       {/* Reschedule dialog */}
       <Dialog open={showRescheduleDialog} onOpenChange={(o) => !o && setShowRescheduleDialog(false)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Reagendar clase de prueba</DialogTitle>
           </DialogHeader>
@@ -508,15 +518,9 @@ export default function TrialLeadDetail() {
                 {lead.trial_class_time && ` · ${lead.trial_class_time.slice(0, 5)}`}
               </p>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="mb-1 block">Nueva fecha *</Label>
-                <Input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
-              </div>
-              <div>
-                <Label className="mb-1 block">Nueva hora</Label>
-                <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
-              </div>
+            <div>
+              <Label className="mb-1 block">Nuevo horario *</Label>
+              <TrialSlotPicker value={slot} onChange={setSlot} />
             </div>
             <div>
               <Label className="mb-1 block">Motivo (opcional)</Label>
@@ -530,7 +534,7 @@ export default function TrialLeadDetail() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRescheduleDialog(false)}>Cancelar</Button>
-            <Button onClick={() => rescheduleMutation.mutate()} disabled={rescheduleMutation.isPending || !rescheduleDate}>
+            <Button onClick={() => rescheduleMutation.mutate()} disabled={rescheduleMutation.isPending || !slot.date}>
               {rescheduleMutation.isPending ? 'Guardando...' : 'Reagendar'}
             </Button>
           </DialogFooter>

@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { TimeSlotPicker } from '@/components/TimeSlotPicker';
 import { SUBJECTS, SUBJECT_LABEL, MODALITIES, MODALITY_LABEL } from '@/lib/subjects';
 import { TIME_SLOTS, type SlotDay } from '@/lib/timeSlots';
+import { TrialWindowsEditor } from '@/components/settings/TrialWindowsEditor';
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 function generateGroupCode(courseCode: string, startDate: Date): string {
@@ -1098,6 +1099,8 @@ export default function Settings() {
             </Table>
           )}
         </Card>
+
+        <TrialWindowsEditor />
 
         <Card className="p-6">
           <h3 className="font-semibold mb-2">About</h3>
