@@ -39,9 +39,13 @@ function buildPabloPrompt(
 - Responde SOLO a lo que el usuario pregunta o dice
 
 ## HERRAMIENTAS DISPONIBLES
-Tienes dos herramientas que debes usar en los momentos indicados:
+Tienes cuatro herramientas. Úsalas SIEMPRE en silencio: nunca menciones al padre que estás registrando o anotando algo.
 
 **register_lead**: Úsala en cuanto tengas el nombre del niño/a, el nombre del padre/madre y la ciudad. No esperes a tener todos los datos — registra pronto y actualiza después.
+
+**add_note**: Para dejar rastro de cosas que no caben en el lead: objeciones, disponibilidad horaria, "lo consultará con su pareja", y un resumen al final de cada conversación significativa.
+
+**propose_course_slot**: Cuando el padre te diga qué horario le viene bien para un curso que todavía no tiene franja. Queda pendiente de aprobación del equipo (ver regla 16c).
 
 **escalate_to_human**: Úsala cuando el padre pida explícitamente hablar con una persona.
 
@@ -165,7 +169,14 @@ Puedes pagarlo en 2 cuotas de $[PRECIO] o en una sola cuota con descuento especi
 
 Justo estamos organizando el próximo grupo de [CURSO]. ¿Qué horario del sábado te vendría mejor?"
 
-En el CASO B NO menciones ningún horario ni ninguna fecha de inicio. Espera su respuesta y regístrala con add_note.
+En el CASO B NO menciones ningún horario ni ninguna fecha de inicio. ESPERA su respuesta.
+
+Cuando el padre te diga qué horario le viene bien (CASO B), haz DOS cosas:
+1. Llama a propose_course_slot con el código del curso, el día y la hora de inicio en formato 24h (ej. "10:30"). Hazlo EN SILENCIO, sin mencionarlo.
+2. Respóndele que ya queda anotado y que le confirmas al abrir el grupo. Por ejemplo:
+   "¡Perfecto! Anoto ese horario para [CURSO] 📝 Estamos reuniendo el grupo y en cuanto tengamos los cupos te confirmo la fecha de inicio 😊"
+
+⚠️ NUNCA le digas al padre que el horario "ya está disponible", "ya quedó abierto" o "ya está confirmado". El horario que él propone queda pendiente de que el equipo lo apruebe. Solo puedes decir que queda anotado.
 
 **PRECIOS:**
 🟢 Exploradores: 2 pagos $149.000 c/u | 1 pago $259.000
@@ -239,7 +250,7 @@ https://www.akumaya.co/clase-de-prueba-gratuita"
 16. ORDEN DE PRIORIDAD para proponer horario del curso recomendado:
     a) ¿Hay franja activa de ESE curso? → ofrécela (regla 13).
     b) Si no hay franja pero SÍ hay un grupo de ESE curso en GRUPOS CON INGRESO TARDÍO → ofrécelo con la clase de nivelación.
-    c) Si no hay ninguna de las dos → di "Estamos organizando el próximo grupo de [CURSO]. ¿Qué horario del sábado te vendría mejor?" y registra la respuesta con add_note.
+    c) Si no hay ninguna de las dos → di "Estamos organizando el próximo grupo de [CURSO]. ¿Qué horario del sábado te vendría mejor?" y, cuando responda, llama a propose_course_slot en silencio.
     NUNCA uses el horario de otro curso distinto para rellenar.
 17. NUNCA presiones para que pague. Prohibido cerrar con frases tipo "¿Realizas el pago entonces?", "¿Confirmas el pago?" o "¿Procedemos con el pago?". Da la información y deja la puerta abierta: "Cualquier duda me escribes 😊" o "Quedo atento a lo que necesites". El padre decide su ritmo.`; }
 
@@ -287,6 +298,20 @@ const TOOLS = [
     },
   },
   {
+    name: 'propose_course_slot',
+    description:
+      "Propose a new time slot for a course when the parent tells you which schedule suits them and that course has no active slot yet. The slot is created inactive, pending staff approval — it is NOT offered to other parents until a human activates it. Only use course codes from the injected active catalog.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        course_code: { type: 'string', description: 'Course code from the active catalog, e.g. RCZ' },
+        day_of_week: { type: 'string', description: 'Day in Spanish, e.g. "Sábado"' },
+        start_time: { type: 'string', description: 'Start time in 24h HH:MM format, e.g. "10:30"' },
+      },
+      required: ['course_code', 'day_of_week', 'start_time'],
+    },
+  },
+  {
     name: 'escalate_to_human',
     description: 'Mark this conversation for human takeover when the user explicitly requests to speak with a person.',
     input_schema: {
@@ -317,6 +342,19 @@ const MAX_HISTORY_MESSAGES = 40;
 // between 19:00 and 24:00 local, which would mark a class as already taught.
 function todayInColombia(): string {
   return new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+// Classes last 1h30. We derive end_time here instead of letting the model do
+// arithmetic. Returns null when the input isn't a usable HH:MM.
+function addClassDuration(startTime: string): string | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(startTime.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  const total = hours * 60 + minutes + 90;
+  if (total >= 24 * 60) return null;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
 Deno.serve(async (req) => {
@@ -663,6 +701,46 @@ Deno.serve(async (req) => {
               content: input.content,
             });
           }
+        } else if (block.name === 'propose_course_slot') {
+          const input = block.input as {
+            course_code: string;
+            day_of_week: string;
+            start_time: string;
+          };
+
+          // Only real courses — never let the model invent one.
+          const course = (coursesData ?? []).find(
+            (c: any) => c.code?.toUpperCase() === input.course_code?.trim().toUpperCase(),
+          );
+          const endTime = input.start_time ? addClassDuration(input.start_time) : null;
+
+          if (course && endTime) {
+            const startTime = input.start_time.trim();
+            const day = input.day_of_week?.trim() || 'Sábado';
+
+            // Don't pile up duplicates if this slot was already proposed.
+            const { data: existingSlot } = await supabase
+              .from('course_slots')
+              .select('id')
+              .eq('course_code', (course as any).code)
+              .eq('day_of_week', day)
+              .eq('start_time', startTime)
+              .maybeSingle();
+
+            if (!existingSlot) {
+              // is_active = false → shows up in Settings as "Inactiva" for a
+              // human to approve. Pablo never offers it to other parents.
+              await supabase.from('course_slots').insert({
+                course_code: (course as any).code,
+                course_name: (course as any).name,
+                day_of_week: day,
+                start_time: startTime,
+                end_time: endTime,
+                is_active: false,
+                status: 'forming',
+              });
+            }
+          }
         } else if (block.name === 'escalate_to_human') {
           escalated = true;
         }
@@ -672,12 +750,19 @@ Deno.serve(async (req) => {
     // If Claude stopped to use tools but has no text yet, do a follow-up call
     // (tool_use stop_reason means Claude wants to continue after tool result)
     if (claudeData.stop_reason === 'tool_use' && !assistantText) {
+      const TOOL_RESULT_TEXT: Record<string, string> = {
+        register_lead: 'Lead registrado correctamente.',
+        add_note: 'Nota añadida correctamente.',
+        propose_course_slot: 'Horario registrado. El equipo lo revisará para abrir el grupo.',
+        escalate_to_human: 'Escalado correctamente.',
+      };
+
       const toolResults = (claudeData.content ?? [])
         .filter((b: any) => b.type === 'tool_use')
         .map((b: any) => ({
           type: 'tool_result',
           tool_use_id: b.id,
-          content: b.name === 'register_lead' ? 'Lead registrado correctamente.' : b.name === 'add_note' ? 'Nota añadida correctamente.' : 'Escalado correctamente.',
+          content: TOOL_RESULT_TEXT[b.name] ?? 'Hecho.',
         }));
 
       const followUp = await fetch('https://api.anthropic.com/v1/messages', {
