@@ -111,6 +111,7 @@
     <li><a href="#dashboard">Dashboard</a></li>
     <li><a href="#leads">Leads</a></li>
     <li><a href="#trial">Trial leads</a></li>
+    <li><a href="#agendador">Agendador de pruebas</a></li>
     <li><a href="#estudiantes">Estudiantes</a></li>
     <li><a href="#individuales">Alumnos individuales</a></li>
     <li><a href="#grupos">Grupos virtuales</a></li>
@@ -235,7 +236,9 @@
   <div class="k">Calendario de clases</div><div><code>/calendario</code> — vista mensual con sesiones + trials + feriados.</div>
   <div class="k">Candidatos siguiente nivel</div><div><code>/candidatos</code> — alumnos elegibles para el siguiente curso.</div>
   <div class="k">Alumnos individuales</div><div><code>/individuales</code> — panel de alumnos 1-a-1 con horario propio.</div>
-  <div class="k">Trial class (Calendly)</div><div><a href="https://www.akumaya.co/clase-de-prueba-gratuita">akumaya.co/clase-de-prueba-gratuita</a></div>
+  <div class="k">Agendar clase de prueba</div><div><code>/agendar</code> — <b>link propio</b>, sustituye a Calendly. Es el que se reparte a los padres.</div>
+  <div class="k">Gestionar mi clase</div><div><code>/mi-clase/{manage_token}</code> — el padre cambia o cancela su propia clase, sin login.</div>
+  <div class="k">Trial class (Calendly)</div><div><a href="https://www.akumaya.co/clase-de-prueba-gratuita">akumaya.co/clase-de-prueba-gratuita</a> — <b>en retirada</b>, sigue activo en paralelo mientras se apaga.</div>
   <div class="k">Wompi checkout</div><div><a href="https://checkout.wompi.co/l/AZ9CzW">checkout.wompi.co/l/AZ9CzW</a></div>
   <div class="k">Formulario inscripción</div><div><a href="https://forms.gle/UyqpPYgmZKr9dY2s9">forms.gle/UyqpPYgmZKr9dY2s9</a> (Google Forms, post-pago)</div>
   <div class="k">Supabase project</div><div><code>kmjordmkybqvihcgosct.supabase.co</code></div>
@@ -275,6 +278,7 @@
 
 <h3>Fuentes de lead (<code>lead_source</code>)</h3>
 <p><code>whatsapp</code>, <code>google_organic</code>, <code>web</code>, <code>calendly</code>, <code>referral</code>, <code>reactivation</code>, <code>instagram</code>, <code>other</code>.</p>
+<p><b>No confundir con <code>leads.referral_source</code></b>, que es otra cosa: <code>lead_source</code> es el canal <i>técnico</i> por el que entró al CRM; <code>referral_source</code> es lo que el <i>padre declara</i> en "¿Cómo nos has conocido?" (<code>instagram</code>, <code>tiktok</code>, <code>facebook</code>, <code>google</code>, <code>youtube</code>, <code>friend</code>, <code>school</code>, <code>press</code>, <code>other</code>). Y ninguna de las dos es <code>referred_by_student_id</code>, que es el programa de referidos con código.</p>
 
 <h3>Franjas horarias (<code>time slots</code>)</h3>
 <p>Catálogo definido en <code>src/lib/timeSlots.ts</code>. Se usan tanto para preferencias de lead como para disponibilidad de profe. 14 slots agrupados en 4 buckets:</p>
@@ -335,8 +339,65 @@
 <p>La página tiene su propia ficha (<code>TrialLeadDetail</code>) más orientada a la operación del día de la prueba: qué curso demostrar, quién dicta, cómo fue, objeción registrada.</p>
 
 <h3>Reagendar clases de prueba (con historial)</h3>
-<p>Cambiar fecha/hora del trial <b>solo se hace desde <code>/trial-leads/:id</code></b> con el botón <b>"Reagendar"</b> — no desde el diálogo de editar en <code>LeadDetail</code>, donde los campos de fecha/hora están bloqueados. El diálogo pide nueva fecha, nueva hora y <b>motivo opcional</b>.</p>
+<p>Cambiar fecha/hora del trial <b>solo se hace desde <code>/trial-leads/:id</code></b> con el botón <b>"Reagendar"</b> — no desde el diálogo de editar en <code>LeadDetail</code>, donde los campos de fecha/hora están bloqueados. El diálogo muestra los <b>huecos realmente libres</b> (ver <a href="#agendador">Agendador de pruebas</a>) y pide un <b>motivo opcional</b>. Hay una casilla para <b>forzar un horario</b> fuera de las ventanas configuradas, para casos excepcionales.</p>
+<p>Desde agosto de 2026 la reagenda pasa por la función <code>book_trial_slot</code>, que hace todo en una sola transacción: cancela la reserva anterior, escribe el historial y crea la nueva. Antes eran dos operaciones sueltas que podían dejar el rastro a medias.</p>
+<p><b>El padre también puede reagendar solo</b>, desde <code>/mi-clase/{token}</code>. Esas reagendas aparecen igual en el historial.</p>
 <p>Cada reagenda queda en la tabla <code>trial_reschedules</code> y se muestra debajo en la ficha como <b>"Historial de reagendas"</b> — se ve exactamente cuántas veces se movió el trial de esa familia, cuándo, y por qué. Útil para detectar patrones de riesgo de no-show.</p>
+
+<!-- ============================================================ -->
+<h2 id="agendador">Agendador de clases de prueba <a class="toplink" href="#top">↑</a></h2>
+
+<p>Desde agosto de 2026 las clases de prueba se agendan con <b>herramienta propia</b>, no con Calendly. El padre abre <code>/agendar</code>, ve los huecos realmente libres, elige uno y el sistema le asigna profesor automáticamente.</p>
+
+<p>La diferencia de fondo con Calendly es que <b>esto sí sabe si el profesor está ocupado</b>: cruza los grupos, las clases individuales, otras pruebas y los festivos antes de ofrecer un horario. Calendly vendía horas a ciegas y la asignación de profe se hacía a mano después.</p>
+
+<div class="card">
+<h4>Cómo se configura (Ajustes → Clases de prueba)</h4>
+<ul>
+  <li><b>Ventanas</b>: día de la semana y rango horario en el que se puede agendar. Una ventana <b>no</b> es un hueco: es un rango que se parte en clases de duración fija. Sábado 09:00–11:00 con clases de 1 h ofrece <b>dos</b> horarios, 09:00 y 10:00. El diálogo previsualiza qué horas generará antes de guardar.</li>
+  <li><b>Estudiantes por clase</b>: 1 = individual, que es lo normal. Se puede subir si alguna vez se quieren pruebas en grupo.</li>
+  <li><b>Duración</b>: por ventana, o el valor global por defecto.</li>
+  <li><b>Días bloqueados</b>: vacaciones o festivos internos. No se ofrece nada ese día aunque haya ventana.</li>
+  <li><b>Sugerencias</b>: un panel propone ventanas a partir de la disponibilidad que cada profe declaró en <code>/teacher/availability</code> ("Martes 16:30–18:00, 2 profes"). Son sólo propuestas: se añaden con un clic y luego se ajustan. <b>La disponibilidad de los profes nunca genera huecos por sí sola</b> — quien decide es el admin.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Reglas de agendamiento (globales)</h4>
+<ul>
+  <li><b>Duración de cada clase</b> — por defecto 60 min.</li>
+  <li><b>Antelación mínima</b> — 24 h. Nadie puede reservar con menos margen. <b>Ojo con el nombre</b>: es un mínimo, no un máximo; el techo lo pone el horizonte.</li>
+  <li><b>Horizonte visible</b> — 21 días. Hasta dónde puede mirar el padre hacia adelante.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Qué recibe el padre</h4>
+<ul>
+  <li><b>Confirmación por correo</b> al reservar, con un <b>.ics adjunto</b> para añadirla al calendario.</li>
+  <li><b>Recordatorio 24 h antes</b>, automático.</li>
+  <li><b>Correo al reagendar y al cancelar.</b></li>
+  <li><b>Link de autogestión</b> (<code>/mi-clase/{token}</code>) para cambiar o cancelar sin escribir a nadie. El link <b>sobrevive a las reagendas</b>: la reserva nueva hereda el token, así que el que tiene en su correo no caduca.</li>
+</ul>
+<p>El correo es <b>obligatorio</b> en el formulario público: hoy es el único canal de aviso. WhatsApp queda para más adelante y necesitará plantillas aprobadas por Meta.</p>
+</div>
+
+<h3>Modelo de datos</h3>
+<p><code>leads</code> sigue siendo la fuente de verdad de <b>lectura</b>: <code>/trial-leads</code>, el calendario, el portal del profe y el dashboard no cambiaron ni una consulta. <code>trial_bookings</code> es la capa de <b>escritura</b>, y un trigger unidireccional sincroniza <code>bookings → leads</code>.</p>
+<ul>
+  <li><code>trial_windows</code> — ventanas recurrentes configurables.</li>
+  <li><code>trial_window_exceptions</code> — bloqueos y aperturas puntuales por fecha.</li>
+  <li><code>trial_bookings</code> — la reserva. Árbitro de concurrencia.</li>
+  <li><code>notification_log</code> — qué correo se envió, a quién y si falló.</li>
+  <li><code>v_teacher_busy</code> — vista con la ocupación real de cada profe.</li>
+</ul>
+
+<h3>Por qué no hay dobles reservas</h3>
+<p>Dos padres pidiendo el mismo hueco a la vez está cubierto por dos capas: un <i>advisory lock</i> mientras se procesa, y por debajo un <b>índice único parcial</b> sobre (profesor, fecha, hora) que no se puede saltar nadie, ni siquiera una escritura que no pase por el RPC. El segundo padre recibe "ese horario acaba de ocuparse" y vuelve al calendario ya refrescado.</p>
+
+<h3>Convivencia con Calendly</h3>
+<p>Los dos sistemas están activos en paralelo y <b>no se pisan</b>: las reservas que entran por Calendly cuentan como ocupación, así que desaparecen del agendador propio automáticamente. En <code>/trial-leads</code> se distingue el origen de cada una.</p>
+<p>Para apagar Calendly hay checklist; el primer paso pendiente es <b>cambiar el link que Pablo reparte</b> en su prompt, que sigue siendo el viejo.</p>
 
 <!-- ============================================================ -->
 <h2 id="estudiantes">Estudiantes <a class="toplink" href="#top">↑</a></h2>
@@ -643,6 +704,17 @@
 </div>
 
 <div class="card">
+<h4>Clases de prueba</h4>
+<ul>
+  <li><b>Reglas de agendamiento</b>: duración de cada clase, antelación mínima y horizonte visible.</li>
+  <li><b>Ventanas</b> recurrentes: día, rango horario, duración y estudiantes por clase. Previsualiza qué horas generará.</li>
+  <li><b>Días bloqueados</b> puntuales.</li>
+  <li><b>Sugerencias</b> desde la disponibilidad de los profes.</li>
+</ul>
+<p>Ver <a href="#agendador">Agendador de pruebas</a>.</p>
+</div>
+
+<div class="card">
 <h4>Cursos virtuales</h4>
 <ul>
   <li>Edición del catálogo (nombre, descripción, siguiente curso en la escalera, umbral <code>min_students_to_open</code>).</li>
@@ -699,6 +771,15 @@
 <p><b>Layout responsive</b>: dos columnas en escritorio (≥768px), una en móvil.</p>
 <p>Es el link que compartes en Instagram, WhatsApp masivo, QR de flyers, botón en la web.</p>
 
+<h3><code>/agendar</code> — reserva de clase de prueba</h3>
+<p>Sustituye al link de Calendly. Dos pasos: primero el horario (calendario del mes + horas del día elegido), luego los datos. Ver <a href="#agendador">Agendador de pruebas</a>.</p>
+<p><b>Campos</b>: nombre del padre, correo (<b>obligatorio</b>), celular, nombre del niño, fecha de nacimiento, ciudad, experiencia previa con programación/robótica, y cómo nos conoció.</p>
+<p>Conserva la protección de hermanos del webhook de Calendly: mismo teléfono con otro nombre de niño crea <b>dos leads</b>, no uno. Límite de 3 reservas por teléfono en 24 h.</p>
+
+<h3><code>/mi-clase/{manage_token}</code> — autogestión del padre</h3>
+<p>Ver, cambiar de horario o cancelar la propia clase de prueba, sin login. El token es un UUID no adivinable de <code>trial_bookings.manage_token</code>. Se le manda en el correo de confirmación, y se puede reenviar con el botón <b>"Copiar link de gestión"</b> en <code>/trial-leads/:id</code>.</p>
+<p>No deja tocar una clase que ya empezó — para eso está el WhatsApp.</p>
+
 <h3><code>/preferencias/{token}</code> — tokenizado</h3>
 <p>Para leads existentes. Se abre desde el link que copias con el botón "Copiar link preferencias" en <code>LeadDetail</code>. Prellena todos los datos que ya tenemos; el padre confirma/corrige y añade franjas.</p>
 <p>El token es un UUID guardado en <code>leads.form_token</code> (con índice único). No se puede adivinar por enumeración.</p>
@@ -746,7 +827,7 @@
 <h2 id="flujo-trial">Flujo: de trial a alumno <a class="toplink" href="#top">↑</a></h2>
 
 <ol>
-  <li>Lead en <code>trial_scheduled</code> con fecha, hora, profe y curso asignados.</li>
+  <li>El padre reserva en <code>/agendar</code> (o lo agendas tú desde <code>/trial-leads/new</code>). El lead queda en <code>trial_scheduled</code> con fecha, hora y <b>profesor ya asignado automáticamente</b>; el curso se completa a mano.</li>
   <li>El día de la prueba, el profe la dicta. Después registras <code>trial_attended</code> o <code>trial_no_show</code> desde <code>LeadDetail</code>. Opcionalmente añades <code>trial_objection</code> si el padre puso peros.</li>
   <li>Si hay decisión de matricular: botón <b>"Convertir a alumno"</b> en la ficha. Se crea la fila en <code>students</code> con los datos del lead, modality <code>virtual</code> por defecto, pack 8. El lead pasa a <code>enrolled</code>.</li>
   <li>Vas a <code>/student/&lt;id&gt;</code> o al grupo virtual correspondiente y creas la <code>course_enrollment</code> con plan de pago (1 cuota o 2).</li>
@@ -1379,13 +1460,22 @@ En cuanto el grupo esté confirmado con la fecha de inicio, te avisamos. ¡Nos v
 </div>
 
 <div class="card">
-<h4>Calendly</h4>
+<h4>Calendly — en retirada</h4>
 <ul>
+  <li><b>Sustituido por el <a href="#agendador">agendador propio</a></b> en agosto de 2026. Sigue activo en paralelo hasta apagarlo.</li>
   <li>Webhook <code>invitee.created</code> / <code>invitee.canceled</code> → edge function <code>calendly-webhook</code>.</li>
-  <li>Formulario con 6 preguntas custom en orden (celular, nombre hijo, edad, ciudad, exp. previa, cómo nos conociste).</li>
-  <li>Dedupe por <code>calendly_uri</code> UNIQUE.</li>
-  <li>Cancelaciones → status <code>trial_cancelled</code>.</li>
-  <li>Import histórico vía Google Apps Script <code>importCalendlyLeads</code>.</li>
+  <li>Dedupe por <code>calendly_uri</code> UNIQUE. Cancelaciones → status <code>trial_cancelled</code>.</li>
+  <li>Sus reservas cuentan como ocupación, así que no puede solaparse con el agendador propio.</li>
+  <li><b>Desactualizado</b>: <code>docs/calendly-integration.md</code> y el Apps Script <code>importCalendlyLeads</code> siguen hablando de la tabla <code>trial_leads</code>, que no existe desde el refactor de mayo. No los sigas.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Resend (correo transaccional)</h4>
+<ul>
+  <li>Dominio <code>akumaya.co</code> verificado en Cloudflare. Los registros de Resend viven en el subdominio <code>send.</code>, así que <b>no chocan</b> con el correo de Microsoft 365 del dominio raíz.</li>
+  <li>Secretos: <code>RESEND_API_KEY</code> (permiso sólo de envío), <code>RESEND_FROM</code>, <code>PUBLIC_APP_URL</code>.</li>
+  <li>Lo usa <code>trial-notify</code>: confirmación, recordatorio 24 h, reagenda y cancelación.</li>
 </ul>
 </div>
 
@@ -1451,6 +1541,10 @@ En cuanto el grupo esté confirmado con la fecha de inicio, te avisamos. ¡Nos v
     <tr><td><code>students</code></td><td>Alumnos matriculados. Incluye <code>modality</code> (<code>virtual</code>, <code>presencial</code>, <code>individual</code>) y metadatos de archivado: <code>archived</code>, <code>archived_reason</code>, <code>archived_at</code>, <code>archived_by</code>.</td></tr>
     <tr><td><code>payments</code></td><td>Historial de pagos por alumno.</td></tr>
     <tr><td><code>course_enrollments</code></td><td>Matrícula alumno↔grupo con plan 1/2 cuotas. <code>status</code>: <code>active</code>, <code>completed</code>, <code>withdrawn</code>.</td></tr>
+    <tr><td><code>trial_windows</code></td><td>Ventanas recurrentes en las que se pueden agendar pruebas (día, rango, duración de cada clase, estudiantes por clase). Se configuran en Ajustes → Clases de prueba.</td></tr>
+    <tr><td><code>trial_window_exceptions</code></td><td>Bloqueos y aperturas puntuales por fecha, encima de las ventanas recurrentes.</td></tr>
+    <tr><td><code>trial_bookings</code></td><td>La reserva de clase de prueba. Capa de escritura y árbitro de concurrencia; un trigger sincroniza los campos de trial hacia <code>leads</code>. <code>manage_token</code> (UUID) da acceso a <code>/mi-clase/{token}</code>.</td></tr>
+    <tr><td><code>notification_log</code></td><td>Correos enviados por reserva, canal y tipo — incluidos los fallos con su motivo. El índice único hace idempotente el recordatorio de 24 h.</td></tr>
     <tr><td><code>trial_reschedules</code></td><td>Historial de reagendas de clase de prueba. Guarda fecha/hora anterior, nueva, motivo, quién y cuándo lo hizo. Alimenta la sección "Historial de reagendas" en <code>/trial-leads/:id</code>.</td></tr>
     <tr><td><code>individual_schedules</code></td><td>Config estable de un alumno individual (1-a-1): profesor fijo, tema actual, patrón semanal (jsonb con array de <code>{day, start_time, end_time}</code>). UNIQUE por <code>student_id</code>.</td></tr>
     <tr><td><code>individual_sessions</code></td><td>Cada clase individual concreta. <code>status</code>: <code>scheduled</code> · <code>attended</code> · <code>cancelled_by_parent</code> · <code>no_show</code>. Incluye <code>notes</code> del profe, <code>original_date</code>/<code>original_time</code> cuando la sesión se movió, y motivos de reagenda/cancelación.</td></tr>
@@ -1464,7 +1558,7 @@ En cuanto el grupo esté confirmado con la fecha de inicio, te avisamos. ¡Nos v
     <tr><td><code>teachers</code></td><td>Profes con <code>subjects</code>, <code>availability</code>, <code>modalities</code>.</td></tr>
     <tr><td><code>user_roles</code></td><td>Rol por usuario. UNIQUE en <code>user_id</code>.</td></tr>
     <tr><td><code>profiles</code></td><td>Nombre visible del usuario.</td></tr>
-    <tr><td><code>settings</code></td><td>Config global (pack size, class day, holidays, payment methods).</td></tr>
+    <tr><td><code>settings</code></td><td>Config global (pack size, class day, holidays, payment methods) y reglas del agendador: <code>trial_duration_minutes</code>, <code>trial_min_lead_hours</code>, <code>trial_horizon_days</code>.</td></tr>
     <tr><td><code>whatsapp_conversations</code></td><td>Hilos de Pablo (phone, messages jsonb, escalated).</td></tr>
     <tr><td><code>instagram_conversations</code></td><td>Hilos IG DM (mismo modelo, otro canal).</td></tr>
   </tbody>
@@ -1476,6 +1570,10 @@ En cuanto el grupo esté confirmado con la fecha de inicio, te avisamos. ¡Nos v
 <table>
   <thead><tr><th>Función</th><th>Público / privado</th><th>Qué hace</th></tr></thead>
   <tbody>
+    <tr><td><code>trial-availability</code></td><td>Público</td><td>Huecos libres para <code>/agendar</code>. Devuelve fecha, hora y cupos; nunca el profesor asignado.</td></tr>
+    <tr><td><code>book-trial</code></td><td>Público</td><td>Reserva desde <code>/agendar</code>. Dedupe por teléfono con protección de hermanos, rate limit, y llama al RPC que asigna profe.</td></tr>
+    <tr><td><code>manage-trial</code></td><td>Público (auth por <code>manage_token</code>)</td><td>Endpoint de <code>/mi-clase/:token</code>. Acciones <code>read</code>/<code>cancel</code>/<code>reschedule</code>.</td></tr>
+    <tr><td><code>trial-notify</code></td><td>Interno (service role)</td><td>Correos de la clase de prueba vía Resend, con <code>.ics</code> adjunto. Lo llaman <code>book-trial</code>, <code>manage-trial</code> y el cron del recordatorio.</td></tr>
     <tr><td><code>calendly-webhook</code></td><td>Público (verificado por Calendly)</td><td>Recibe eventos <code>invitee.created</code>/<code>canceled</code>, upsert en <code>leads</code>.</td></tr>
     <tr><td><code>whatsapp-webhook</code></td><td>Público (verificado por Twilio)</td><td>Cerebro de Pablo. Guarda mensaje, llama Claude si no está escalado, ejecuta tools, responde TwiML.</td></tr>
     <tr><td><code>start-conversation</code></td><td>JWT (admin/staff)</td><td>Envía plantilla Twilio de bienvenida a un lead. Mueve a <code>contacted</code>.</td></tr>
@@ -1590,6 +1688,19 @@ En cuanto el grupo esté confirmado con la fecha de inicio, te avisamos. ¡Nos v
   <li><b>Diseño de Pablo bitácora por audio</b> documentado en la nueva sección <a href="#pablo-bitacora">Pablo — bitácora por audio</a>. Nada implementado aún; fuente completa en <code>docs/pablo-bitacora.md</code>.</li>
 </ul>
 
+<h3>15 de agosto 2026 — Agendador propio de clases de prueba</h3>
+<ul>
+  <li><b>Sustituto de Calendly</b> completo, en seis fases. Ver <a href="#agendador">Agendador de pruebas</a>. Calendly sigue activo en paralelo; sus reservas cuentan como ocupación, así que no hay solapes.</li>
+  <li><b>Nuevas tablas</b>: <code>trial_windows</code>, <code>trial_window_exceptions</code>, <code>trial_bookings</code>, <code>notification_log</code>. Vista <code>v_teacher_busy</code> con la ocupación real (grupos + individuales + pruebas + festivos).</li>
+  <li><b>Páginas públicas</b>: <code>/agendar</code> con calendario mensual, y <code>/mi-clase/{token}</code> para que el padre cambie o cancele solo.</li>
+  <li><b>Correo con Resend</b>: confirmación con <code>.ics</code>, recordatorio 24 h por <code>pg_cron</code>, y avisos de reagenda y cancelación.</li>
+  <li><b>Sección "Clases de prueba" en Settings</b>, con sugerencias desde la disponibilidad de los profes.</li>
+  <li><b>"¿Cómo nos has conocido?"</b> pasa a columna propia <code>leads.referral_source</code> (antes Calendly lo enterraba concatenado en <code>notes</code>, donde no se podía contar). Nueve canales, incluido TikTok.</li>
+  <li><b>Reagenda transaccional</b>: cancelar la anterior, escribir el historial y crear la nueva ocurre ahora en una sola operación. Antes eran dos sueltas.</li>
+  <li><b>Seguridad</b>: cerradas a <code>anon</code> todas las funciones <code>SECURITY DEFINER</code> del agendador y las seis heredadas (<code>has_role</code>, <code>handle_new_user</code>, etc.). La vista <code>v_teacher_busy</code> exponía la agenda completa de los profes; también cerrada. El linter de Supabase pasó de seis avisos a cero.</li>
+  <li><b>Bugs corregidos</b>: <code>capacity</code> no limitaba nada (una ventana de 1 cupo admitía tantas reservas como profesores hubiera); las clases que cruzaban medianoche reventaban con un error de constraint; y el link de autogestión del padre moría al reagendar.</li>
+</ul>
+
 <!-- ============================================================ -->
 <h2 id="pendientes">Pendientes / roadmap <a class="toplink" href="#top">↑</a></h2>
 
@@ -1599,6 +1710,26 @@ En cuanto el grupo esté confirmado con la fecha de inicio, te avisamos. ¡Nos v
   <li>Query/edge function que agrupa leads por (curso × franja × modalidad) y los cruza con profes cuyo subjects/availability/modalities matcheen.</li>
   <li>Nueva página <code>/group-formation</code> con clusters, barras de progreso al umbral <code>min_students_to_open</code>, botón "Abrir grupo".</li>
   <li>Sección de "leads sin match" para detectar dónde faltan profes o franjas.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Apagar Calendly (fase 7)</h4>
+<ul>
+  <li><b>Cambiar el link del prompt de Pablo</b> — sigue repartiendo <code>akumaya.co/clase-de-prueba-gratuita</code> en dos sitios de <code>whatsapp-webhook</code>. Es el primer paso y el más urgente.</li>
+  <li>Quitar el link de la web, la bio de Instagram y las campañas activas.</li>
+  <li>Esperar ~2 semanas con reservas entrando sólo por el agendador propio antes de desactivar el webhook.</li>
+  <li>Desactivar la suscripción del webhook en Calendly (dejar la edge function desplegada un mes por si llegan cancelaciones tardías) y cancelar la suscripción de pago.</li>
+  <li>Marcar <code>docs/calendly-integration.md</code> como histórico. El valor <code>calendly</code> del enum <code>lead_source</code> <b>se queda</b>: hay histórico que lo usa.</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>Higiene pendiente del agendador</h4>
+<ul>
+  <li><code>pg_net</code> está instalado en el esquema <code>public</code>; lo recomendado es moverlo. Aviso cosmético, pero tocarlo puede romper el recordatorio.</li>
+  <li>Activar la <b>protección de contraseñas filtradas</b> en Supabase Auth (un interruptor).</li>
+  <li>WhatsApp como segundo canal de aviso — requiere plantillas aprobadas por Meta.</li>
 </ul>
 </div>
 
@@ -1654,6 +1785,26 @@ En cuanto el grupo esté confirmado con la fecha de inicio, te avisamos. ¡Nos v
 <table>
   <thead><tr><th>Cuando pasa esto…</th><th>Haces esto</th></tr></thead>
   <tbody>
+    <tr>
+      <td>Un padre dice que no ve horarios en <code>/agendar</code></td>
+      <td>Revisa Ajustes → Clases de prueba: que haya ventanas activas, que el día no esté bloqueado, y que algún profe esté libre en esa franja. La antelación mínima (24 h) también recorta los huecos más cercanos.</td>
+    </tr>
+    <tr>
+      <td>Un padre no recibió el correo de confirmación</td>
+      <td>Mira <code>notification_log</code> filtrando por su lead: si hay fila con <code>error</code>, ahí está el motivo. Sin fila, es que faltan <code>RESEND_API_KEY</code>/<code>RESEND_FROM</code> o el lead no tiene email.</td>
+    </tr>
+    <tr>
+      <td>Necesitas poner una prueba a una hora fuera de las ventanas</td>
+      <td>En <code>/trial-leads/:id</code> → Reagendar → casilla "Forzar un horario". Salta la validación de ventanas, pero sigue sin dejar pisar a un profe ya ocupado.</td>
+    </tr>
+    <tr>
+      <td>Hay que reenviarle al padre su link para cambiar la clase</td>
+      <td>Botón "Copiar link de gestión" en <code>/trial-leads/:id</code>. El link no caduca ni aunque se reagende.</td>
+    </tr>
+    <tr>
+      <td>Algo devuelve <code>UNAUTHORIZED_LEGACY_JWT</code></td>
+      <td>El proyecto usa el formato nuevo de claves (<code>sb_secret_</code> / <code>sb_publishable_</code>) y Edge Functions rechaza las JWT antiguas. Sustituye la clave por la nueva.</td>
+    </tr>
     <tr>
       <td>Un lead te contacta por un teléfono y tú ya tenías otro registrado con otro número</td>
       <td>Editar el lead → añadir el nuevo número en "Teléfonos adicionales". La conversación de WhatsApp aparecerá automáticamente vinculada.</td>
