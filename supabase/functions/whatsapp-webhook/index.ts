@@ -306,6 +306,42 @@ Deno.serve(async (req) => {
     const body = params.get('Body') ?? '';
     const numMedia = parseInt(params.get('NumMedia') ?? '0', 10);
 
+    // --- Test-only reset command -------------------------------------------
+    // Lets an authorized tester wipe their own conversation (and the test lead
+    // it created) to run fresh trials. Gated by AKU_TEST_PHONES so a real parent
+    // can never trigger it — an unauthorized "/reset" is ignored silently.
+    const resetCmd = body.trim().toLowerCase();
+    const isResetCommand = ['/reset', '/reiniciar', 'reiniciar'].includes(resetCmd);
+    if (isResetCommand) {
+      const testPhones = (Deno.env.get('AKU_TEST_PHONES') ?? '')
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      const fromDigits = from.replace('whatsapp:', '').trim();
+      const isTester = testPhones.some((p) => p && fromDigits.includes(p));
+      if (!isTester) {
+        return twimlResponse(''); // not authorized → no-op, don't reveal the command
+      }
+
+      // Wipe the conversation thread
+      await supabase.from('whatsapp_conversations').delete().eq('phone', from);
+
+      // Wipe the test lead + its notes so repeated trials don't pile up duplicates.
+      // Scoped to this tester's phone only (leads.phone is stored without the
+      // "whatsapp:" prefix).
+      const { data: testLeads } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('phone', fromDigits);
+      const leadIds = (testLeads ?? []).map((l: any) => l.id);
+      if (leadIds.length > 0) {
+        await supabase.from('lead_notes').delete().in('lead_id', leadIds);
+        await supabase.from('leads').delete().in('id', leadIds);
+      }
+
+      return twimlResponse('🧹 Conversación reiniciada. Escríbeme cuando quieras y empezamos de cero.');
+    }
+
     // Process media attachments
     type ImageData = { base64: string; mediaType: string; permanentUrl: string };
     let imageData: ImageData | null = null;
