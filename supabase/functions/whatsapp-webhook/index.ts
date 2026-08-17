@@ -13,7 +13,11 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-function buildPabloPrompt(slotsSection: string): string { return `Eres Pablo, asistente de AKUMAYA Educación 🤖🇨🇴, una academia online que enseña programación, robótica, diseño 3D y creación de contenido a niños y niñas.
+function buildPabloPrompt(
+  slotsSection: string,
+  catalogSection: string,
+  lateEntrySection: string,
+): string { return `Eres Pablo, asistente de AKUMAYA Educación 🤖🇨🇴, una academia online que enseña programación, robótica, diseño 3D y creación de contenido a niños y niñas.
 
 ## TU PERSONALIDAD Y TONO
 - Eres cálido, cercano y entusiasta
@@ -98,10 +102,15 @@ ESPERA su respuesta.
 
 ### 4. RECOMENDACIÓN DE CURSO + PRECIO + HORARIO
 
-**CATEGORÍAS:**
-🟢 EXPLORADORES (RCZ, RC1, RC2, MC1, MC2)
-🔵 DESARROLLADORES (PGZ, PG1, PG2, RBX1, RBX2, Diseño 3D)
-🟣 ESPECIALISTAS (PG3, Unity, Godot)
+**CATÁLOGO DE CURSOS ACTIVOS** (única lista válida — NUNCA recomiendes un curso que no esté aquí):
+${catalogSection}
+
+**CATEGORÍAS DE PRECIO:**
+🟢 EXPLORADORES (RCZ, RC1, RC2, MC1, MC2, IA1)
+🔵 DESARROLLADORES (PGZ, PG1, PG2, PG3, RBX1, RBX2, IAG1, YT1, YT2)
+🟣 ESPECIALISTAS (UNI1, UNI2, IAG2, PG5, PG5-APIS)
+
+⚠️ Si un curso del catálogo NO aparece en ninguna categoría de precio, puedes mencionar que existe, pero NUNCA inventes su precio: di "te confirmo el valor exacto en un momento" y usa add_note para dejarlo registrado.
 
 **PRINCIPIANTES por edad:**
 - 7 años (o cerca de cumplir 8) → Real Coders Zero (RCZ). La edad mínima orientativa son los 8 años, pero NO es un requisito estricto. Si el niño/a tiene 7 años y le falta poco para los 8, o si el padre menciona que ya maneja bien el computador, trátalo como si tuviera 8 años y recomienda RCZ normalmente. NUNCA le pidas que espere a cumplir los 8 años.
@@ -113,9 +122,22 @@ ESPERA su respuesta.
 "¡Qué bien que ya tenga experiencia! 😊 Con ese nivel, sería ideal hacer una clase de prueba gratuita para evaluar exactamente dónde está. ¿Te gustaría agendarla? https://www.akumaya.co/clase-de-prueba-gratuita"
 
 ## FRANJAS DISPONIBLES ACTUALMENTE
-⚠️ CRÍTICO: Cada franja pertenece ÚNICAMENTE al curso indicado. NUNCA uses el horario de un curso para otro curso distinto. Si el curso recomendado NO aparece en esta lista, aplica la regla 15 (pregunta disponibilidad).
+⚠️ CRÍTICO: Cada franja pertenece ÚNICAMENTE al curso indicado. NUNCA uses el horario de un curso para otro curso distinto. Si el curso recomendado NO aparece en esta lista, aplica la regla 16 (ingreso tardío o preguntar disponibilidad).
 
 ${slotsSection}
+
+## GRUPOS CON INGRESO TARDÍO DISPONIBLE
+Grupos que ya arrancaron pero solo han dictado UNA clase. El niño todavía puede entrar: se le hace una clase de nivelación entre semana, antes de la segunda clase, para que llegue al mismo punto que sus compañeros.
+
+${lateEntrySection}
+
+Ofrécelo SOLO si el curso recomendado no tiene franja disponible arriba:
+"Justo tenemos un grupo de [CURSO] que ya arrancó, apenas lleva una clase. [nombre] todavía puede entrar: le hacemos una clase de nivelación entre semana para que llegue al día en la segunda clase del [FECHA]. ¿Te interesa?"
+
+⚠️ REGLAS DE LA NIVELACIÓN:
+- NUNCA propongas ni prometas un día y hora concretos para la nivelación. La coordina el equipo según la disponibilidad de la profesora.
+- Di siempre: "el equipo te confirma el día y la hora de la nivelación".
+- Si el padre acepta, regístralo con add_note: "Interesado en ingreso tardío al grupo [CÓDIGO] + clase de nivelación pendiente de agendar".
 
 **Formato de recomendación:**
 "Perfecto! Para [nombre/edad] te recomiendo **[NOMBRE DEL CURSO]**.
@@ -190,7 +212,12 @@ https://www.akumaya.co/clase-de-prueba-gratuita"
 12. REGLA DE ORO: después de cada mensaje, ESPERA respuesta antes de continuar
 13. Al proponer una franja, menciona siempre el curso, día, horario y fecha tentativa. Ejemplo: "El próximo grupo de RCZ arranca el [FECHA], sábados de [HORA INICIO] a [HORA FIN]. ¿Te viene bien ese horario?"
 14. Si el padre rechaza una franja, ofrece la siguiente franja activa del mismo curso (si la hay). Si no hay más franjas para ese curso, pregunta disponibilidad entre semana y regístrala con add_note.
-15. Si el curso recomendado NO aparece en la sección FRANJAS DISPONIBLES, di: "Estamos organizando el próximo grupo de [CURSO]. ¿Qué horario te vendría mejor, sábados o entre semana?" y registra la respuesta con add_note. NUNCA uses el horario de otro curso distinto.`; }
+15. Solo puedes recomendar cursos que aparezcan en el CATÁLOGO DE CURSOS ACTIVOS. Si el padre pregunta por un curso que no está en el catálogo, no lo confirmes: dile que lo verificas y regístralo con add_note.
+16. ORDEN DE PRIORIDAD para proponer horario del curso recomendado:
+    a) ¿Hay franja activa de ESE curso? → ofrécela (regla 13).
+    b) Si no hay franja pero SÍ hay un grupo de ESE curso en GRUPOS CON INGRESO TARDÍO → ofrécelo con la clase de nivelación.
+    c) Si no hay ninguna de las dos → di "Estamos organizando el próximo grupo de [CURSO]. ¿Qué horario del sábado te vendría mejor?" y registra la respuesta con add_note.
+    NUNCA uses el horario de otro curso distinto para rellenar.`; }
 
 
 // Claude tools definitions
@@ -262,6 +289,12 @@ NUNCA inventes datos. Si algo no aparece en la imagen o el texto, omítelo.`;
 // Max messages to keep in history (to avoid token overflow)
 const MAX_HISTORY_MESSAGES = 40;
 
+// "Today" in Colombia (UTC-5). Using the raw UTC date would flip a day early
+// between 19:00 and 24:00 local, which would mark a class as already taught.
+function todayInColombia(): string {
+  return new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -296,7 +329,64 @@ Deno.serve(async (req) => {
         return `- ${s.course_code} (${s.course_name}): ${s.day_of_week} ${s.start_time}–${s.end_time}, próximo inicio ${dateStr}`;
       }).join('\n');
     }
-    const DYNAMIC_PABLO_PROMPT = buildPabloPrompt(slotsSection);
+    // Active course catalog — the only courses Pablo is allowed to recommend.
+    const { data: coursesData } = await supabase
+      .from('virtual_courses')
+      .select('code, name')
+      .eq('is_active', true)
+      .order('code');
+
+    const catalogSection = (coursesData ?? []).length > 0
+      ? (coursesData ?? []).map((c: any) => `- ${c.code}: ${c.name}`).join('\n')
+      : 'Catálogo no disponible en este momento. No recomiendes ningún curso específico; pregunta la edad e intereses y regístralo con add_note.';
+
+    // Groups that already started but have run exactly ONE class. A new student
+    // can still join with a catch-up ("nivelación") class before session 2.
+    // NOTE: course_sessions.status is never set to 'completed' in practice, so a
+    // class counts as taught by date, not by flag.
+    const today = todayInColombia();
+    let lateEntrySection = 'No hay grupos con ingreso tardío disponible en este momento.';
+
+    const { data: openGroups } = await supabase
+      .from('course_groups')
+      .select('id, code, start_time, virtual_courses!inner(code, name)')
+      .in('status', ['active', 'forming']);
+
+    const openGroupIds = (openGroups ?? []).map((g: any) => g.id);
+    if (openGroupIds.length > 0) {
+      const { data: sessionRows } = await supabase
+        .from('course_sessions')
+        .select('group_id, scheduled_date')
+        .eq('status', 'scheduled')
+        .in('group_id', openGroupIds);
+
+      const taughtCount = new Map<string, number>();
+      const nextDate = new Map<string, string>();
+      for (const s of (sessionRows ?? []) as any[]) {
+        if (s.scheduled_date < today) {
+          taughtCount.set(s.group_id, (taughtCount.get(s.group_id) ?? 0) + 1);
+        } else {
+          const prev = nextDate.get(s.group_id);
+          if (!prev || s.scheduled_date < prev) nextDate.set(s.group_id, s.scheduled_date);
+        }
+      }
+
+      const lateEntryLines = (openGroups ?? [])
+        .filter((g: any) => taughtCount.get(g.id) === 1 && nextDate.get(g.id))
+        .map((g: any) => {
+          const course = g.virtual_courses;
+          const next = nextDate.get(g.id) as string;
+          const nextLabel = new Date(next + 'T12:00:00').toLocaleDateString('es-CO', {
+            weekday: 'long', day: 'numeric', month: 'long',
+          });
+          const time = g.start_time ? String(g.start_time).slice(0, 5) : 'horario por confirmar';
+          return `- ${course.code} (${course.name}), grupo ${g.code}: ${time}. Ya dictó 1 clase. Próxima clase: ${nextLabel}.`;
+        });
+
+      if (lateEntryLines.length > 0) lateEntrySection = lateEntryLines.join('\n');
+    }
+
+    const DYNAMIC_PABLO_PROMPT = buildPabloPrompt(slotsSection, catalogSection, lateEntrySection);
 
     // Parse Twilio's form-encoded body
     const rawBody = await req.text();
