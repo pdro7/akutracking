@@ -6,7 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, UserPlus, MessageCircle, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, UserPlus, MessageCircle, Link as LinkIcon, AlertTriangle } from 'lucide-react';
+import { extractTeacherConflict } from '@/lib/trialWindows';
+import { useTrialTeacherConflicts, describeConflict } from '@/hooks/useTrialTeacherConflicts';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -174,8 +180,12 @@ export default function LeadDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Solapes del profesor elegido para la prueba de este lead.
+  const { data: teacherConflicts = [] } = useTrialTeacherConflicts(id, editTrialTeacherId);
+  const [conflictText, setConflictText] = useState<string | null>(null);
+
   const saveEditMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (allowConflict: boolean = false) => {
       const { error } = await supabase.from('leads').update({
         child_name: editChildName.trim(),
         parent_name: editParentName.trim(),
@@ -188,7 +198,8 @@ export default function LeadDetail() {
         notes: editNotes.trim() || null,
         // trial_class_date / trial_class_time deliberately omitted here —
         // changes flow through rescheduleMutation so the history is tracked.
-        trial_teacher_id: editTrialTeacherId && editTrialTeacherId !== 'none' ? editTrialTeacherId : null,
+        // trial_teacher_id deliberately omitted here — va por set_trial_teacher,
+        // que escribe en la reserva (fuente de verdad) y comprueba solapes.
         trial_course_id: editTrialCourseId && editTrialCourseId !== 'none' ? editTrialCourseId : null,
         trial_objection: editTrialObjection.trim() || null,
         interested_course_id: editInterestedCourseId && editInterestedCourseId !== 'none' ? editInterestedCourseId : null,
@@ -198,13 +209,29 @@ export default function LeadDetail() {
         updated_at: new Date().toISOString(),
       }).eq('id', id!);
       if (error) throw error;
+
+      const { error: teacherErr } = await (supabase as any).rpc('set_trial_teacher', {
+        p_lead_id: id,
+        p_teacher_id: editTrialTeacherId && editTrialTeacherId !== 'none' ? editTrialTeacherId : null,
+        p_allow_conflict: allowConflict,
+      });
+      if (teacherErr) throw new Error(teacherErr.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lead', id] });
+      queryClient.invalidateQueries({ queryKey: ['trial_teacher_conflicts'] });
+      setConflictText(null);
       setEditing(false);
       toast.success('Lead actualizado');
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      const conflict = extractTeacherConflict(e.message);
+      if (conflict) {
+        setConflictText(conflict);
+        return;
+      }
+      toast.error(e.message);
+    },
   });
 
   const startConversationMutation = useMutation({
@@ -661,6 +688,19 @@ export default function LeadDetail() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {teacherConflicts.length > 0 && (
+                    <div className="mt-2 flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-2.5 text-sm text-amber-900">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Se solapa con otra clase suya</p>
+                        <ul className="mt-1 space-y-0.5">
+                          {teacherConflicts.map((c, i) => (
+                            <li key={i}>{describeConflict(c)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label className="mb-1 block">Curso asignado</Label>
@@ -688,7 +728,7 @@ export default function LeadDetail() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
-            <Button onClick={() => saveEditMutation.mutate()} disabled={saveEditMutation.isPending}>Guardar</Button>
+            <Button onClick={() => saveEditMutation.mutate(false)} disabled={saveEditMutation.isPending}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -708,6 +748,24 @@ export default function LeadDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!conflictText} onOpenChange={(o) => !o && setConflictText(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>El profesor ya tiene clase a esa hora</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choca con {conflictText}. Puedes asignarlo igualmente si sabes que la
+              otra clase se va a mover o cancelar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConflictText(null); saveEditMutation.mutate(true); }}>
+              Asignar de todas formas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

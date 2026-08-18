@@ -127,10 +127,23 @@ export function suggestWindowsFromTeachers(
 }
 
 /**
+ * TEACHER_CONFLICT viene como "TEACHER_CONFLICT: Clase individual con X (11:00–12:00)".
+ * Devuelve la descripción de la clase que choca, o null si el error es otro.
+ */
+export function extractTeacherConflict(raw: string): string | null {
+  const m = raw.match(/TEACHER_CONFLICT:\s*(.+)/);
+  return m ? m[1].trim() : null;
+}
+
+/**
  * Los errores del RPC book_trial_slot vienen como códigos en mayúsculas.
  * Se traducen aquí para no repetir los textos en cada pantalla.
  */
 export function translateBookingError(raw: string): string {
+  const conflict = extractTeacherConflict(raw);
+  if (conflict) {
+    return `El profesor ya tiene ${conflict} a esa hora.`;
+  }
   if (raw.includes('SLOT_TAKEN')) {
     return 'Ese horario acaba de ocuparse. Elige otro.';
   }
