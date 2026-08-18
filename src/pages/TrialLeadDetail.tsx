@@ -2,7 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { TrialSlotPicker, type TrialSlotValue } from '@/components/TrialSlotPicker';
-import { translateBookingError } from '@/lib/trialWindows';
+import { translateBookingError, extractTeacherConflict } from '@/lib/trialWindows';
+import { useTrialTeacherConflicts, describeConflict } from '@/hooks/useTrialTeacherConflicts';
 import { referralSourceLabel } from '@/lib/referralSources';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Calendar, Save, UserPlus, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Calendar, Save, UserPlus, Link as LinkIcon, AlertTriangle } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -137,8 +138,16 @@ export default function TrialLeadDetail() {
     }
   }, [lead]);
 
+  // Solapes del profesor elegido, para avisar antes de guardar.
+  const { data: teacherConflicts = [] } = useTrialTeacherConflicts(id, teacherId);
+
+  // Conflicto devuelto por el RPC al guardar: guarda qué acción reintentar
+  // si el admin decide asignarlo igualmente.
+  const [conflictPrompt, setConflictPrompt] =
+    useState<{ text: string; action: 'save' | 'reschedule' } | null>(null);
+
   const updateLeadMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (allowConflict: boolean = false) => {
       const { error } = await supabase
         .from('leads')
         .update({
@@ -151,7 +160,8 @@ export default function TrialLeadDetail() {
           // changes flow through rescheduleMutation so the history is tracked.
           status: status as any,
           notes: notes || null,
-          trial_teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
+          // trial_teacher_id deliberately omitted here — va por set_trial_teacher,
+          // que escribe en la reserva (fuente de verdad) y comprueba solapes.
           trial_course_id: virtualCourseId && virtualCourseId !== 'none' ? virtualCourseId : null,
           trial_objection: objection.trim() || null,
           updated_at: new Date().toISOString(),
@@ -159,13 +169,29 @@ export default function TrialLeadDetail() {
         .eq('id', id);
 
       if (error) throw error;
+
+      const { error: teacherErr } = await (supabase as any).rpc('set_trial_teacher', {
+        p_lead_id: id,
+        p_teacher_id: teacherId && teacherId !== 'none' ? teacherId : null,
+        p_allow_conflict: allowConflict,
+      });
+      if (teacherErr) throw new Error(teacherErr.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trial-lead', id] });
       queryClient.invalidateQueries({ queryKey: ['trial-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['trial_teacher_conflicts'] });
+      setConflictPrompt(null);
       toast.success('Actualizado correctamente');
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => {
+      const conflict = extractTeacherConflict(error.message);
+      if (conflict) {
+        setConflictPrompt({ text: conflict, action: 'save' });
+        return;
+      }
+      toast.error(error.message);
+    },
   });
 
   const { data: reschedules = [] } = useQuery({
@@ -200,7 +226,7 @@ export default function TrialLeadDetail() {
   });
 
   const rescheduleMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (allowConflict: boolean = false) => {
       if (!lead) throw new Error('Lead no encontrado');
       if (!slot.date) throw new Error('Elige el nuevo horario');
       const { data: { user } } = await supabase.auth.getUser();
@@ -217,20 +243,30 @@ export default function TrialLeadDetail() {
         p_reason: rescheduleReason.trim() || null,
         p_actor: user?.id ?? null,
         p_force: slot.force,
+        p_allow_conflict: allowConflict,
       });
-      if (error) throw new Error(translateBookingError(error.message));
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trial-lead', id] });
       queryClient.invalidateQueries({ queryKey: ['trial-leads'] });
       queryClient.invalidateQueries({ queryKey: ['trial_reschedules', id] });
       queryClient.invalidateQueries({ queryKey: ['trial_availability'] });
+      queryClient.invalidateQueries({ queryKey: ['trial_teacher_conflicts'] });
       setShowRescheduleDialog(false);
       setSlot({ date: '', time: '', force: false });
       setRescheduleReason('');
+      setConflictPrompt(null);
       toast.success('Clase de prueba reagendada');
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      const conflict = extractTeacherConflict(e.message);
+      if (conflict) {
+        setConflictPrompt({ text: conflict, action: 'reschedule' });
+        return;
+      }
+      toast.error(translateBookingError(e.message));
+    },
   });
 
   const openReschedule = () => {
@@ -292,7 +328,7 @@ export default function TrialLeadDetail() {
       toast.error('Completa los campos requeridos');
       return;
     }
-    updateLeadMutation.mutate();
+    updateLeadMutation.mutate(false);
   };
 
   if (isLoading) {
@@ -505,6 +541,20 @@ export default function TrialLeadDetail() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {teacherConflicts.length > 0 && (
+                  <div className="mt-2 flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-2.5 text-sm text-amber-900">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Se solapa con otra clase suya</p>
+                      <ul className="mt-1 space-y-0.5">
+                        {teacherConflicts.map((c, i) => (
+                          <li key={i}>{describeConflict(c)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -573,12 +623,37 @@ export default function TrialLeadDetail() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRescheduleDialog(false)}>Cancelar</Button>
-            <Button onClick={() => rescheduleMutation.mutate()} disabled={rescheduleMutation.isPending || !slot.date}>
+            <Button onClick={() => rescheduleMutation.mutate(false)} disabled={rescheduleMutation.isPending || !slot.date}>
               {rescheduleMutation.isPending ? 'Guardando...' : 'Reagendar'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!conflictPrompt} onOpenChange={(o) => !o && setConflictPrompt(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>El profesor ya tiene clase a esa hora</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choca con {conflictPrompt?.text}. Puedes asignarlo igualmente si sabes
+              que la otra clase se va a mover o cancelar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const action = conflictPrompt?.action;
+                setConflictPrompt(null);
+                if (action === 'save') updateLeadMutation.mutate(true);
+                if (action === 'reschedule') rescheduleMutation.mutate(true);
+              }}
+            >
+              Asignar de todas formas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
         <AlertDialogContent>
