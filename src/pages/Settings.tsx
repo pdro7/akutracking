@@ -14,6 +14,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { generateSessionDates } from '@/lib/holidays';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TimeSlotPicker } from '@/components/TimeSlotPicker';
+import { AvailabilityRangePicker } from '@/components/AvailabilityRangePicker';
+import { parseAvailability, normalizeRanges, rangeLabel, DAY_LABEL as AVAIL_DAY_LABEL,
+         AVAILABILITY_DAYS, type AvailabilityRange } from '@/lib/availability';
 import { SUBJECTS, SUBJECT_LABEL, MODALITIES, MODALITY_LABEL } from '@/lib/subjects';
 import { TIME_SLOTS, type SlotDay } from '@/lib/timeSlots';
 import { TrialWindowsEditor } from '@/components/settings/TrialWindowsEditor';
@@ -76,7 +79,7 @@ export default function Settings() {
   const [teacherName, setTeacherName] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
   const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
-  const [teacherAvailability, setTeacherAvailability] = useState<string[]>([]);
+  const [teacherAvailability, setTeacherAvailability] = useState<AvailabilityRange[]>([]);
   const [teacherModalities, setTeacherModalities] = useState<string[]>([]);
   const [deleteTeacherId, setDeleteTeacherId] = useState<string | null>(null);
   const [reinviteTeacher, setReinviteTeacher] = useState<{ id: string; email: string; name: string } | null>(null);
@@ -208,7 +211,7 @@ export default function Settings() {
         name: teacherName.trim(),
         email: teacherEmail.trim() || null,
         subjects: teacherSubjects,
-        availability: teacherAvailability,
+        availability: normalizeRanges(teacherAvailability),
         modalities: teacherModalities,
       };
       if (editingTeacher) {
@@ -893,7 +896,7 @@ export default function Settings() {
                         >
                           <CalendarClock size={14} />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setTeacherEmail(teacher.email || ''); setTeacherSubjects(Array.isArray((teacher as any).subjects) ? (teacher as any).subjects : []); setTeacherAvailability(Array.isArray((teacher as any).availability) ? (teacher as any).availability : []); setTeacherModalities(Array.isArray((teacher as any).modalities) ? (teacher as any).modalities : []); setShowTeacherDialog(true); }}>
+                        <Button variant="ghost" size="sm" onClick={() => { setEditingTeacher(teacher); setTeacherName(teacher.name); setTeacherEmail(teacher.email || ''); setTeacherSubjects(Array.isArray((teacher as any).subjects) ? (teacher as any).subjects : []); setTeacherAvailability(parseAvailability((teacher as any).availability)); setTeacherModalities(Array.isArray((teacher as any).modalities) ? (teacher as any).modalities : []); setShowTeacherDialog(true); }}>
                           <Pencil size={14} />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => setDeleteTeacherId(teacher.id)}>
@@ -1361,7 +1364,7 @@ export default function Settings() {
                 ))}
               </div>
             </div>
-            <TimeSlotPicker
+            <AvailabilityRangePicker
               value={teacherAvailability}
               onChange={setTeacherAvailability}
               label="Disponibilidad horaria"
@@ -1409,63 +1412,41 @@ export default function Settings() {
             </DialogDescription>
           </DialogHeader>
           {(() => {
-            const availSet = new Set<string>(
-              Array.isArray(viewAvailabilityTeacher?.availability) ? viewAvailabilityTeacher.availability : []
-            );
-            const DAYS: SlotDay[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-            const DAY_LABEL: Record<SlotDay, string> = { mon: 'Lun', tue: 'Mar', wed: 'Mié', thu: 'Jue', fri: 'Vie', sat: 'Sáb' };
-            const bands = Array.from(
-              new Map(
-                TIME_SLOTS.map((s) => [`${s.from}-${s.to}`, { from: s.from, to: s.to }])
-              ).values()
-            ).sort((a, b) => a.from.localeCompare(b.from));
-            const slotFor = (day: SlotDay, from: string, to: string) =>
-              TIME_SLOTS.find((s) => s.day === day && s.from === from && s.to === to);
-            const total = availSet.size;
+            const ranges = parseAvailability(viewAvailabilityTeacher?.availability);
+            if (ranges.length === 0) {
+              return (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Este profesor todavía no ha definido su disponibilidad.
+                </p>
+              );
+            }
             return (
-              <div className="py-2">
-                {total === 0 ? (
-                  <p className="text-sm text-muted-foreground py-6 text-center">
-                    Este profesor todavía no ha definido su disponibilidad.
-                  </p>
-                ) : (
-                  <>
-                    <p className="text-xs text-muted-foreground mb-2">{total} franja{total === 1 ? '' : 's'} disponible{total === 1 ? '' : 's'}.</p>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm border-collapse">
-                        <thead>
-                          <tr>
-                            <th className="text-left font-normal text-xs text-muted-foreground p-2 w-24">Franja</th>
-                            {DAYS.map((d) => (
-                              <th key={d} className="font-medium text-xs text-muted-foreground p-2 text-center">{DAY_LABEL[d]}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {bands.map(({ from, to }) => (
-                            <tr key={`${from}-${to}`} className="border-t">
-                              <td className="text-xs font-mono text-muted-foreground p-2 whitespace-nowrap">{from}–{to}</td>
-                              {DAYS.map((d) => {
-                                const slot = slotFor(d, from, to);
-                                if (!slot) {
-                                  return <td key={d} className="p-2"><div className="h-8 rounded bg-muted/30" /></td>;
-                                }
-                                const on = availSet.has(slot.id);
-                                return (
-                                  <td key={d} className="p-2">
-                                    <div className={`h-8 rounded flex items-center justify-center text-xs ${on ? 'bg-green-500/20 text-green-700 border border-green-500/40 font-semibold' : 'bg-muted/30 text-muted-foreground'}`}>
-                                      {on ? '✓' : ''}
-                                    </div>
-                                  </td>
-                                );
-                              })}
-                            </tr>
+              <div className="py-2 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  {ranges.length} franja{ranges.length === 1 ? '' : 's'} declarada{ranges.length === 1 ? '' : 's'}.
+                </p>
+                {AVAILABILITY_DAYS.map((d) => {
+                  const ofDay = ranges.filter((r) => r.day === d);
+                  return (
+                    <div key={d} className="flex items-center gap-3 border-t pt-2">
+                      <div className="w-24 shrink-0 text-sm font-medium">{AVAIL_DAY_LABEL[d]}</div>
+                      {ofDay.length === 0 ? (
+                        <span className="text-sm text-muted-foreground">No disponible</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {ofDay.map((r, i) => (
+                            <span
+                              key={i}
+                              className="rounded-md border border-green-500/40 bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-700"
+                            >
+                              {r.from}–{r.to}
+                            </span>
                           ))}
-                        </tbody>
-                      </table>
+                        </div>
+                      )}
                     </div>
-                  </>
-                )}
+                  );
+                })}
               </div>
             );
           })()}

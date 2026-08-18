@@ -6,7 +6,8 @@
 // ventanas: "Juan tiene libre los martes por la tarde". Nunca genera
 // huecos por sí sola.
 
-import { TIME_SLOTS, type SlotDay } from './timeSlots';
+import { type SlotDay } from './timeSlots';
+import { parseAvailability } from './availability';
 
 // weekday se guarda como en extract(dow) de Postgres y getDay() de JS:
 // 0 = domingo … 6 = sábado.
@@ -86,35 +87,35 @@ export function slotStarts(start: string, end: string, duration: number): string
 
 /**
  * Deriva ventanas candidatas de la disponibilidad declarada por los
- * profesores. Una franja se sugiere si al menos un profesor activo la
- * marcó como disponible; se listan todos los que la cubren para que el
- * admin vea con quién contaría.
+ * profesores. Cada rango declarado se propone tal cual, con la lista de
+ * quienes lo cubren, para que el admin vea con quién contaría.
+ *
+ * Dos profesores con el mismo rango dan una sola sugerencia; con rangos
+ * distintos dan una cada uno, que es lo correcto: son ofertas distintas.
  */
 export function suggestWindowsFromTeachers(
   teachers: TeacherLike[],
 ): WindowSuggestion[] {
-  const bySlot = new Map<string, string[]>();
+  const byRange = new Map<string, { day: SlotDay; from: string; to: string; names: string[] }>();
 
   for (const t of teachers) {
     if (t.is_active === false) continue;
-    const slots = Array.isArray(t.availability) ? (t.availability as string[]) : [];
-    for (const slotId of slots) {
-      const names = bySlot.get(slotId) ?? [];
-      names.push(t.name);
-      bySlot.set(slotId, names);
+    for (const r of parseAvailability(t.availability)) {
+      const key = `${r.day}-${r.from}-${r.to}`;
+      const entry = byRange.get(key) ?? { day: r.day, from: r.from, to: r.to, names: [] };
+      entry.names.push(t.name);
+      byRange.set(key, entry);
     }
   }
 
   const out: WindowSuggestion[] = [];
-  for (const slot of TIME_SLOTS) {
-    const names = bySlot.get(slot.id);
-    if (!names || names.length === 0) continue;
+  for (const [key, e] of byRange) {
     out.push({
-      weekday: SLOT_DAY_TO_WEEKDAY[slot.day],
-      start_time: slot.from,
-      end_time: slot.to,
-      source_slot_id: slot.id,
-      teachers: names.sort(),
+      weekday: SLOT_DAY_TO_WEEKDAY[e.day],
+      start_time: e.from,
+      end_time: e.to,
+      source_slot_id: key,
+      teachers: e.names.sort(),
     });
   }
 
