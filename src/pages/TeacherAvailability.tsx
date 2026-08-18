@@ -8,7 +8,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { TimeSlotPicker } from '@/components/TimeSlotPicker';
+import { AvailabilityRangePicker } from '@/components/AvailabilityRangePicker';
+import { parseAvailability, normalizeRanges, type AvailabilityRange } from '@/lib/availability';
 import { SUBJECTS, SUBJECT_LABEL, MODALITIES, MODALITY_LABEL } from '@/lib/subjects';
 import { useTeacherRecord } from '@/hooks/useUserRole';
 
@@ -34,13 +35,13 @@ export default function TeacherAvailability() {
   });
 
   const [subjects, setSubjects] = useState<string[]>([]);
-  const [availability, setAvailability] = useState<string[]>([]);
+  const [availability, setAvailability] = useState<AvailabilityRange[]>([]);
   const [modalities, setModalities] = useState<string[]>([]);
 
   useEffect(() => {
     if (!teacher) return;
     setSubjects(Array.isArray(teacher.subjects) ? teacher.subjects : []);
-    setAvailability(Array.isArray(teacher.availability) ? (teacher.availability as string[]) : []);
+    setAvailability(parseAvailability(teacher.availability));
     setModalities(Array.isArray(teacher.modalities) ? teacher.modalities : []);
   }, [teacher]);
 
@@ -49,7 +50,7 @@ export default function TeacherAvailability() {
       if (!teacherId) throw new Error('Sin registro de profesor');
       const { error } = await supabase.from('teachers').update({
         subjects,
-        availability,
+        availability: normalizeRanges(availability),
         modalities,
       }).eq('id', teacherId);
       if (error) throw error;
@@ -121,10 +122,10 @@ export default function TeacherAvailability() {
           </div>
         </div>
 
-        <TimeSlotPicker
+        <AvailabilityRangePicker
           value={availability}
           onChange={setAvailability}
-          label="Franjas horarias en las que puedo dictar"
+          label="Horas en las que puedo dictar"
         />
 
         <div className="flex justify-end pt-2">

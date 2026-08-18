@@ -48,7 +48,10 @@ export const TIME_SLOTS: TimeSlot[] = [
   slot('sat', '14:00', '15:30', 'sat-pm'),
   slot('sat', '15:30', '17:00', 'sat-pm'),
 
-  ...WEEKDAYS.flatMap((d) => [slot(d, '09:00', '10:30', 'wk-am')]),
+  ...WEEKDAYS.flatMap((d) => [
+    slot(d, '09:00', '10:30', 'wk-am'),
+    slot(d, '10:30', '12:00', 'wk-am'),
+  ]),
 
   ...WEEKDAYS.flatMap((d) => [slot(d, '16:30', '18:00', 'wk-pm')]),
 ];
